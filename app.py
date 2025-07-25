@@ -332,7 +332,8 @@ def get_expenditure_report():
             activities_params.append(end_date)
             general_expenses_params.append(end_date)
 
-        activities_with_expenditure = cur.execute(activities_sql, activities_params).fetchall()
+        cur.execute(activities_sql, activities_params)
+	activities_with_expenditure = cur.fetchall()
         general_expenses = cur.execute(general_expenses_sql, general_expenses_params).fetchall()
 
         # Combine and sort results by date
