@@ -1,7 +1,7 @@
 import os
-from flask import Flask, request, jsonify, render_template, Blueprint, send_from_directory
-import psycopg2 # Changed from sqlite3
-from psycopg2 import extras # To fetch results as dictionaries
+from flask import Flask, request, jsonify, render_template, Blueprint, make_response, send_from_directory
+import psycopg2
+from psycopg2 import extras
 import logging
 from dotenv import load_dotenv
 
@@ -26,10 +26,6 @@ app.register_blueprint(node_modules_bp)
 # --- Configuration ---
 # Use DATABASE_URL for PostgreSQL, or a default for local testing
 DATABASE_URL = os.getenv('DATABASE_URL') # This will be set on Render
-# For local testing without Render DB, you might still use SQLite or a local PG.
-# For simplicity, we'll assume local testing might use a local PG, or you'll mostly test on Render now.
-# If DATABASE_URL is not set, we'll default to an invalid value that will cause an error locally,
-# ensuring you set it up correctly for Render.
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -69,7 +65,6 @@ def init_db():
         logging.info("Data seeded from seed.sql")
 
         conn.commit()
-        logging.info("Database initialized with schema and seed data.")
     except psycopg2.Error as e:
         logging.error(f"Error initializing database: {e}")
         if conn:
@@ -98,15 +93,16 @@ def handle_leads():
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
             """
             cur.execute(sql, (data['firstName'], data.get('lastName'), data.get('title'),
-                              data['company'], data.get('email'), data.get('phone'),
-                              data.get('product'), data['stage'], data['dateOfContact'],
-                              data.get('followUp'), data.get('notes')))
+                             data['company'], data.get('email'), data.get('phone'),
+                             data.get('product'), data['stage'], data['dateOfContact'],
+                             data.get('followUp'), data.get('notes')))
             new_lead_id = cur.fetchone()['id']
             conn.commit()
             return jsonify({"message": "Lead added successfully", "id": new_lead_id}), 201
 
         elif request.method == 'GET':
-            leads = cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC").fetchall()
+            cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC")
+            leads = cur.fetchall()
             return jsonify(leads)
 
         elif request.method == 'PUT':
@@ -118,9 +114,9 @@ def handle_leads():
                 WHERE id = %s RETURNING id;
             """
             cur.execute(sql, (data['firstName'], data.get('lastName'), data.get('title'),
-                              data['company'], data.get('email'), data.get('phone'),
-                              data.get('product'), data['stage'], data['dateOfContact'],
-                              data.get('followUp'), data.get('notes'), data['id']))
+                             data['company'], data.get('email'), data.get('phone'),
+                             data.get('product'), data['stage'], data['dateOfContact'],
+                             data.get('followUp'), data.get('notes'), data['id']))
             conn.commit()
             return jsonify({"message": "Lead updated successfully", "id": data['id']})
 
@@ -159,8 +155,8 @@ def handle_lead_activities():
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
             """
             cur.execute(sql, (data['lead_id'], data['activity_type'], data['activity_date'],
-                              data.get('description'), data.get('latitude'), data.get('longitude'),
-                              data.get('location_name'), data.get('expenditure', 0.0)))
+                             data.get('description'), data.get('latitude'), data.get('longitude'),
+                             data.get('location_name'), data.get('expenditure', 0.0)))
             new_activity_id = cur.fetchone()['id']
 
             # If it's a 'visit' or 'general_expense' activity, also add to calendar_events
@@ -183,15 +179,16 @@ def handle_lead_activities():
         elif request.method == 'GET':
             lead_id = request.args.get('lead_id')
             if lead_id:
-                activities = cur.execute("""
+                cur.execute("""
                     SELECT id, lead_id, activity_type, activity_date, description, latitude, longitude, location_name, expenditure, created_at
                     FROM lead_activities WHERE lead_id = %s ORDER BY created_at DESC;
-                """, (lead_id,)).fetchall()
+                """, (lead_id,))
             else:
-                activities = cur.execute("""
+                cur.execute("""
                     SELECT id, lead_id, activity_type, activity_date, description, latitude, longitude, location_name, expenditure, created_at
                     FROM lead_activities ORDER BY created_at DESC;
-                """).fetchall()
+                """)
+            activities = cur.fetchall()
             return jsonify(activities)
 
     except psycopg2.Error as e:
@@ -230,7 +227,8 @@ def handle_general_expenses():
             return jsonify({"message": "General expense added successfully", "id": new_expense_id}), 201
 
         elif request.method == 'GET':
-            expenses = cur.execute("SELECT id, date, description, amount, created_at FROM general_expenses ORDER BY date DESC").fetchall()
+            cur.execute("SELECT id, date, description, amount, created_at FROM general_expenses ORDER BY date DESC")
+            expenses = cur.fetchall()
             return jsonify(expenses)
 
     except psycopg2.Error as e:
@@ -263,14 +261,15 @@ def handle_calendar_events():
             return jsonify({"message": "Calendar event added successfully", "id": new_event_id}), 201
 
         elif request.method == 'GET':
-            events = cur.execute("""
+            cur.execute("""
                 SELECT ce.id, ce.date, ce.description, ce.type, ce.amount,
-                       l.firstName || ' ' || COALESCE(l.lastName, '') AS lead_name,
-                       ce.lead_id
+                        l.firstName || ' ' || COALESCE(l.lastName, '') AS lead_name,
+                        ce.lead_id
                 FROM calendar_events ce
                 LEFT JOIN leads l ON ce.lead_id = l.id
                 ORDER BY ce.date DESC;
-            """).fetchall()
+            """)
+            events = cur.fetchall()
             return jsonify(events)
 
     except psycopg2.Error as e:
@@ -332,9 +331,12 @@ def get_expenditure_report():
             activities_params.append(end_date)
             general_expenses_params.append(end_date)
 
+        # --- CORRECTED psycopg2 execute and fetchall usage ---
         cur.execute(activities_sql, activities_params)
-	activities_with_expenditure = cur.fetchall()
-        general_expenses = cur.execute(general_expenses_sql, general_expenses_params).fetchall()
+        activities_with_expenditure = cur.fetchall()
+
+        cur.execute(general_expenses_sql, general_expenses_params)
+        general_expenses = cur.fetchall()
 
         # Combine and sort results by date
         report_items = [dict(row) for row in activities_with_expenditure] + [dict(row) for row in general_expenses]
@@ -355,7 +357,8 @@ def export_leads():
     try:
         conn = get_db_connection()
         cur = get_db_cursor(conn)
-        leads = cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC").fetchall()
+        cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC")
+        leads = cur.fetchall()
 
         from io import StringIO
         import csv
@@ -439,8 +442,12 @@ def export_expenditure_report():
             activities_params.append(end_date)
             general_expenses_params.append(end_date)
 
-        activities_with_expenditure = cur.execute(activities_sql, activities_params).fetchall()
-        general_expenses = cur.execute(general_expenses_sql, general_expenses_params).fetchall()
+        # --- CORRECTED psycopg2 execute and fetchall usage ---
+        cur.execute(activities_sql, activities_params)
+        activities_with_expenditure = cur.fetchall()
+
+        cur.execute(general_expenses_sql, general_expenses_params)
+        general_expenses = cur.fetchall()
 
         report_items = [dict(row) for row in activities_with_expenditure] + \
                        [dict(row) for row in general_expenses]
