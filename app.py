@@ -1,8 +1,8 @@
+import os
 from flask import Flask, request, jsonify, render_template, Blueprint, send_from_directory
 import psycopg2 # Changed from sqlite3
 from psycopg2 import extras # To fetch results as dictionaries
 import logging
-import os
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -490,4 +490,7 @@ if __name__ == '__main__':
     # If not set, it will try to connect to an undefined DATABASE_URL, which will fail.
     # To run locally with SQLite again temporarily, you'd have to revert this file.
     # init_db() # Keep this commented out for automatic deployments
-    app.run(debug=True)
+
+    # === YOU NEED TO MAKE THE CHANGE HERE ===
+    port = int(os.environ.get('PORT', 5000))
+    app.run(debug=True, host='0.0.0.0', port=port)
