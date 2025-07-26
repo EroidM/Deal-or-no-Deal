@@ -9,7 +9,72 @@ document.addEventListener('DOMContentLoaded', function() {
     flatpickr("#reportStartDate", {});
     flatpickr("#reportEndDate", {});
 
-    // --- API Interaction Functions (UPDATED: Added /api/ prefix to all endpoints) ---
+    // --- Modal Handling Functions ---
+    const leadModal = document.getElementById('leadModal');
+    const visitModal = document.getElementById('visitModal');
+    const generalExpenseModal = document.getElementById('generalExpenseModal');
+    const generalEventModal = document.getElementById('generalEventModal');
+
+    function showModal(modalElement, title = '') {
+        if (title) {
+            const modalTitleElement = modalElement.querySelector('h2');
+            if (modalTitleElement) {
+                modalTitleElement.textContent = title;
+            }
+        }
+        modalElement.classList.add('active');
+    }
+
+    function closeModal(modalElement) {
+        modalElement.classList.remove('active');
+        // Clear forms on close (optional, but good for "Add" modals)
+        const form = modalElement.querySelector('form');
+        if (form) {
+            form.reset();
+        }
+    }
+
+    // Event listeners for opening modals
+    document.getElementById('addLeadModalBtn').addEventListener('click', function() {
+        showModal(leadModal, 'Add New Lead');
+        document.getElementById('addLeadForm').reset(); // Ensure form is clear for new lead
+        document.getElementById('leadId').value = ''; // Clear hidden ID for new lead
+    });
+
+    document.getElementById('addExpenseModalBtn').addEventListener('click', function() {
+        showModal(generalExpenseModal, 'Add General Expense');
+        document.getElementById('addExpenseForm').reset();
+    });
+
+    document.getElementById('addEventModalBtn').addEventListener('click', function() {
+        showModal(generalEventModal, 'Add Calendar Event');
+        document.getElementById('addEventForm').reset();
+        populateLeadSelect(); // Populate lead dropdown for calendar event
+    });
+
+    // Event listeners for closing modals (using their IDs)
+    document.getElementById('closeLeadModalBtn').addEventListener('click', function() {
+        closeModal(leadModal);
+    });
+    document.getElementById('closeVisitModalBtn').addEventListener('click', function() {
+        closeModal(visitModal);
+    });
+    document.getElementById('closeGeneralExpenseModalBtn').addEventListener('click', function() {
+        closeModal(generalExpenseModal);
+    });
+    document.getElementById('closeGeneralEventModalBtn').addEventListener('click', function() {
+        closeModal(generalEventModal);
+    });
+
+    // Close modal when clicking outside content
+    window.addEventListener('click', function(event) {
+        if (event.target === leadModal) closeModal(leadModal);
+        if (event.target === visitModal) closeModal(visitModal);
+        if (event.target === generalExpenseModal) closeModal(generalExpenseModal);
+        if (event.target === generalEventModal) closeModal(generalEventModal);
+    });
+
+    // --- API Interaction Functions ---
 
     // Function to fetch and display leads
     async function fetchLeads() {
@@ -19,17 +84,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const leads = await response.json();
-            const leadsList = document.getElementById('leadsList');
+            const leadsList = document.getElementById('recentLeadsTable').querySelector('tbody');
             leadsList.innerHTML = ''; // Clear existing leads
 
             leads.forEach(lead => {
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.firstName} ${lead.lastName || ''}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.firstName} ${lead.lastName || ''}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.company}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.stage}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.dateOfContact}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.followUp || 'N/A'}</td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}">View</button>
                         <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}">Delete</button>
@@ -37,11 +102,132 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 leadsList.appendChild(row);
             });
+            updateLeadStats(leads); // Update dashboard stats
+            populateLeadSelect(leads); // Populate lead dropdowns
         } catch (error) {
             console.error('Error fetching leads:', error);
-            alert('Failed to load leads.');
+            showMessage('Failed to load leads.', 'error');
         }
     }
+
+    // Function to update lead statistics
+    function updateLeadStats(leads) {
+        const totalLeads = leads.length;
+        const newLeads = leads.filter(lead => lead.stage === 'New').length;
+        const qualifiedLeads = leads.filter(lead => lead.stage === 'Qualified').length;
+        const closedWonLeads = leads.filter(lead => lead.stage === 'Closed Won').length;
+        const closedLostLeads = leads.filter(lead => lead.stage === 'Closed Lost').length;
+
+        document.getElementById('totalLeadsCount').textContent = totalLeads;
+        document.getElementById('newLeadsCount').textContent = newLeads;
+        document.getElementById('qualifiedLeadsCount').textContent = qualifiedLeads;
+        document.getElementById('closedWonLeadsCount').textContent = closedWonLeads;
+        document.getElementById('closedLostLeadsCount').textContent = closedLostLeads;
+
+        updateLeadsByStageChart(leads);
+        updateUpcomingFollowups(leads);
+    }
+
+    // Function to populate lead select dropdowns (for activities/events)
+    function populateLeadSelect(leads = []) {
+        const eventLeadSelect = document.getElementById('eventLeadId');
+        const activityLeadIdInput = document.getElementById('activityLeadId'); // Hidden input for activity form
+
+        // Clear existing options, add default "No Lead" option for calendar events
+        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>';
+
+        leads.forEach(lead => {
+            const option = document.createElement('option');
+            option.value = lead.id;
+            option.textContent = `${lead.firstName} ${lead.lastName || ''} (${lead.company})`;
+            eventLeadSelect.appendChild(option);
+        });
+
+        // If activityLeadIdInput exists (for visitModal), set its value if a lead is selected
+        if (activityLeadIdInput && activityLeadIdInput.value) {
+             // Find the lead in the fetched leads and display its name
+             const selectedLead = leads.find(lead => lead.id == activityLeadIdInput.value);
+             if (selectedLead) {
+                 document.getElementById('activityLeadName').textContent = `${selectedLead.firstName} ${selectedLead.lastName || ''} (${selectedLead.company})`;
+             }
+        }
+    }
+
+
+    // Function to update Leads by Stage Chart
+    let leadsByStageChart; // Declare chart globally
+    function updateLeadsByStageChart(leads) {
+        const stageCounts = leads.reduce((acc, lead) => {
+            acc[lead.stage] = (acc[lead.stage] || 0) + 1;
+            return acc;
+        }, {});
+
+        const labels = Object.keys(stageCounts);
+        const data = Object.values(stageCounts);
+
+        const ctx = document.getElementById('leadsByStageChart').getContext('2d');
+
+        if (leadsByStageChart) {
+            leadsByStageChart.destroy(); // Destroy existing chart before creating a new one
+        }
+
+        leadsByStageChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: labels,
+                datasets: [{
+                    data: data,
+                    backgroundColor: [
+                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#17a2b8'
+                    ],
+                    hoverOffset: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                    },
+                    title: {
+                        display: false,
+                        text: 'Leads by Stage'
+                    }
+                }
+            }
+        });
+    }
+
+    // Function to update upcoming follow-ups
+    function updateUpcomingFollowups(leads) {
+        const upcomingList = document.getElementById('upcomingFollowupsList');
+        upcomingList.innerHTML = ''; // Clear existing list
+
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Normalize to start of day
+
+        const sortedFollowups = leads
+            .filter(lead => lead.followUp && new Date(lead.followUp) >= today)
+            .sort((a, b) => new Date(a.followUp) - new Date(b.followUp));
+
+        if (sortedFollowups.length === 0) {
+            const listItem = document.createElement('li');
+            listItem.textContent = 'No upcoming follow-ups.';
+            upcomingList.appendChild(listItem);
+            return;
+        }
+
+        sortedFollowups.forEach(lead => {
+            const listItem = document.createElement('li');
+            listItem.innerHTML = `
+                <span class="lead-name">${lead.firstName} ${lead.lastName || ''} (${lead.company})</span>
+                <span class="followup-details">Follow-up on: ${lead.followUp} (Stage: ${lead.stage})</span>
+            `;
+            upcomingList.appendChild(listItem);
+        });
+    }
+
 
     // Function to add a new lead
     document.getElementById('addLeadForm').addEventListener('submit', async function(event) {
@@ -49,6 +235,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(this);
         const leadData = Object.fromEntries(formData.entries());
 
+        showLoading();
         try {
             const response = await fetch('/api/leads', { // Corrected API path
                 method: 'POST',
@@ -63,19 +250,22 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const result = await response.json();
-            alert(result.message);
-            this.reset();
+            showMessage(result.message, 'success');
+            closeModal(leadModal); // Close the modal
             fetchLeads(); // Refresh leads list
         } catch (error) {
             console.error('Error adding lead:', error);
-            alert('Failed to add lead.');
+            showMessage('Failed to add lead.', 'error');
+        } finally {
+            hideLoading();
         }
     });
 
     // Function to view lead details (and populate edit form)
-    document.getElementById('leadsList').addEventListener('click', async function(event) {
+    document.getElementById('recentLeadsTable').addEventListener('click', async function(event) {
         if (event.target.classList.contains('view-lead-btn')) {
             const leadId = event.target.dataset.id;
+            showLoading();
             try {
                 const response = await fetch(`/api/leads?id=${leadId}`); // Corrected API path
                 if (!response.ok) {
@@ -85,7 +275,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 const lead = leads[0]; // Assuming GET by ID returns an array with one lead
 
                 if (lead) {
-                    // Populate Lead Details tab
+                    // Populate Lead Details tab (for view mode)
                     document.getElementById('viewLeadId').textContent = lead.id;
                     document.getElementById('viewLeadName').textContent = `${lead.firstName} ${lead.lastName || ''}`;
                     document.getElementById('viewLeadTitle').textContent = lead.title || 'N/A';
@@ -99,41 +289,48 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('viewLeadNotes').textContent = lead.notes || 'N/A';
                     document.getElementById('viewLeadCreatedAt').textContent = lead.created_at;
 
-                    // Populate Edit Lead form
-                    document.getElementById('editLeadId').value = lead.id;
-                    document.getElementById('editFirstName').value = lead.firstName;
-                    document.getElementById('editLastName').value = lead.lastName || '';
-                    document.getElementById('editTitle').value = lead.title || '';
-                    document.getElementById('editCompany').value = lead.company;
-                    document.getElementById('editEmail').value = lead.email || '';
-                    document.getElementById('editPhone').value = lead.phone || '';
-                    document.getElementById('editProduct').value = lead.product || '';
-                    document.getElementById('editStage').value = lead.stage;
-                    document.getElementById('editDateOfContact').value = lead.dateOfContact;
-                    document.getElementById('editFollowUp').value = lead.followUp || '';
-                    document.getElementById('editNotes').value = lead.notes || '';
+                    // Populate Edit Lead form (if you have one, currently using addLeadForm for edit)
+                    // For now, let's assume 'addLeadForm' is also used for editing,
+                    // so we populate it and change its title.
+                    document.getElementById('leadId').value = lead.id; // Set hidden ID for update
+                    document.getElementById('firstName').value = lead.firstName;
+                    document.getElementById('lastName').value = lead.lastName || '';
+                    document.getElementById('title').value = lead.title || '';
+                    document.getElementById('company').value = lead.company;
+                    document.getElementById('email').value = lead.email || '';
+                    document.getElementById('phone').value = lead.phone || '';
+                    document.getElementById('product').value = lead.product || '';
+                    document.getElementById('stage').value = lead.stage;
+                    document.getElementById('dateOfContact').value = lead.dateOfContact;
+                    document.getElementById('followUp').value = lead.followUp || '';
+                    document.getElementById('notes').value = lead.notes || '';
 
-                    // Populate Add Activity form
+                    // Set modal title to "Edit Lead"
+                    showModal(leadModal, 'Edit Lead');
+
+                    // Populate Add Activity form (if applicable, for visitModal)
                     document.getElementById('activityLeadId').value = lead.id;
                     document.getElementById('activityLeadName').textContent = `${lead.firstName} ${lead.lastName || ''} (${lead.company})`;
                     fetchLeadActivities(lead.id); // Fetch activities for this lead
 
-                    showTab('viewLead'); // Switch to view lead tab
                 } else {
-                    alert('Lead not found.');
+                    showMessage('Lead not found.', 'error');
                 }
             } catch (error) {
                 console.error('Error fetching lead details:', error);
-                alert('Failed to load lead details.');
+                showMessage('Failed to load lead details.', 'error');
+            } finally {
+                hideLoading();
             }
         }
     });
 
     // Function to delete a lead
-    document.getElementById('leadsList').addEventListener('click', async function(event) {
+    document.getElementById('recentLeadsTable').addEventListener('click', async function(event) {
         if (event.target.classList.contains('delete-lead-btn')) {
             const leadId = event.target.dataset.id;
             if (confirm('Are you sure you want to delete this lead?')) {
+                showLoading();
                 try {
                     const response = await fetch(`/api/leads?id=${leadId}`, { // Corrected API path
                         method: 'DELETE'
@@ -144,27 +341,39 @@ document.addEventListener('DOMContentLoaded', function() {
                     }
 
                     const result = await response.json();
-                    alert(result.message);
+                    showMessage(result.message, 'success');
                     fetchLeads(); // Refresh leads list
-                    showTab('leads'); // Go back to leads list
+                    // No need to showTab('leads') if already on leads tab
                 } catch (error) {
                     console.error('Error deleting lead:', error);
-                    alert('Failed to delete lead.');
+                    showMessage('Failed to delete lead.', 'error');
+                } finally {
+                    hideLoading();
                 }
             }
         }
     });
 
-    // Function to update a lead
-    document.getElementById('editLeadForm').addEventListener('submit', async function(event) {
+    // Function to update a lead (reusing addLeadForm)
+    document.getElementById('addLeadForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const formData = new FormData(this);
         const leadData = Object.fromEntries(formData.entries());
-        leadData.id = document.getElementById('editLeadId').value; // Ensure ID is included
+        const leadId = document.getElementById('leadId').value; // Get the hidden ID
 
+        let url = '/api/leads';
+        let method = 'POST';
+
+        if (leadId) { // If ID exists, it's an update
+            url = `/api/leads`; // PUT requests don't typically use ID in URL path in Flask, but in body
+            method = 'PUT';
+            leadData.id = leadId; // Add ID to the data payload for PUT
+        }
+
+        showLoading();
         try {
-            const response = await fetch('/api/leads', { // Corrected API path
-                method: 'PUT',
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -176,14 +385,17 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const result = await response.json();
-            alert(result.message);
+            showMessage(result.message, 'success');
+            closeModal(leadModal); // Close the modal
             fetchLeads(); // Refresh leads list
-            showTab('leads'); // Go back to leads list
         } catch (error) {
-            console.error('Error updating lead:', error);
-            alert('Failed to update lead.');
+            console.error('Error saving lead:', error);
+            showMessage('Failed to save lead.', 'error');
+        } finally {
+            hideLoading();
         }
     });
+
 
     // Function to fetch and display lead activities
     async function fetchLeadActivities(leadId = null) {
@@ -197,23 +409,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const activities = await response.json();
-            const activitiesList = document.getElementById('leadActivitiesList');
-            activitiesList.innerHTML = ''; // Clear existing activities
+            const activitiesList = document.getElementById('leadActivitiesList'); // Assuming this element exists in your viewLead tab
+            if (activitiesList) {
+                activitiesList.innerHTML = ''; // Clear existing activities
 
-            activities.forEach(activity => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${activity.id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.description || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.expenditure || '0.00'}</td>
-                `;
-                activitiesList.appendChild(row);
-            });
+                activities.forEach(activity => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${activity.id}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.description || 'N/A'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.expenditure || '0.00'}</td>
+                    `;
+                    activitiesList.appendChild(row);
+                });
+            }
         } catch (error) {
             console.error('Error fetching lead activities:', error);
-            alert('Failed to load lead activities.');
+            showMessage('Failed to load lead activities.', 'error');
         }
     }
 
@@ -224,6 +438,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const activityData = Object.fromEntries(formData.entries());
         activityData.lead_id = document.getElementById('activityLeadId').value; // Ensure lead_id is included
 
+        showLoading();
         try {
             const response = await fetch('/api/lead_activities', { // Corrected API path
                 method: 'POST',
@@ -238,13 +453,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const result = await response.json();
-            alert(result.message);
-            this.reset();
+            showMessage(result.message, 'success');
+            closeModal(visitModal); // Close the visit modal
             fetchLeadActivities(activityData.lead_id); // Refresh activities for current lead
             fetchCalendarEvents(); // Refresh calendar events as well
         } catch (error) {
             console.error('Error adding lead activity:', error);
-            alert('Failed to add lead activity.');
+            showMessage('Failed to add lead activity.', 'error');
+        } finally {
+            hideLoading();
         }
     });
 
@@ -256,22 +473,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const expenses = await response.json();
-            const expensesList = document.getElementById('generalExpensesList');
-            expensesList.innerHTML = ''; // Clear existing expenses
+            const expensesList = document.getElementById('generalExpensesList'); // Assuming this ID exists
+            if (expensesList) {
+                expensesList.innerHTML = ''; // Clear existing expenses
 
-            expenses.forEach(expense => {
-                const row = document.createElement('tr');
-                row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${expense.id}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount}</td>
-                `;
-                expensesList.appendChild(row);
-            });
+                expenses.forEach(expense => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${expense.id}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount}</td>
+                    `;
+                    expensesList.appendChild(row);
+                });
+            }
         } catch (error) {
             console.error('Error fetching general expenses:', error);
-            alert('Failed to load general expenses.');
+            showMessage('Failed to load general expenses.', 'error');
         }
     }
 
@@ -281,6 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formData = new FormData(this);
         const expenseData = Object.fromEntries(formData.entries());
 
+        showLoading();
         try {
             const response = await fetch('/api/general_expenses', { // Corrected API path
                 method: 'POST',
@@ -295,13 +515,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const result = await response.json();
-            alert(result.message);
-            this.reset();
+            showMessage(result.message, 'success');
+            closeModal(generalExpenseModal); // Close the modal
             fetchGeneralExpenses(); // Refresh expenses list
             fetchCalendarEvents(); // Refresh calendar events as well
         } catch (error) {
             console.error('Error adding general expense:', error);
-            alert('Failed to add general expense.');
+            showMessage('Failed to add general expense.', 'error');
+        } finally {
+            hideLoading();
         }
     });
 
@@ -316,9 +538,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const events = await response.json();
 
             const calendarEvents = events.map(event => ({
-                title: `${event.type}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + ')' : ''} ${event.amount ? ' - $' + event.amount : ''}`,
+                title: `${event.type}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
                 start: event.date,
                 allDay: true,
+                className: `fc-event-${event.type.toLowerCase().replace(/\s/g, '-')}`, // For custom styling
                 extendedProps: {
                     type: event.type,
                     leadId: event.lead_id,
@@ -339,17 +562,34 @@ document.addEventListener('DOMContentLoaded', function() {
                         center: 'title',
                         right: 'dayGridMonth,dayGridWeek,dayGridDay'
                     },
-                    // Add event click listener if needed for details/editing
+                    eventDidMount: function(info) {
+                        // Add a tooltip for events
+                        const tooltip = document.getElementById('calendarTooltip');
+                        info.el.addEventListener('mouseover', function() {
+                            tooltip.innerHTML = `
+                                <strong>${info.event.title}</strong>
+                                <span>Date: ${info.event.startStr}</span>
+                                ${info.event.extendedProps.description ? `<span>Description: ${info.event.extendedProps.description}</span>` : ''}
+                            `;
+                            tooltip.style.left = `${info.el.getBoundingClientRect().left + window.scrollX}px`;
+                            tooltip.style.top = `${info.el.getBoundingClientRect().top + window.scrollY - tooltip.offsetHeight - 10}px`;
+                            tooltip.classList.add('active');
+                        });
+                        info.el.addEventListener('mouseout', function() {
+                            tooltip.classList.remove('active');
+                        });
+                    },
                     eventClick: function(info) {
-                        // Example: alert(`${info.event.title} on ${info.event.startStr}`);
-                        // You can open a modal here with event details
+                        // Optional: Open a modal to view/edit event details
+                        // For now, just show a message
+                        showMessage(`Event: ${info.event.title} on ${info.event.startStr}`, 'info');
                     }
                 });
                 calendar.render();
             }
         } catch (error) {
             console.error('Error fetching calendar events:', error);
-            alert('Failed to load calendar events.');
+            showMessage('Failed to load calendar events.', 'error');
         }
     }
 
@@ -362,6 +602,7 @@ document.addEventListener('DOMContentLoaded', function() {
         eventData.lead_id = eventData.lead_id === '' ? null : eventData.lead_id;
         eventData.amount = eventData.amount === '' ? 0 : parseFloat(eventData.amount);
 
+        showLoading();
         try {
             const response = await fetch('/api/calendar_events', { // Corrected API path
                 method: 'POST',
@@ -376,12 +617,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
 
             const result = await response.json();
-            alert(result.message);
+            showMessage(result.message, 'success');
             this.reset();
+            closeModal(generalEventModal); // Close the modal
             fetchCalendarEvents(); // Refresh calendar events
         } catch (error) {
             console.error('Error adding calendar event:', error);
-            alert('Failed to add calendar event.');
+            showMessage('Failed to add calendar event.', 'error');
+        } finally {
+            hideLoading();
         }
     });
 
@@ -399,7 +643,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const reportItems = await response.json();
-            const reportTableBody = document.getElementById('expenditureReportTableBody');
+            const reportTableBody = document.getElementById('expenditureReportTable').querySelector('tbody');
             reportTableBody.innerHTML = ''; // Clear existing items
 
             let totalExpenditure = 0;
@@ -421,7 +665,7 @@ document.addEventListener('DOMContentLoaded', function() {
             document.getElementById('totalExpenditure').textContent = totalExpenditure.toFixed(2);
         } catch (error) {
             console.error('Error fetching expenditure report:', error);
-            alert('Failed to load expenditure report.');
+            showMessage('Failed to load expenditure report.', 'error');
         }
     }
 
@@ -434,6 +678,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to export leads to CSV
     document.getElementById('exportLeadsBtn').addEventListener('click', async function() {
+        showLoading();
         try {
             const response = await fetch('/api/export_leads'); // Corrected API path
             if (!response.ok) {
@@ -448,15 +693,18 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            alert('Leads exported successfully!');
+            showMessage('Leads exported successfully!', 'success');
         } catch (error) {
             console.error('Error exporting leads:', error);
-            alert('Failed to export leads.');
+            showMessage('Failed to export leads.', 'error');
+        } finally {
+            hideLoading();
         }
     });
 
     // Function to export expenditure report to CSV
     document.getElementById('exportExpenditureReportBtn').addEventListener('click', async function() {
+        showLoading();
         try {
             const startDate = document.getElementById('reportStartDate').value;
             const endDate = document.getElementById('reportEndDate').value;
@@ -479,10 +727,12 @@ document.addEventListener('DOMContentLoaded', function() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(urlBlob);
-            alert('Expenditure report exported successfully!');
+            showMessage('Expenditure report exported successfully!', 'success');
         } catch (error) {
             console.error('Error exporting expenditure report:', error);
-            alert('Failed to export expenditure report.');
+            showMessage('Failed to export expenditure report.', 'error');
+        } finally {
+            hideLoading();
         }
     });
 
@@ -530,6 +780,29 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // --- Message and Loading Indicators ---
+    const messageContainer = document.getElementById('messageContainer');
+    const loadingIndicator = document.getElementById('loadingIndicator');
+
+    function showMessage(message, type = 'info') {
+        messageContainer.textContent = message;
+        messageContainer.className = `message-container active ${type}`;
+        setTimeout(() => {
+            messageContainer.classList.remove('active');
+        }, 3000); // Hide after 3 seconds
+    }
+
+    function showLoading() {
+        loadingIndicator.style.display = 'flex';
+    }
+
+    function hideLoading() {
+        loadingIndicator.style.display = 'none';
+    }
+
     // Initial load: Show the leads tab by default
-    showTab('leads');
+    fetchLeads(); // Fetch leads on initial load
+    fetchCalendarEvents(); // Fetch calendar events on initial load
+    fetchGeneralExpenses(); // Fetch general expenses on initial load
+    fetchExpenditureReport(); // Fetch expenditure report on initial load
 });
