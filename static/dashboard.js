@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', function() {
     flatpickr("#eventDate", {});
     flatpickr("#reportStartDate", {});
     flatpickr("#reportEndDate", {});
+    flatpickr("#generalExpenseDate", {}); // Ensure Flatpickr is initialized for the general expense date
 
     // --- Modal Handling Functions ---
     const leadModal = document.getElementById('leadModal');
@@ -44,6 +45,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addExpenseModalBtn').addEventListener('click', function() {
         showModal(generalExpenseModal, 'Add General Expense');
         document.getElementById('addExpenseForm').reset();
+        document.getElementById('expenseId').value = ''; // Clear hidden ID for new expense
     });
 
     document.getElementById('addEventModalBtn').addEventListener('click', function() {
@@ -470,6 +472,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date || 'N/A'}</td>
                         <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description || 'N/A'}</td>
                         <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount || '0.00'}</td>
+                        <td data-label="Actions" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${expense.id}" title="Edit Expense"><i class="fas fa-edit"></i></button>
+                            <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${expense.id}" title="Delete Expense"><i class="fas fa-trash-alt"></i></button>
+                        </td>
                     `;
                     expensesList.appendChild(row);
                 });
@@ -480,16 +486,86 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Function to add a new general expense
+    // Event listener for editing a general expense
+    document.getElementById('generalExpensesList').addEventListener('click', async function(event) {
+        if (event.target.closest('.edit-expense-btn')) {
+            const expenseId = event.target.closest('.edit-expense-btn').dataset.id;
+            showLoading();
+            try {
+                const response = await fetch(`/api/general_expenses?id=${expenseId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const expenses = await response.json();
+                const expense = expenses[0]; // Assuming GET by ID returns an array with one expense
+
+                if (expense) {
+                    document.getElementById('expenseId').value = expense.id; // Hidden input for expense ID
+                    document.getElementById('generalExpenseDate').value = expense.date || '';
+                    document.getElementById('generalExpenseAmount').value = expense.amount || '0.00';
+                    document.getElementById('generalExpenseDescription').value = expense.description || '';
+
+                    showModal(generalExpenseModal, 'Edit General Expense');
+                } else {
+                    showMessage('Expense not found.', 'error');
+                }
+            } catch (error) {
+                console.error('Error fetching expense details:', error);
+                showMessage('Failed to load expense details.', 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+    });
+
+    // Event listener for deleting a general expense
+    document.getElementById('generalExpensesList').addEventListener('click', async function(event) {
+        if (event.target.closest('.delete-expense-btn')) {
+            const expenseId = event.target.closest('.delete-expense-btn').dataset.id;
+            if (confirm('Are you sure you want to delete this expense?')) {
+                showLoading();
+                try {
+                    const response = await fetch(`/api/general_expenses?id=${expenseId}`, {
+                        method: 'DELETE'
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    showMessage(result.message, 'success');
+                    fetchGeneralExpenses(); // Refresh expenses list
+                    fetchCalendarEvents(); // Refresh calendar events as well
+                } catch (error) {
+                    console.error('Error deleting expense:', error);
+                    showMessage('Failed to delete expense.', 'error');
+                } finally {
+                    hideLoading();
+                }
+            }
+        }
+    });
+
+    // Function to add or update a general expense
     document.getElementById('addExpenseForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const formData = new FormData(this);
         const expenseData = Object.fromEntries(formData.entries());
+        const expenseId = document.getElementById('expenseId').value; // Get the hidden ID
+
+        let url = '/api/general_expenses';
+        let method = 'POST';
+
+        if (expenseId) { // If ID exists, it's an update
+            method = 'PUT';
+            expenseData.id = expenseId; // Add ID to the data payload for PUT
+        }
 
         showLoading();
         try {
-            const response = await fetch('/api/general_expenses', { // Corrected API path
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -506,8 +582,8 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchGeneralExpenses(); // Refresh expenses list
             fetchCalendarEvents(); // Refresh calendar events as well
         } catch (error) {
-            console.error('Error adding general expense:', error);
-            showMessage('Failed to add general expense.', 'error');
+            console.error('Error saving general expense:', error);
+            showMessage('Failed to save general expense.', 'error');
         } finally {
             hideLoading();
         }

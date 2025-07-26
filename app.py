@@ -1,9 +1,11 @@
 import os
-from flask import Flask, request, jsonify, render_template, Blueprint, make_response, send_from_directory
+from flask import Flask, request, jsonify, render_template, Blueprint, send_from_directory, make_response
 import psycopg2
 from psycopg2 import extras
 import logging
 from dotenv import load_dotenv
+import csv
+from io import StringIO
 
 load_dotenv()
 
@@ -24,326 +26,417 @@ node_modules_bp = Blueprint(
 app.register_blueprint(node_modules_bp)
 
 # --- Configuration ---
-# Use DATABASE_URL for PostgreSQL, or a default for local testing
-DATABASE_URL = os.getenv('DATABASE_URL') # This will be set on Render
+DATABASE_URL = os.getenv('DATABASE_URL')
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
-
-# --- Database Helper Functions (UPDATED FOR POSTGRESQL) ---
+# --- Database Initialization (for Render, this might be handled by a separate build step or migrations) ---
 def get_db_connection():
     conn = None
     try:
-        # Connect using the DATABASE_URL environment variable
         conn = psycopg2.connect(DATABASE_URL)
-        # Return a cursor that fetches results as dictionaries (like sqlite3.Row)
         return conn
     except psycopg2.Error as e:
         logging.error(f"Database connection error: {e}")
-        raise # Re-raise the exception to be caught by the calling function
+        return None
 
-def get_db_cursor(conn):
-    # Use RealDictCursor to get results as dictionaries
-    return conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
-
-# --- Database Initialization (PostgreSQL version) ---
-# This function is now specifically for PostgreSQL and assumes schema.sql
-# and seed.sql are designed for PG.
 def init_db():
     conn = None
     try:
         conn = get_db_connection()
-        cur = conn.cursor()
-
-        # Execute schema.sql
-        with open(os.path.join(BASE_DIR, 'schema.sql')) as f:
-            cur.execute(f.read())
-        logging.info("Schema loaded from schema.sql")
-
-        # Execute seed.sql
-        with open(os.path.join(BASE_DIR, 'seed.sql')) as f:
-            cur.execute(f.read())
-        logging.info("Data seeded from seed.sql")
-
-        conn.commit()
-    except psycopg2.Error as e:
-        logging.error(f"Error initializing database: {e}")
         if conn:
-            conn.rollback() # Rollback on error
-        raise # Re-raise to show the error
+            cur = conn.cursor()
+            # Create leads table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS leads (
+                    id SERIAL PRIMARY KEY,
+                    firstName VARCHAR(255) NOT NULL,
+                    lastName VARCHAR(255),
+                    title VARCHAR(255),
+                    company VARCHAR(255) NOT NULL,
+                    email VARCHAR(255),
+                    phone VARCHAR(255),
+                    product VARCHAR(255),
+                    stage VARCHAR(255) NOT NULL,
+                    dateOfContact DATE NOT NULL,
+                    followUp DATE,
+                    notes TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            # Create general_expenses table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS general_expenses (
+                    id SERIAL PRIMARY KEY,
+                    date DATE NOT NULL,
+                    amount NUMERIC(10, 2) NOT NULL,
+                    description TEXT NOT NULL,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            # Create calendar_events table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS calendar_events (
+                    id SERIAL PRIMARY KEY,
+                    date DATE NOT NULL,
+                    type VARCHAR(255) NOT NULL,
+                    description TEXT,
+                    lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+                    amount NUMERIC(10, 2) DEFAULT 0.00,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+            cur.close()
+            logging.info("Database tables checked/created successfully.")
+    except psycopg2.Error as e:
+        logging.error(f"Database initialization error: {e}")
     finally:
         if conn:
             conn.close()
 
-# --- API Endpoints ---
+# --- Routes ---
+
 @app.route('/')
 def index():
     return render_template('dynamic_dashboard.html')
 
+# API for Leads
 @app.route('/api/leads', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def handle_leads():
     conn = None
     try:
         conn = get_db_connection()
-        cur = get_db_cursor(conn)
+        if not conn:
+            return jsonify({"message": "Database connection failed"}), 500
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
         if request.method == 'POST':
             data = request.json
-            sql = """
+            cur.execute(
+                """
                 INSERT INTO leads (firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes)
                 VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
-            """
-            cur.execute(sql, (data['firstName'], data.get('lastName'), data.get('title'),
-                             data['company'], data.get('email'), data.get('phone'),
-                             data.get('product'), data['stage'], data['dateOfContact'],
-                             data.get('followUp'), data.get('notes')))
+                """,
+                (data['firstName'], data.get('lastName'), data.get('title'), data['company'],
+                 data.get('email'), data.get('phone'), data.get('product'), data['stage'],
+                 data['dateOfContact'], data.get('followUp'), data.get('notes'))
+            )
             new_lead_id = cur.fetchone()['id']
             conn.commit()
             return jsonify({"message": "Lead added successfully", "id": new_lead_id}), 201
 
         elif request.method == 'GET':
-            cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC")
-            leads = cur.fetchall()
-            return jsonify(leads)
+            lead_id = request.args.get('id')
+            if lead_id:
+                cur.execute("SELECT * FROM leads WHERE id = %s;", (lead_id,))
+                leads = cur.fetchall()
+            else:
+                cur.execute("SELECT * FROM leads ORDER BY created_at DESC;")
+                leads = cur.fetchall()
+            return jsonify(leads), 200
 
         elif request.method == 'PUT':
             data = request.json
-            sql = """
+            lead_id = data.get('id')
+            if not lead_id:
+                return jsonify({"message": "Lead ID is required for update"}), 400
+            cur.execute(
+                """
                 UPDATE leads SET
-                    firstName = %s, lastName = %s, title = %s, company = %s, email = %s,
-                    phone = %s, product = %s, stage = %s, dateOfContact = %s, followUp = %s, notes = %s
-                WHERE id = %s RETURNING id;
-            """
-            cur.execute(sql, (data['firstName'], data.get('lastName'), data.get('title'),
-                             data['company'], data.get('email'), data.get('phone'),
-                             data.get('product'), data['stage'], data['dateOfContact'],
-                             data.get('followUp'), data.get('notes'), data['id']))
+                    firstName = %s, lastName = %s, title = %s, company = %s,
+                    email = %s, phone = %s, product = %s, stage = %s,
+                    dateOfContact = %s, followUp = %s, notes = %s
+                WHERE id = %s;
+                """,
+                (data['firstName'], data.get('lastName'), data.get('title'), data['company'],
+                 data.get('email'), data.get('phone'), data.get('product'), data['stage'],
+                 data['dateOfContact'], data.get('followUp'), data.get('notes'), lead_id)
+            )
             conn.commit()
-            return jsonify({"message": "Lead updated successfully", "id": data['id']})
+            if cur.rowcount == 0:
+                return jsonify({"message": "Lead not found or no changes made"}), 404
+            return jsonify({"message": "Lead updated successfully"}), 200
 
         elif request.method == 'DELETE':
             lead_id = request.args.get('id')
             if not lead_id:
-                return jsonify({"message": "Lead ID is required"}), 400
-
-            cur.execute("DELETE FROM leads WHERE id = %s RETURNING id;", (lead_id,))
-            if cur.rowcount == 0:
-                conn.rollback() # No row was deleted
-                return jsonify({"message": "Lead not found"}), 404
+                return jsonify({"message": "Lead ID is required for deletion"}), 400
+            cur.execute("DELETE FROM leads WHERE id = %s;", (lead_id,))
             conn.commit()
-            return jsonify({"message": "Lead deleted successfully", "id": lead_id})
+            if cur.rowcount == 0:
+                return jsonify({"message": "Lead not found"}), 404
+            return jsonify({"message": "Lead deleted successfully"}), 200
 
     except psycopg2.Error as e:
         logging.error(f"Database error in handle_leads: {e}")
-        if conn:
-            conn.rollback()
         return jsonify({"message": f"Database error: {e}"}), 500
     finally:
         if conn:
             conn.close()
 
+# API for Lead Activities (Visits) - Renamed to be more general
 @app.route('/api/lead_activities', methods=['GET', 'POST'])
 def handle_lead_activities():
     conn = None
     try:
         conn = get_db_connection()
-        cur = get_db_cursor(conn)
+        if not conn:
+            return jsonify({"message": "Database connection failed"}), 500
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
         if request.method == 'POST':
             data = request.json
-            sql = """
-                INSERT INTO lead_activities (lead_id, activity_type, activity_date, description, latitude, longitude, location_name, expenditure)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING id;
-            """
-            cur.execute(sql, (data['lead_id'], data['activity_type'], data['activity_date'],
-                             data.get('description'), data.get('latitude'), data.get('longitude'),
-                             data.get('location_name'), data.get('expenditure', 0.0)))
-            new_activity_id = cur.fetchone()['id']
-
-            # If it's a 'visit' or 'general_expense' activity, also add to calendar_events
-            if data['activity_type'] in ['visit', 'general_expense']:
-                # Re-using the logic from the previous calendar event creation
-                calendar_event_sql = """
-                    INSERT INTO calendar_events (date, description, type, lead_id, amount)
-                    VALUES (%s, %s, %s, %s, %s);
+            # Insert into calendar_events as lead activities are also events
+            cur.execute(
                 """
-                event_description = data.get('description', '')
-                event_type = data['activity_type']
-                event_amount = data.get('expenditure', 0.0) if data['activity_type'] == 'general_expense' else data.get('expenditure', 0.0) # Expenditure for visits too
-                event_lead_id = data['lead_id'] if data['activity_type'] == 'visit' else None # Link to lead only for visits for now
-
-                cur.execute(calendar_event_sql, (data['activity_date'], event_description, event_type, event_lead_id, event_amount))
-
+                INSERT INTO calendar_events (date, type, description, lead_id, amount)
+                VALUES (%s, %s, %s, %s, %s) RETURNING id;
+                """,
+                (data['activity_date'], data['activity_type'], data.get('description'),
+                 data.get('lead_id'), data.get('expenditure', 0.00))
+            )
+            new_activity_id = cur.fetchone()['id']
             conn.commit()
-            return jsonify({"message": "Lead activity added successfully", "id": new_activity_id}), 201
+            return jsonify({"message": "Activity added successfully", "id": new_activity_id}), 201
 
         elif request.method == 'GET':
             lead_id = request.args.get('lead_id')
             if lead_id:
+                # Fetch activities specifically linked to a lead
                 cur.execute("""
-                    SELECT id, lead_id, activity_type, activity_date, description, latitude, longitude, location_name, expenditure, created_at
-                    FROM lead_activities WHERE lead_id = %s ORDER BY created_at DESC;
+                    SELECT ce.*, l.firstName, l.lastName, l.company
+                    FROM calendar_events ce
+                    LEFT JOIN leads l ON ce.lead_id = l.id
+                    WHERE ce.lead_id = %s
+                    ORDER BY ce.date DESC;
                 """, (lead_id,))
             else:
+                # Fetch all activities that are linked to leads (optional, or adjust as needed)
                 cur.execute("""
-                    SELECT id, lead_id, activity_type, activity_date, description, latitude, longitude, location_name, expenditure, created_at
-                    FROM lead_activities ORDER BY created_at DESC;
+                    SELECT ce.*, l.firstName, l.lastName, l.company
+                    FROM calendar_events ce
+                    LEFT JOIN leads l ON ce.lead_id = l.id
+                    WHERE ce.lead_id IS NOT NULL
+                    ORDER BY ce.date DESC;
                 """)
             activities = cur.fetchall()
-            return jsonify(activities)
+            return jsonify(activities), 200
 
     except psycopg2.Error as e:
         logging.error(f"Database error in handle_lead_activities: {e}")
-        if conn:
-            conn.rollback()
         return jsonify({"message": f"Database error: {e}"}), 500
     finally:
         if conn:
             conn.close()
 
-@app.route('/api/general_expenses', methods=['GET', 'POST'])
+# API for General Expenses
+@app.route('/api/general_expenses', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def handle_general_expenses():
     conn = None
     try:
         conn = get_db_connection()
-        cur = get_db_cursor(conn)
+        if not conn:
+            return jsonify({"message": "Database connection failed"}), 500
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
         if request.method == 'POST':
             data = request.json
-            sql = """
-                INSERT INTO general_expenses (date, description, amount)
+            cur.execute(
+                """
+                INSERT INTO general_expenses (date, amount, description)
                 VALUES (%s, %s, %s) RETURNING id;
-            """
-            cur.execute(sql, (data['date'], data['description'], data['amount']))
+                """,
+                (data['date'], data['amount'], data['description'])
+            )
             new_expense_id = cur.fetchone()['id']
-
-            # Also add to calendar_events
-            calendar_event_sql = """
-                INSERT INTO calendar_events (date, description, type, lead_id, amount)
-                VALUES (%s, %s, %s, %s, %s);
-            """
-            cur.execute(calendar_event_sql, (data['date'], data['description'], 'General Expense', None, data['amount']))
-
             conn.commit()
             return jsonify({"message": "General expense added successfully", "id": new_expense_id}), 201
 
         elif request.method == 'GET':
-            cur.execute("SELECT id, date, description, amount, created_at FROM general_expenses ORDER BY date DESC")
-            expenses = cur.fetchall()
-            return jsonify(expenses)
+            expense_id = request.args.get('id')
+            if expense_id:
+                cur.execute("SELECT * FROM general_expenses WHERE id = %s;", (expense_id,))
+                expenses = cur.fetchall()
+            else:
+                cur.execute("SELECT * FROM general_expenses ORDER BY date DESC;")
+                expenses = cur.fetchall()
+            return jsonify(expenses), 200
+
+        elif request.method == 'PUT':
+            data = request.json
+            expense_id = data.get('id')
+            if not expense_id:
+                return jsonify({"message": "Expense ID is required for update"}), 400
+            cur.execute(
+                """
+                UPDATE general_expenses SET
+                    date = %s, amount = %s, description = %s
+                WHERE id = %s;
+                """,
+                (data['date'], data['amount'], data['description'], expense_id)
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                return jsonify({"message": "Expense not found or no changes made"}), 404
+            return jsonify({"message": "General expense updated successfully"}), 200
+
+        elif request.method == 'DELETE':
+            expense_id = request.args.get('id')
+            if not expense_id:
+                return jsonify({"message": "Expense ID is required for deletion"}), 400
+            cur.execute("DELETE FROM general_expenses WHERE id = %s;", (expense_id,))
+            conn.commit()
+            if cur.rowcount == 0:
+                return jsonify({"message": "Expense not found"}), 404
+            return jsonify({"message": "General expense deleted successfully"}), 200
 
     except psycopg2.Error as e:
         logging.error(f"Database error in handle_general_expenses: {e}")
-        if conn:
-            conn.rollback()
         return jsonify({"message": f"Database error: {e}"}), 500
     finally:
         if conn:
             conn.close()
 
+# API for Calendar Events
 @app.route('/api/calendar_events', methods=['GET', 'POST'])
 def handle_calendar_events():
     conn = None
     try:
         conn = get_db_connection()
-        cur = get_db_cursor(conn)
+        if not conn:
+            return jsonify({"message": "Database connection failed"}), 500
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
         if request.method == 'POST':
             data = request.json
-            sql = """
-                INSERT INTO calendar_events (date, description, type, lead_id, amount)
+            cur.execute(
+                """
+                INSERT INTO calendar_events (date, type, description, lead_id, amount)
                 VALUES (%s, %s, %s, %s, %s) RETURNING id;
-            """
-            # Handle empty lead_id
-            lead_id_val = data.get('lead_id') if data.get('lead_id') else None
-            cur.execute(sql, (data['date'], data.get('description'), data['type'], lead_id_val, data.get('amount')))
+                """,
+                (data['date'], data['type'], data.get('description'),
+                 data.get('lead_id'), data.get('amount', 0.00))
+            )
             new_event_id = cur.fetchone()['id']
             conn.commit()
             return jsonify({"message": "Calendar event added successfully", "id": new_event_id}), 201
 
         elif request.method == 'GET':
+            # Fetch all calendar events, joining with leads to get lead name and company if linked
             cur.execute("""
-                SELECT ce.id, ce.date, ce.description, ce.type, ce.amount,
-                        l.firstName || ' ' || COALESCE(l.lastName, '') AS lead_name,
-                        ce.lead_id
+                SELECT ce.id, ce.date, ce.type, ce.description, ce.amount,
+                       l.id AS lead_id, l.firstName, l.lastName, l.company
                 FROM calendar_events ce
                 LEFT JOIN leads l ON ce.lead_id = l.id
-                ORDER BY ce.date DESC;
+                ORDER BY ce.date;
             """)
             events = cur.fetchall()
-            return jsonify(events)
+            # Format lead_name for display
+            for event in events:
+                if event['lead_id']:
+                    event['lead_name'] = f"{event['firstname'] or ''} {event['lastname'] or ''}".strip()
+                    event['company'] = event['company']
+                else:
+                    event['lead_name'] = None
+                    event['company'] = None
+                # Clean up unused fields from join
+                event.pop('firstname', None)
+                event.pop('lastname', None)
+            return jsonify(events), 200
 
     except psycopg2.Error as e:
         logging.error(f"Database error in handle_calendar_events: {e}")
-        if conn:
-            conn.rollback()
         return jsonify({"message": f"Database error: {e}"}), 500
     finally:
         if conn:
             conn.close()
 
-# Corrected route to include /api/ prefix
+# API for Expenditure Report
 @app.route('/api/expenditure_report', methods=['GET'])
 def get_expenditure_report():
     conn = None
     try:
         conn = get_db_connection()
-        cur = get_db_cursor(conn)
+        if not conn:
+            return jsonify({"message": "Database connection failed"}), 500
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
-        # Query for lead_activities that have expenditure (e.g., 'visit' type)
-        # Use || for string concatenation and %s for placeholders
-        activities_sql = """
-            SELECT
-                la.activity_date AS date,
-                la.description,
-                la.expenditure AS amount,
-                l.firstName || ' ' || COALESCE(l.lastName, '') AS lead_name,
-                l.company,
-                la.activity_type AS type_category -- Use activity_type as category
-            FROM lead_activities la
-            JOIN leads l ON la.lead_id = l.id
-            WHERE la.expenditure > 0
+        query = """
+            SELECT date, 'General Expense' AS type_category, description, amount, NULL AS lead_name, NULL AS company
+            FROM general_expenses
         """
-        # Base query for general expenses (not linked to a specific lead)
-        general_expenses_sql = """
-            SELECT
-                ge.date,
-                ge.description,
-                ge.amount,
-                NULL AS lead_name,
-                NULL AS company,
-                'General Expense' AS type_category
-            FROM general_expenses ge
-            WHERE 1=1
-        """
+        params = []
 
-        activities_params = []
-        general_expenses_params = []
+        if start_date and end_date:
+            query += " WHERE date BETWEEN %s AND %s"
+            params.extend([start_date, end_date])
+        elif start_date:
+            query += " WHERE date >= %s"
+            params.append(start_date)
+        elif end_date:
+            query += " WHERE date <= %s"
+            params.append(end_date)
 
-        if start_date:
-            activities_sql += " AND la.activity_date >= %s"
-            general_expenses_sql += " AND ge.date >= %s"
-            activities_params.append(start_date)
-            general_expenses_params.append(start_date)
-        if end_date:
-            activities_sql += " AND la.activity_date <= %s"
-            general_expenses_sql += " AND ge.date <= %s"
-            activities_params.append(end_date)
-            general_expenses_params.append(end_date)
+        query += " ORDER BY date DESC;"
 
-        # --- CORRECTED psycopg2 execute and fetchall usage ---
-        cur.execute(activities_sql, activities_params)
-        activities_with_expenditure = cur.fetchall()
-
-        cur.execute(general_expenses_sql, general_expenses_params)
+        cur.execute(query, params)
         general_expenses = cur.fetchall()
 
-        # Combine and sort results by date
-        report_items = [dict(row) for row in activities_with_expenditure] + [dict(row) for row in general_expenses]
-        report_items.sort(key=lambda x: x['date'])
+        # For lead-related expenses (from calendar_events with amount > 0)
+        # Note: This assumes 'visit' and 'general expense' types in calendar_events
+        # might also contribute to expenditure. Adjust types as needed.
+        query_lead_expenses = """
+            SELECT ce.date, ce.type AS type_category, ce.description, ce.amount,
+                   l.firstName, l.lastName, l.company
+            FROM calendar_events ce
+            JOIN leads l ON ce.lead_id = l.id
+            WHERE ce.amount > 0
+        """
+        lead_expense_params = []
 
-        return jsonify(report_items)
+        if start_date and end_date:
+            query_lead_expenses += " AND ce.date BETWEEN %s AND %s"
+            lead_expense_params.extend([start_date, end_date])
+        elif start_date:
+            query_lead_expenses += " AND ce.date >= %s"
+            lead_expense_params.append(start_date)
+        elif end_date:
+            query_lead_expenses += " AND ce.date <= %s"
+            lead_expense_params.append(end_date)
+
+        query_lead_expenses += " ORDER BY ce.date DESC;"
+
+        cur.execute(query_lead_expenses, lead_expense_params)
+        lead_expenses = cur.fetchall()
+
+        # Combine and format results
+        report_data = []
+        for expense in general_expenses:
+            report_data.append({
+                "date": str(expense['date']),
+                "type_category": expense['type_category'],
+                "description": expense['description'],
+                "amount": float(expense['amount']),
+                "lead_name": expense['lead_name'],
+                "company": expense['company']
+            })
+        for expense in lead_expenses:
+            lead_full_name = f"{expense['firstname'] or ''} {expense['lastname'] or ''}".strip()
+            report_data.append({
+                "date": str(expense['date']),
+                "type_category": expense['type_category'],
+                "description": expense['description'],
+                "amount": float(expense['amount']),
+                "lead_name": lead_full_name if lead_full_name else None,
+                "company": expense['company']
+            })
+
+        # Sort combined data by date
+        report_data.sort(key=lambda x: x['date'], reverse=True)
+
+        return jsonify(report_data), 200
 
     except psycopg2.Error as e:
         logging.error(f"Database error when fetching expenditure report: {e}")
@@ -352,35 +445,33 @@ def get_expenditure_report():
         if conn:
             conn.close()
 
-# Corrected route to include /api/ prefix
 @app.route('/api/export_leads', methods=['GET'])
 def export_leads():
     conn = None
     try:
         conn = get_db_connection()
-        cur = get_db_cursor(conn)
-        cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC")
-        leads = cur.fetchall()
+        if not conn:
+            return jsonify({"message": "Database connection failed"}), 500
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
-        from io import StringIO
-        import csv
+        cur.execute("SELECT * FROM leads ORDER BY created_at DESC;")
+        leads = cur.fetchall()
 
         si = StringIO()
         cw = csv.writer(si)
 
         # Write header
         cw.writerow([
-            'ID', 'First Name', 'Last Name', 'Title', 'Company', 'Email', 'Phone',
-            'Product', 'Stage', 'Date of Contact', 'Follow Up', 'Notes', 'Created At'
+            "ID", "First Name", "Last Name", "Title", "Company", "Email",
+            "Phone", "Product", "Stage", "Date of Contact", "Follow-up Date", "Notes", "Created At"
         ])
 
-        # Write data rows
+        # Write data
         for lead in leads:
             cw.writerow([
-                lead['id'], lead['firstName'], lead['lastName'], lead['title'],
+                lead['id'], lead['firstname'], lead['lastname'], lead['title'],
                 lead['company'], lead['email'], lead['phone'], lead['product'],
-                lead['stage'], lead['dateOfContact'], lead['followUp'],
-                lead['notes'], lead['created_at'].isoformat() if lead['created_at'] else '' # Format datetime for CSV
+                lead['stage'], lead['dateofcontact'], lead['followup'], lead['notes'], lead['created_at']
             ])
 
         output = si.getvalue()
@@ -396,79 +487,92 @@ def export_leads():
         if conn:
             conn.close()
 
-# Corrected route to include /api/ prefix
 @app.route('/api/export_expenditure_report', methods=['GET'])
 def export_expenditure_report():
     conn = None
     try:
         conn = get_db_connection()
-        cur = get_db_cursor(conn)
+        if not conn:
+            return jsonify({"message": "Database connection failed"}), 500
+        cur = conn.cursor(cursor_factory=extras.RealDictCursor)
+
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
-        activities_sql = """
-            SELECT
-                la.activity_date AS date,
-                la.description,
-                la.expenditure AS amount,
-                l.firstName || ' ' || COALESCE(l.lastName, '') AS lead_name,
-                l.company,
-                la.activity_type AS type_category
-            FROM lead_activities la
-            JOIN leads l ON la.lead_id = l.id
-            WHERE la.expenditure > 0
+        query_general = """
+            SELECT date, 'General Expense' AS type_category, description, amount, NULL AS lead_name, NULL AS company
+            FROM general_expenses
         """
-        general_expenses_sql = """
-            SELECT
-                ge.date,
-                ge.description,
-                ge.amount,
-                NULL AS lead_name,
-                NULL AS company,
-                'General Expense' AS type_category
-            FROM general_expenses ge
-            WHERE 1=1
-        """
+        params_general = []
 
-        activities_params = []
-        general_expenses_params = []
+        if start_date and end_date:
+            query_general += " WHERE date BETWEEN %s AND %s"
+            params_general.extend([start_date, end_date])
+        elif start_date:
+            query_general += " WHERE date >= %s"
+            params_general.append(start_date)
+        elif end_date:
+            query_general += " WHERE date <= %s"
+            params_general.append(end_date)
 
-        if start_date:
-            activities_sql += " AND la.activity_date >= %s"
-            general_expenses_sql += " AND ge.date >= %s"
-            activities_params.append(start_date)
-            general_expenses_params.append(start_date)
-        if end_date:
-            activities_sql += " AND la.activity_date <= %s"
-            general_expenses_sql += " AND ge.date <= %s"
-            activities_params.append(end_date)
-            general_expenses_params.append(end_date)
-
-        # --- CORRECTED psycopg2 execute and fetchall usage ---
-        cur.execute(activities_sql, activities_params)
-        activities_with_expenditure = cur.fetchall()
-
-        cur.execute(general_expenses_sql, general_expenses_params)
+        cur.execute(query_general, params_general)
         general_expenses = cur.fetchall()
 
-        report_items = [dict(row) for row in activities_with_expenditure] + \
-                       [dict(row) for row in general_expenses]
-        report_items.sort(key=lambda x: x['date'])
+        query_lead_expenses = """
+            SELECT ce.date, ce.type AS type_category, ce.description, ce.amount,
+                   l.firstName, l.lastName, l.company
+            FROM calendar_events ce
+            JOIN leads l ON ce.lead_id = l.id
+            WHERE ce.amount > 0
+        """
+        params_lead_expenses = []
 
-        from io import StringIO
-        import csv
-        from flask import make_response # Ensure make_response is imported for exports
+        if start_date and end_date:
+            query_lead_expenses += " AND ce.date BETWEEN %s AND %s"
+            params_lead_expenses.extend([start_date, end_date])
+        elif start_date:
+            query_lead_expenses += " AND ce.date >= %s"
+            params_lead_expenses.append(start_date)
+        elif end_date:
+            query_lead_expenses += " AND ce.date <= %s"
+            params_lead_expenses.append(end_date)
+
+        cur.execute(query_lead_expenses, params_lead_expenses)
+        lead_expenses = cur.fetchall()
+
+        report_data = []
+        for item in general_expenses:
+            report_data.append({
+                'date': str(item['date']),
+                'type_category': item['type_category'],
+                'description': item['description'],
+                'amount': float(item['amount']),
+                'lead_name': item['lead_name'],
+                'company': item['company']
+            })
+        for item in lead_expenses:
+            lead_full_name = f"{item['firstname'] or ''} {item['lastname'] or ''}".strip()
+            report_data.append({
+                'date': str(item['date']),
+                'type_category': item['type_category'],
+                'description': item['description'],
+                'amount': float(item['amount']),
+                'lead_name': lead_full_name if lead_full_name else None,
+                'company': item['company']
+            })
+
+        report_data.sort(key=lambda x: x['date']) # Sort for CSV output
 
         si = StringIO()
         cw = csv.writer(si)
 
         # Write header
         cw.writerow([
-            'Date', 'Category', 'Description', 'Amount', 'Lead Name', 'Company'
+            "Date", "Type/Category", "Description", "Amount (KSh)", "Lead Name", "Company"
         ])
 
-        # Write data rows
-        for item in report_items:
+        # Write data
+        for item in report_data:
             cw.writerow([
                 item['date'],
                 item['type_category'],
@@ -503,4 +607,4 @@ if __name__ == '__main__':
 
     # === YOU NEED TO MAKE THE CHANGE HERE ===
     port = int(os.environ.get('PORT', 5000))
-    app.run(debug=True, host='0.0.0.0', port=port)
+    app.run(host='0.0.0.0', port=port)

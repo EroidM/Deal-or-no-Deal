@@ -130,6 +130,13 @@
             font-size: 1.1rem; /* Adjust icon size */
         }
 
+        /* For the specific button group in Recent Leads */
+        .card h2 .button-group-header {
+            display: flex;
+            gap: 8px; /* Space between buttons */
+            margin-left: auto; /* Push to the right */
+        }
+
 
         .stats-grid {
             display: grid;
@@ -513,6 +520,11 @@
             border-color: var(--secondary-color) !important;
             color: white !important;
         }
+        .fc-event-general-expense { /* New color for General Expense events */
+            background-color: var(--danger-color) !important; /* Red */
+            border-color: var(--danger-color) !important;
+            color: white !important;
+        }
         .fc-event-other {
             background-color: #20c997 !important; /* Teal */
             border-color: #20c997 !important;
@@ -798,8 +810,10 @@
                 <div class="card">
                     <h2>
     			Recent Leads
-    			<button class="btn btn-primary btn-icon" id="addLeadModalBtn" title="Add New Lead"><i class="fas fa-plus"></i></button>
-    			<button id="exportLeadsBtn" class="btn btn-secondary btn-icon" title="Export Leads"><i class="fas fa-download"></i></button>
+                <div class="button-group-header">
+        			<button class="btn btn-primary btn-icon" id="addLeadModalBtn" title="Add New Lead"><i class="fas fa-plus"></i></button>
+        			<button id="exportLeadsBtn" class="btn btn-secondary btn-icon" title="Export Leads"><i class="fas fa-download"></i></button>
+                </div>
 		    </h2>
                     <div class="input-group">
                         <div class="form-group">
@@ -854,9 +868,10 @@
                                     <th data-label="Amount (KSh)">Amount (KSh)</th>
                                     <th data-label="Lead Name">Lead Name</th>
                                     <th data-label="Company">Company</th>
+                                    <th>Actions</th> <!-- Added for expense actions -->
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody id="generalExpensesList">
                                 <!-- Expenditure report items will be populated here by JavaScript -->
                             </tbody>
                         </table>
@@ -991,6 +1006,7 @@
             <span class="close-button" id="closeGeneralExpenseModalBtn">&times;</span>
             <h2>Add General Expense</h2>
             <form id="addExpenseForm">
+                <input type="hidden" id="expenseId" name="id"> <!-- Hidden input for expense ID -->
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="generalExpenseDate">Date:</label>
@@ -1005,7 +1021,7 @@
                         <input type="text" id="generalExpenseDescription" name="description" required>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Add Expense</button>
+                <button type="submit" class="btn btn-primary">Save Expense</button>
             </form>
         </div>
     </div>
