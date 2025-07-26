@@ -9,7 +9,7 @@
 
     <!-- Local CSS for Flatpickr from node_modules -->
     <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.css') }}">
-    <!-- Local CSS for FullCalendar Core from node_modules -->
+    <!-- FullCalendar CSS is injected by its JS, so no direct link tags needed here -->
         <style>
         /* Modern, Space-centric Styling */
         :root {
@@ -733,7 +733,7 @@
                 <div class="card">
                     <h2>
     			Recent Leads
-    			<button class="btn btn-primary" "openAddLeadModal()"><i class="fas fa-plus"></i> Add Lead</button>
+    			<button class="btn btn-primary" id="addLeadModalBtn"><i class="fas fa-plus"></i> Add Lead</button>
     			<button id="exportLeadsBtn" class="btn btn-secondary"><i class="fas fa-download"></i> Export Leads</button>
 		    </h2>
                     <div class="input-group">
@@ -763,7 +763,7 @@
                 <div class="card">
                     <h2>
                         Expenditure Report
-                        <button class="btn btn-secondary" "openGeneralExpenseModal()"><i class="fas fa-dollar-sign"></i> Add Expense</button>
+                        <button class="btn btn-secondary" id="addExpenseModalBtn"><i class="fas fa-dollar-sign"></i> Add Expense</button>
                     </h2>
                     <div class="input-group">
                         <div class="form-group">
@@ -774,8 +774,8 @@
                             <label for="reportEndDate">End Date:</label>
                             <input type="date" id="reportEndDate">
                         </div>
-                        <button class="btn btn-secondary" "filterExpenditureReport()">Filter</button>
-                        <button class="btn btn-primary" "exportExpenditureCsv()">Export CSV</button>
+                        <button class="btn btn-secondary" id="filterReportBtn">Filter</button>
+                        <button class="btn btn-primary" id="exportExpenditureReportBtn">Export CSV</button>
                     </div>
                     <div class="table-container">
                         <table id="expenditureReportTable">
@@ -806,7 +806,7 @@
                 <div class="card">
                     <h2>
                         Planning Calendar
-                        <button class="btn btn-primary" "openGeneralEventModal()"><i class="fas fa-calendar-alt"></i> Add Event</button>
+                        <button class="btn btn-primary" id="addEventModalBtn"><i class="fas fa-calendar-alt"></i> Add Event</button>
                     </h2>
                     <div id="calendar"></div>
                 </div>
@@ -816,42 +816,42 @@
 
     <div id="leadModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" "closeLeadModal()">&times;</span>
+            <span class="close-button" id="closeLeadModalBtn">&times;</span>
             <h2 id="leadModalTitle">Add New Lead</h2>
-            <form id="leadForm">
+            <form id="addLeadForm">
                 <input type="hidden" id="leadId">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="firstName">First Name:</label>
-                        <input type="text" id="firstName" required>
+                        <input type="text" id="firstName" name="firstName" required>
                     </div>
                     <div class="form-group">
                         <label for="lastName">Last Name:</label>
-                        <input type="text" id="lastName">
+                        <input type="text" id="lastName" name="lastName">
                     </div>
                     <div class="form-group">
                         <label for="title">Title:</label>
-                        <input type="text" id="title">
+                        <input type="text" id="title" name="title">
                     </div>
                     <div class="form-group">
                         <label for="company">Company:</label>
-                        <input type="text" id="company" required>
+                        <input type="text" id="company" name="company" required>
                     </div>
                     <div class="form-group">
                         <label for="email">Email:</label>
-                        <input type="email" id="email">
+                        <input type="email" id="email" name="email">
                     </div>
                     <div class="form-group">
                         <label for="phone">Phone:</label>
-                        <input type="tel" id="phone">
+                        <input type="tel" id="phone" name="phone">
                     </div>
                     <div class="form-group">
                         <label for="product">Product of Interest:</label>
-                        <input type="text" id="product">
+                        <input type="text" id="product" name="product">
                     </div>
                     <div class="form-group">
                         <label for="stage">Stage:</label>
-                        <select id="stage" required>
+                        <select id="stage" name="stage" required>
                             <option value="New">New</option>
                             <option value="Qualified">Qualified</option>
                             <option value="Proposal">Proposal</option>
@@ -862,15 +862,15 @@
                     </div>
                     <div class="form-group">
                         <label for="dateOfContact">Date of Contact:</label>
-                        <input type="date" id="dateOfContact" required>
+                        <input type="date" id="dateOfContact" name="dateOfContact" required>
                     </div>
                     <div class="form-group">
                         <label for="followUp">Follow-up Date (Optional):</label>
-                        <input type="date" id="followUp">
+                        <input type="date" id="followUp" name="followUp">
                     </div>
                     <div class="form-group full-width">
                         <label for="notes">Notes:</label>
-                        <textarea id="notes" rows="3"></textarea>
+                        <textarea id="notes" name="notes" rows="3"></textarea>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Lead</button>
@@ -880,46 +880,60 @@
 
     <div id="visitModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" "closeVisitModal()">&times;</span>
+            <span class="close-button" id="closeVisitModalBtn">&times;</span>
             <h2>Add New Visit</h2>
-            <form id="visitForm">
-                <input type="hidden" id="visitLeadId">
+            <form id="addActivityForm">
+                <input type="hidden" id="activityLeadId" name="lead_id">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="visitDate">Visit Date:</label>
-                        <input type="date" id="visitDate" required>
+                        <label for="activityDate">Activity Date:</label>
+                        <input type="date" id="activityDate" name="activity_date" required>
                     </div>
                     <div class="form-group">
-                        <label for="visitExpenditure">Expenditure (KSh):</label>
-                        <input type="number" id="visitExpenditure" step="0.01" min="0" value="0.00" required>
+                        <label for="activityType">Activity Type:</label>
+                        <select id="activityType" name="activity_type" required>
+                            <option value="call">Call</option>
+                            <option value="email">Email</option>
+                            <option value="visit">Visit</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="general_expense">General Expense</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="activityExpenditure">Expenditure (KSh):</label>
+                        <input type="number" id="activityExpenditure" name="expenditure" step="0.01" min="0" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="activityLocationName">Location Name (Optional):</label>
+                        <input type="text" id="activityLocationName" name="location_name">
                     </div>
                     <div class="form-group full-width">
-                        <label for="visitNotes">Notes:</label>
-                        <textarea id="visitNotes" rows="3"></textarea>
+                        <label for="activityDescription">Description:</label>
+                        <textarea id="activityDescription" name="description" rows="3"></textarea>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Add Visit</button>
+                <button type="submit" class="btn btn-primary">Add Activity</button>
             </form>
         </div>
     </div>
 
     <div id="generalExpenseModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" "closeGeneralExpenseModal()">&times;</span>
+            <span class="close-button" id="closeGeneralExpenseModalBtn">&times;</span>
             <h2>Add General Expense</h2>
-            <form id="generalExpenseForm">
+            <form id="addExpenseForm">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="generalExpenseDate">Date:</label>
-                        <input type="date" id="generalExpenseDate" required>
+                        <input type="date" id="generalExpenseDate" name="date" required>
                     </div>
                     <div class="form-group">
                         <label for="generalExpenseAmount">Amount (KSh):</label>
-                        <input type="number" id="generalExpenseAmount" step="0.01" min="0" required>
+                        <input type="number" id="generalExpenseAmount" name="amount" step="0.01" min="0" required>
                     </div>
                     <div class="form-group full-width">
                         <label for="generalExpenseDescription">Description:</label>
-                        <input type="text" id="generalExpenseDescription" required>
+                        <input type="text" id="generalExpenseDescription" name="description" required>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Expense</button>
@@ -929,31 +943,37 @@
 
     <div id="generalEventModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" "closeGeneralEventModal()">&times;</span>
+            <span class="close-button" id="closeGeneralEventModalBtn">&times;</span>
             <h2>Add Calendar Event</h2>
-            <form id="generalEventForm">
+            <form id="addEventForm">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="eventDate">Date:</label>
-                        <input type="date" id="eventDate" required>
+                        <input type="date" id="eventDate" name="date" required>
                     </div>
                     <div class="form-group">
                         <label for="eventType">Event Type:</label>
-                        <select id="eventType" required>
+                        <select id="eventType" name="type" required>
                             <option value="meeting">Meeting</option>
                             <option value="cold_visit">Cold Visit</option>
                             <option value="office_day_note">Office Day Note</option>
                             <option value="other">Other</option>
+                            <option value="General Expense">General Expense</option> <!-- Added for consistency -->
+                            <option value="visit">Visit</option> <!-- Added for consistency -->
                         </select>
                     </div>
                     <div class="form-group full-width">
                         <label for="eventDescription">Description:</label>
-                        <textarea id="eventDescription" rows="3" required></textarea>
+                        <textarea id="eventDescription" name="description" rows="3" required></textarea>
                     </div>
                     <div class="form-group full-width">
                         <label for="eventLeadId">Link to Lead (Optional):</label>
-                        <select id="eventLeadId">
+                        <select id="eventLeadId" name="lead_id">
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventAmount">Amount (KSh):</label>
+                        <input type="number" id="eventAmount" name="amount" step="0.01" min="0" value="0.00">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Event</button>
@@ -972,8 +992,7 @@
     <!-- Local JavaScript for Flatpickr from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.js') }}"></script>
 
-    <!-- Your custom dashboard.js -->
-    </script>
-<script src="{{ url_for('static', filename='dashboard.js') }}">
+    <!-- Your custom dashboard.js should be the LAST script loaded -->
+    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>
