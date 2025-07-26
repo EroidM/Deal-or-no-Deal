@@ -443,32 +443,48 @@
             background-color: var(--info-color);
         }
 
-        /* Loading Indicator */
-        .loading-indicator {
-            display: none;
+        /* Loading Overlay Styles */
+        .loading-overlay {
             position: fixed;
-            left: 0;
             top: 0;
+            left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            z-index: 2000;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
+            display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
+            z-index: 1000; /* Ensure it's on top of everything */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
         }
 
         .spinner {
-            border: 8px solid #f3f3f3;
-            border-top: 8px solid var(--primary-color);
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid var(--primary-color); /* Primary color */
             border-radius: 50%;
             width: 60px;
             height: 60px;
-            animation: spin 1s linear infinite;
+            animation: spin 2s linear infinite;
+            margin-bottom: 15px;
         }
 
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+
+        .loading-overlay p {
+            color: var(--text-dark);
+            font-size: 1.2rem;
+            font-weight: bold;
         }
 
         /* FullCalendar Specific Styles - Aesthetic Enhancements */
@@ -738,7 +754,7 @@
             table tr {
                 margin-bottom: 15px;
                 border: 1px solid var(--border-color);
-                border-radius: 8鸣;
+                border-radius: 8px;
                 padding: 10px;
                 box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             }
@@ -785,8 +801,9 @@
     </style>
 </head>
 <body>
-    <div id="loadingIndicator" class="loading-indicator">
+    <div id="loadingOverlay" class="loading-overlay">
         <div class="spinner"></div>
+        <p>Loading...</p>
     </div>
     <div id="messageContainer" class="message-container"></div>
     <div class="container">
