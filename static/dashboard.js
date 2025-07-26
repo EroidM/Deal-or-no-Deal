@@ -121,6 +121,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('totalLeadsCount').textContent = totalLeads;
         document.getElementById('newLeadsCount').textContent = newLeads;
         document.getElementById('qualifiedLeadsCount').textContent = qualifiedLeads;
+        document.getElementById('closedWonLeadsCount').textContent = qualifiedLeads; // Assuming Qualified leads are also new leads
         document.getElementById('closedWonLeadsCount').textContent = closedWonLeads;
         document.getElementById('closedLostLeadsCount').textContent = closedLostLeads;
 
@@ -172,7 +173,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         leadsByStageChart = new Chart(ctx, {
-            type: 'pie',
+            type: 'doughnut', // Changed from 'pie' to 'doughnut'
             data: {
                 labels: labels,
                 datasets: [{
