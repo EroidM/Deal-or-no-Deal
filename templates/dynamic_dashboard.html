@@ -676,6 +676,16 @@
             .stats-grid {
                 grid-template-columns: 1fr;
             }
+            /* Ensure tables are more responsive on very small screens */
+            .table-container {
+                border-radius: 0; /* Remove rounded corners for full width */
+                border-left: none;
+                border-right: none;
+            }
+            table th, table td {
+                padding: 0.8rem;
+                font-size: 0.85rem;
+            }
         }
     </style>
 </head>
@@ -775,6 +785,7 @@
                             <input type="date" id="reportEndDate">
                         </div>
                         <button class="btn btn-secondary" id="filterReportBtn">Filter</button>
+                        <button class="btn btn-secondary" id="clearReportDatesBtn">Clear Dates</button> <!-- NEW BUTTON -->
                         <button class="btn btn-primary" id="exportExpenditureReportBtn">Export CSV</button>
                     </div>
                     <div class="table-container">

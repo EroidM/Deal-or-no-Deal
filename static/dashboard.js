@@ -121,7 +121,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('totalLeadsCount').textContent = totalLeads;
         document.getElementById('newLeadsCount').textContent = newLeads;
         document.getElementById('qualifiedLeadsCount').textContent = qualifiedLeads;
-        document.getElementById('closedWonLeadsCount').textContent = qualifiedLeads; // Assuming Qualified leads are also new leads
         document.getElementById('closedWonLeadsCount').textContent = closedWonLeads;
         document.getElementById('closedLostLeadsCount').textContent = closedLostLeads;
 
@@ -675,6 +674,13 @@ document.addEventListener('DOMContentLoaded', function() {
         const startDate = document.getElementById('reportStartDate').value;
         const endDate = document.getElementById('reportEndDate').value;
         fetchExpenditureReport(startDate, endDate);
+    });
+
+    // New Event listener for clearing expenditure report date filters
+    document.getElementById('clearReportDatesBtn').addEventListener('click', function() {
+        document.getElementById('reportStartDate').value = '';
+        document.getElementById('reportEndDate').value = '';
+        fetchExpenditureReport(); // Fetch without filters
     });
 
     // Function to export leads to CSV
