@@ -733,7 +733,7 @@
                 <div class="card">
                     <h2>
     			Recent Leads
-    			<button class="btn btn-primary" onclick="openAddLeadModal()"><i class="fas fa-plus"></i> Add Lead</button>
+    			<button class="btn btn-primary" "openAddLeadModal()"><i class="fas fa-plus"></i> Add Lead</button>
     			<button id="exportLeadsBtn" class="btn btn-secondary"><i class="fas fa-download"></i> Export Leads</button>
 		    </h2>
                     <div class="input-group">
@@ -763,7 +763,7 @@
                 <div class="card">
                     <h2>
                         Expenditure Report
-                        <button class="btn btn-secondary" onclick="openGeneralExpenseModal()"><i class="fas fa-dollar-sign"></i> Add Expense</button>
+                        <button class="btn btn-secondary" "openGeneralExpenseModal()"><i class="fas fa-dollar-sign"></i> Add Expense</button>
                     </h2>
                     <div class="input-group">
                         <div class="form-group">
@@ -774,8 +774,8 @@
                             <label for="reportEndDate">End Date:</label>
                             <input type="date" id="reportEndDate">
                         </div>
-                        <button class="btn btn-secondary" onclick="filterExpenditureReport()">Filter</button>
-                        <button class="btn btn-primary" onclick="exportExpenditureCsv()">Export CSV</button>
+                        <button class="btn btn-secondary" "filterExpenditureReport()">Filter</button>
+                        <button class="btn btn-primary" "exportExpenditureCsv()">Export CSV</button>
                     </div>
                     <div class="table-container">
                         <table id="expenditureReportTable">
@@ -806,7 +806,7 @@
                 <div class="card">
                     <h2>
                         Planning Calendar
-                        <button class="btn btn-primary" onclick="openGeneralEventModal()"><i class="fas fa-calendar-alt"></i> Add Event</button>
+                        <button class="btn btn-primary" "openGeneralEventModal()"><i class="fas fa-calendar-alt"></i> Add Event</button>
                     </h2>
                     <div id="calendar"></div>
                 </div>
@@ -816,7 +816,7 @@
 
     <div id="leadModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" onclick="closeLeadModal()">&times;</span>
+            <span class="close-button" "closeLeadModal()">&times;</span>
             <h2 id="leadModalTitle">Add New Lead</h2>
             <form id="leadForm">
                 <input type="hidden" id="leadId">
@@ -880,7 +880,7 @@
 
     <div id="visitModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" onclick="closeVisitModal()">&times;</span>
+            <span class="close-button" "closeVisitModal()">&times;</span>
             <h2>Add New Visit</h2>
             <form id="visitForm">
                 <input type="hidden" id="visitLeadId">
@@ -905,7 +905,7 @@
 
     <div id="generalExpenseModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" onclick="closeGeneralExpenseModal()">&times;</span>
+            <span class="close-button" "closeGeneralExpenseModal()">&times;</span>
             <h2>Add General Expense</h2>
             <form id="generalExpenseForm">
                 <div class="form-grid">
@@ -929,7 +929,7 @@
 
     <div id="generalEventModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" onclick="closeGeneralEventModal()">&times;</span>
+            <span class="close-button" "closeGeneralEventModal()">&times;</span>
             <h2>Add Calendar Event</h2>
             <form id="generalEventForm">
                 <div class="form-grid">
@@ -973,6 +973,7 @@
     <script src="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.js') }}"></script>
 
     <!-- Your custom dashboard.js -->
-    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    </script>
+<script src="{{ url_for('static', filename='dashboard.js') }}">
 </body>
 </html>
