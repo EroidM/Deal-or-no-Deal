@@ -783,8 +783,8 @@
                 <div class="card">
                     <h2>
     			Recent Leads
-    			<button class="btn btn-primary" id="addLeadModalBtn"><i class="fas fa-plus"></i> Add Lead</button>
-    			<button id="exportLeadsBtn" class="btn btn-secondary"><i class="fas fa-download"></i> Export Leads</button>
+    			<button class="btn btn-primary" id="addLeadModalBtn" title="Add New Lead"><i class="fas fa-plus"></i></button>
+    			<button id="exportLeadsBtn" class="btn btn-secondary" title="Export Leads"><i class="fas fa-download"></i></button>
 		    </h2>
                     <div class="input-group">
                         <div class="form-group">
@@ -814,7 +814,7 @@
                 <div class="card">
                     <h2>
                         Expenditure Report
-                        <button class="btn btn-secondary" id="addExpenseModalBtn"><i class="fas fa-dollar-sign"></i> Add Expense</button>
+                        <button class="btn btn-secondary" id="addExpenseModalBtn" title="Add Expense"><i class="fas fa-dollar-sign"></i></button>
                     </h2>
                     <div class="input-group">
                         <div class="form-group">
@@ -825,19 +825,20 @@
                             <label for="reportEndDate">End Date:</label>
                             <input type="date" id="reportEndDate">
                         </div>
-                        <button class="btn btn-secondary" id="filterReportBtn">Filter</button>
-                        <button class="btn btn-secondary" id="clearReportDatesBtn">Clear Dates</button> <!-- NEW BUTTON -->
-                        <button class="btn btn-primary" id="exportExpenditureReportBtn">Export CSV</button>
+                        <button class="btn btn-secondary" id="filterReportBtn" title="Filter Report"><i class="fas fa-filter"></i></button>
+                        <button class="btn btn-secondary" id="clearReportDatesBtn" title="Clear Dates"><i class="fas fa-times"></i></button> <!-- NEW BUTTON -->
+                        <button class="btn btn-primary" id="exportExpenditureReportBtn" title="Export CSV"><i class="fas fa-file-csv"></i></button>
                     </div>
                     <div class="table-container">
                         <table id="expenditureReportTable">
                             <thead>
                                 <tr>
                                     <th data-label="Date">Date</th>
+                                    <th data-label="Category">Category</th>
                                     <th data-label="Description">Description</th>
+                                    <th data-label="Amount (KSh)">Amount (KSh)</th>
                                     <th data-label="Lead Name">Lead Name</th>
                                     <th data-label="Company">Company</th>
-                                    <th data-label="Amount (KSh)">Amount (KSh)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -859,7 +860,7 @@
                 <div class="card">
                     <h2>
                         Planning Calendar
-                        <button class="btn btn-primary" id="addEventModalBtn"><i class="fas fa-calendar-alt"></i> Add Event</button>
+                        <button class="btn btn-primary" id="addEventModalBtn" title="Add Event"><i class="fas fa-calendar-plus"></i></button>
                     </h2>
                     <div id="calendar"></div>
                 </div>

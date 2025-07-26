@@ -122,7 +122,6 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('totalLeadsCount').textContent = totalLeads;
         document.getElementById('newLeadsCount').textContent = newLeads;
         document.getElementById('qualifiedLeadsCount').textContent = qualifiedLeads;
-        // Corrected the ID here:
         document.getElementById('closedWonLeadsCount').textContent = closedWonLeads;
         document.getElementById('closedLostLeadsCount').textContent = closedLostLeads;
 
@@ -277,23 +276,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const lead = leads[0]; // Assuming GET by ID returns an array with one lead
 
                 if (lead) {
-                    // Populate Lead Details tab (for view mode)
-                    document.getElementById('viewLeadId').textContent = lead.id;
-                    document.getElementById('viewLeadName').textContent = `${lead.firstName} ${lead.lastName || ''}`;
-                    document.getElementById('viewLeadTitle').textContent = lead.title || 'N/A';
-                    document.getElementById('viewLeadCompany').textContent = lead.company;
-                    document.getElementById('viewLeadEmail').textContent = lead.email || 'N/A';
-                    document.getElementById('viewLeadPhone').textContent = lead.phone || 'N/A';
-                    document.getElementById('viewLeadProduct').textContent = lead.product || 'N/A';
-                    document.getElementById('viewLeadStage').textContent = lead.stage;
-                    document.getElementById('viewLeadDateOfContact').textContent = lead.dateOfContact;
-                    document.getElementById('viewLeadFollowUp').textContent = lead.followUp || 'N/A';
-                    document.getElementById('viewLeadNotes').textContent = lead.notes || 'N/A';
-                    document.getElementById('viewLeadCreatedAt').textContent = lead.created_at;
-
-                    // Populate Edit Lead form (if you have one, currently using addLeadForm for edit)
-                    // For now, let's assume 'addLeadForm' is also used for editing,
-                    // so we populate it and change its title.
+                    // Removed problematic lines that tried to populate non-existent 'viewLead' elements
+                    // The 'leadModal' is used for editing, so populate its form fields directly.
                     document.getElementById('leadId').value = lead.id; // Set hidden ID for update
                     document.getElementById('firstName').value = lead.firstName;
                     document.getElementById('lastName').value = lead.lastName || '';
@@ -312,7 +296,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Populate Add Activity form (if applicable, for visitModal)
                     document.getElementById('activityLeadId').value = lead.id;
-                    document.getElementById('activityLeadName').textContent = `${lead.firstName} ${lead.lastName || ''} (${lead.company})`;
+                    // Ensure activityLeadName element exists in HTML if you want to display it
+                    // document.getElementById('activityLeadName').textContent = `${lead.firstName} ${lead.lastName || ''} (${lead.company})`;
                     fetchLeadActivities(lead.id); // Fetch activities for this lead
 
                 } else {
@@ -657,7 +642,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.date}</td>
                     <td data-label="Category" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.type_category}</td>
                     <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.description || 'N/A'}</td>
-                    <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.amount || 0).toFixed(2)}</td>
+                    <td data-label="Amount (KSh)" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.amount || 0).toFixed(2)}</td>
                     <td data-label="Lead Name" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.lead_name || 'N/A'}</td>
                     <td data-label="Company" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.company || 'N/A'}</td>
                 `;
