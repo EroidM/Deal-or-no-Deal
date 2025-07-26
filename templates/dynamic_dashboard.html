@@ -495,14 +495,10 @@
         }
         
         /* Custom Event Colors based on Type */
-        .fc-event-follow-up {
-            background-color: var(--info-color) !important; /* Light blue */
-            border-color: var(--info-color) !important;
-            color: white !important;
-        }
+        /* Group 1: Positive Lead Interaction */
         .fc-event-visit {
-            background-color: var(--success-color) !important; /* Green */
-            border-color: var(--success-color) !important;
+            background-color: #28a745 !important; /* Success Green */
+            border-color: #28a745 !important;
             color: white !important;
         }
         .fc-event-meeting {
@@ -510,19 +506,40 @@
             border-color: #6610f2 !important;
             color: white !important;
         }
+        .fc-event-call { /* New */
+            background-color: #17a2b8 !important; /* Info Blue */
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+        .fc-event-email { /* New */
+            background-color: #5bc0de !important; /* Lighter Info Blue */
+            border-color: #5bc0de !important;
+            color: white !important;
+        }
+        .fc-event-follow-up { /* Keep existing follow-up color, similar to info */
+            background-color: #17a2b8 !important; 
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+
+        /* Group 2: New Outreach/Warning */
         .fc-event-cold-visit {
             background-color: #fd7e14 !important; /* Orange */
             border-color: #fd7e14 !important;
             color: white !important;
         }
-        .fc-event-office-day-note {
-            background-color: var(--secondary-color) !important; /* Gray */
-            border-color: var(--secondary-color) !important;
+
+        /* Group 3: Financial */
+        .fc-event-general-expense {
+            background-color: #dc3545 !important; /* Danger Red */
+            border-color: #dc3545 !important;
             color: white !important;
         }
-        .fc-event-general-expense { /* New color for General Expense events */
-            background-color: var(--danger-color) !important; /* Red */
-            border-color: var(--danger-color) !important;
+
+        /* Group 4: Internal/Other */
+        .fc-event-office-day-note {
+            background-color: #6c757d !important; /* Secondary Gray */
+            border-color: #6c757d !important;
             color: white !important;
         }
         .fc-event-other {
@@ -530,6 +547,17 @@
             border-color: #20c997 !important;
             color: white !important;
         }
+
+        /* Calendar Day Cell Styling for "Gray Days" */
+        .fc-daygrid-day {
+            background-color: #fcfcfc; /* Very light background for all days */
+            border: 1px solid var(--border-color); /* Subtle border */
+        }
+        /* Optional: Highlight days with events slightly more if needed, or let event colors dominate */
+        .fc-daygrid-day-frame.fc-day-today {
+            background-color: #e6f7ff; /* Light blue for today */
+        }
+
 
         /* Calendar Tooltip Styling */
         .calendar-tooltip {
@@ -710,7 +738,7 @@
             table tr {
                 margin-bottom: 15px;
                 border: 1px solid var(--border-color);
-                border-radius: 8px;
+                border-radius: 8鸣;
                 padding: 10px;
                 box-shadow: 0 2px 5px rgba(0,0,0,0.05);
             }
@@ -1045,6 +1073,8 @@
                             <option value="other">Other</option>
                             <option value="General Expense">General Expense</option> <!-- Added for consistency -->
                             <option value="visit">Visit</option> <!-- Added for consistency -->
+                            <option value="call">Call</option> <!-- Added for consistency -->
+                            <option value="email">Email</option> <!-- Added for consistency -->
                         </select>
                     </div>
                     <div class="form-group full-width">
