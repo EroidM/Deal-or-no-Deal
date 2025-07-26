@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 import csv
 from io import StringIO
 
+# Configure logging to show DEBUG messages
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
 load_dotenv()
 
 # Define the path to your project's root directory
@@ -32,7 +35,9 @@ DATABASE_URL = os.getenv('DATABASE_URL')
 def get_db_connection():
     conn = None
     try:
+        logging.info("Attempting to connect to database.")
         conn = psycopg2.connect(DATABASE_URL)
+        logging.info("Database connection successful.")
         return conn
     except psycopg2.Error as e:
         logging.error(f"Database connection error: {e}")
@@ -118,6 +123,7 @@ def handle_leads():
 
         if request.method == 'POST':
             data = request.json
+            logging.debug(f"Received lead POST data: {data}")
             # Ensure dateOfContact is not empty as it's NOT NULL
             if not data.get('dateOfContact'):
                 return jsonify({"message": "Date of Contact is required."}), 400
@@ -134,20 +140,27 @@ def handle_leads():
             )
             new_lead_id = cur.fetchone()['id']
             conn.commit()
+            logging.info(f"Lead added successfully with ID: {new_lead_id}")
             return jsonify({"message": "Lead added successfully", "id": new_lead_id}), 201
 
         elif request.method == 'GET':
             lead_id = request.args.get('id')
             if lead_id:
-                cur.execute("SELECT * FROM leads WHERE id = %s;", (lead_id,))
+                logging.debug(f"Fetching lead with ID: {lead_id}")
+                # Explicitly select all columns to ensure they are returned
+                cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads WHERE id = %s;", (lead_id,))
                 leads = cur.fetchall()
             else:
-                cur.execute("SELECT * FROM leads ORDER BY created_at DESC;")
+                logging.debug("Fetching all leads.")
+                # Explicitly select all columns for consistency
+                cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC;")
                 leads = cur.fetchall()
+            logging.debug(f"Fetched leads: {leads}")
             return jsonify(leads), 200
 
         elif request.method == 'PUT':
             data = request.json
+            logging.debug(f"Received lead PUT data: {data}")
             lead_id = data.get('id')
             if not lead_id:
                 return jsonify({"message": "Lead ID is required for update"}), 400
@@ -170,17 +183,22 @@ def handle_leads():
             )
             conn.commit()
             if cur.rowcount == 0:
+                logging.warning(f"Lead with ID {lead_id} not found for update or no changes made.")
                 return jsonify({"message": "Lead not found or no changes made"}), 404
+            logging.info(f"Lead with ID {lead_id} updated successfully.")
             return jsonify({"message": "Lead updated successfully"}), 200
 
         elif request.method == 'DELETE':
             lead_id = request.args.get('id')
             if not lead_id:
                 return jsonify({"message": "Lead ID is required for deletion"}), 400
+            logging.debug(f"Deleting lead with ID: {lead_id}")
             cur.execute("DELETE FROM leads WHERE id = %s;", (lead_id,))
             conn.commit()
             if cur.rowcount == 0:
+                logging.warning(f"Lead with ID {lead_id} not found for deletion.")
                 return jsonify({"message": "Lead not found"}), 404
+            logging.info(f"Lead with ID {lead_id} deleted successfully.")
             return jsonify({"message": "Lead deleted successfully"}), 200
 
     except psycopg2.Error as e:
@@ -202,6 +220,7 @@ def handle_lead_activities():
 
         if request.method == 'POST':
             data = request.json
+            logging.debug(f"Received lead activity POST data: {data}")
             if not data.get('activity_date'):
                 return jsonify({"message": "Activity Date is required."}), 400
             if not data.get('activity_type'): # Ensure activity type is present
@@ -220,29 +239,33 @@ def handle_lead_activities():
             )
             new_activity_id = cur.fetchone()['id']
             conn.commit()
+            logging.info(f"Activity added successfully with ID: {new_activity_id}")
             return jsonify({"message": "Activity added successfully", "id": new_activity_id}), 201
 
         elif request.method == 'GET':
             lead_id = request.args.get('lead_id')
             if lead_id:
-                # Fetch activities specifically linked to a lead
+                logging.debug(f"Fetching activities for lead ID: {lead_id}")
                 cur.execute("""
-                    SELECT ce.*, l.firstName, l.lastName, l.company
+                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount,
+                           l.id AS lead_id, l.firstName, l.lastName, l.company
                     FROM calendar_events ce
                     LEFT JOIN leads l ON ce.lead_id = l.id
                     WHERE ce.lead_id = %s
                     ORDER BY ce.date DESC;
                 """, (lead_id,))
             else:
-                # Fetch all activities that are linked to leads (optional, or adjust as needed)
+                logging.debug("Fetching all lead-linked activities.")
                 cur.execute("""
-                    SELECT ce.*, l.firstName, l.lastName, l.company
+                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount,
+                           l.id AS lead_id, l.firstName, l.lastName, l.company
                     FROM calendar_events ce
                     LEFT JOIN leads l ON ce.lead_id = l.id
                     WHERE ce.lead_id IS NOT NULL
                     ORDER BY ce.date DESC;
                 """)
             activities = cur.fetchall()
+            logging.debug(f"Fetched activities: {activities}")
             return jsonify(activities), 200
 
     except psycopg2.Error as e:
@@ -264,6 +287,7 @@ def handle_general_expenses():
 
         if request.method == 'POST':
             data = request.json
+            logging.debug(f"Received general expense POST data: {data}")
             if not data.get('date'):
                 return jsonify({"message": "Date is required."}), 400
             if not data.get('amount'):
@@ -279,20 +303,27 @@ def handle_general_expenses():
             )
             new_expense_id = cur.fetchone()['id']
             conn.commit()
+            logging.info(f"General expense added successfully with ID: {new_expense_id}")
             return jsonify({"message": "General expense added successfully", "id": new_expense_id}), 201
 
         elif request.method == 'GET':
             expense_id = request.args.get('id')
             if expense_id:
-                cur.execute("SELECT * FROM general_expenses WHERE id = %s;", (expense_id,))
+                logging.debug(f"Fetching general expense with ID: {expense_id}")
+                # Explicitly select all columns for consistency
+                cur.execute("SELECT id, date, amount, description, created_at FROM general_expenses WHERE id = %s;", (expense_id,))
                 expenses = cur.fetchall()
             else:
-                cur.execute("SELECT * FROM general_expenses ORDER BY date DESC;")
+                logging.debug("Fetching all general expenses.")
+                # Explicitly select all columns for consistency
+                cur.execute("SELECT id, date, amount, description, created_at FROM general_expenses ORDER BY date DESC;")
                 expenses = cur.fetchall()
+            logging.debug(f"Fetched general expenses: {expenses}")
             return jsonify(expenses), 200
 
         elif request.method == 'PUT':
             data = request.json
+            logging.debug(f"Received general expense PUT data: {data}")
             expense_id = data.get('id')
             if not expense_id:
                 return jsonify({"message": "Expense ID is required for update"}), 400
@@ -312,17 +343,22 @@ def handle_general_expenses():
             )
             conn.commit()
             if cur.rowcount == 0:
+                logging.warning(f"General expense with ID {expense_id} not found for update or no changes made.")
                 return jsonify({"message": "Expense not found or no changes made"}), 404
+            logging.info(f"General expense with ID {expense_id} updated successfully.")
             return jsonify({"message": "General expense updated successfully"}), 200
 
         elif request.method == 'DELETE':
             expense_id = request.args.get('id')
             if not expense_id:
                 return jsonify({"message": "Expense ID is required for deletion"}), 400
+            logging.debug(f"Deleting general expense with ID: {expense_id}")
             cur.execute("DELETE FROM general_expenses WHERE id = %s;", (expense_id,))
             conn.commit()
             if cur.rowcount == 0:
+                logging.warning(f"General expense with ID {expense_id} not found for deletion.")
                 return jsonify({"message": "Expense not found"}), 404
+            logging.info(f"General expense with ID {expense_id} deleted successfully.")
             return jsonify({"message": "General expense deleted successfully"}), 200
 
     except psycopg2.Error as e:
@@ -344,6 +380,7 @@ def handle_calendar_events():
 
         if request.method == 'POST':
             data = request.json
+            logging.debug(f"Received calendar event POST data: {data}")
             if not data.get('date'):
                 return jsonify({"message": "Date is required."}), 400
             if not data.get('type'):
@@ -360,10 +397,12 @@ def handle_calendar_events():
             )
             new_event_id = cur.fetchone()['id']
             conn.commit()
+            logging.info(f"Calendar event added successfully with ID: {new_event_id}")
             return jsonify({"message": "Calendar event added successfully", "id": new_event_id}), 201
 
         elif request.method == 'GET':
-            # Fetch all calendar events, joining with leads to get lead name and company if linked
+            logging.debug("Fetching all calendar events with linked lead info.")
+            # Explicitly select all columns from calendar_events and lead join
             cur.execute("""
                 SELECT ce.id, ce.date, ce.type, ce.description, ce.amount,
                        l.id AS lead_id, l.firstName, l.lastName, l.company
@@ -374,15 +413,13 @@ def handle_calendar_events():
             events = cur.fetchall()
             # Format lead_name for display
             for event in events:
-                if event['lead_id']:
-                    event['lead_name'] = f"{event['firstname'] or ''} {event['lastname'] or ''}".strip()
-                    event['company'] = event['company']
-                else:
-                    event['lead_name'] = None
-                    event['company'] = None
+                # Ensure 'firstname' and 'lastname' are handled even if None from LEFT JOIN
+                event['lead_name'] = f"{event.get('firstname', '') or ''} {event.get('lastname', '') or ''}".strip()
+                event['company'] = event.get('company', None) # Ensure company is None if not present
                 # Clean up unused fields from join
                 event.pop('firstname', None)
                 event.pop('lastname', None)
+            logging.debug(f"Fetched calendar events: {events}")
             return jsonify(events), 200
 
     except psycopg2.Error as e:
@@ -423,11 +460,14 @@ def get_expenditure_report():
             query_general += " WHERE date <= %s"
             params_general.append(end_date)
 
+        logging.debug(f"Executing query_general: {query_general} with params: {params_general}")
         cur.execute(query_general, params_general)
         general_expenses = cur.fetchall()
+        logging.debug(f"Fetched general expenses: {general_expenses}")
 
         # Fetch ALL calendar_events with amount > 0, using LEFT JOIN for leads
         # This ensures visits with amounts are included even if not linked to a lead
+        # Explicitly select all columns from calendar_events and lead join
         query_calendar_expenses = """
             SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount,
                    l.id AS lead_id, l.firstName, l.lastName, l.company, 'calendar_events' AS source_table
@@ -447,8 +487,10 @@ def get_expenditure_report():
             query_calendar_expenses += " AND ce.date <= %s"
             calendar_expense_params.append(end_date)
 
+        logging.debug(f"Executing query_calendar_expenses: {query_calendar_expenses} with params: {calendar_expense_params}")
         cur.execute(query_calendar_expenses, calendar_expense_params)
         calendar_expenses = cur.fetchall()
+        logging.debug(f"Fetched calendar expenses: {calendar_expenses}")
 
         # Combine and format results
         report_data = []
@@ -459,13 +501,13 @@ def get_expenditure_report():
                 "type_category": expense['type_category'],
                 "description": expense['description'],
                 "amount": float(expense['amount']),
-                "lead_name": expense['lead_name'], # Will be None as per query
-                "company": expense['company'],     # Will be None as per query
+                "lead_name": None, # Explicitly None for general expenses as they don't have a lead
+                "company": None,     # Explicitly None for general expenses
                 "source_table": expense['source_table']
             })
         for expense in calendar_expenses:
             # Handle lead_name and company for calendar events that might not have a linked lead
-            lead_full_name = f"{expense['firstname'] or ''} {expense['lastname'] or ''}".strip()
+            lead_full_name = f"{expense.get('firstname', '') or ''} {expense.get('lastname', '') or ''}".strip()
             report_data.append({
                 "id": expense['id'],
                 "date": str(expense['date']),
@@ -473,13 +515,13 @@ def get_expenditure_report():
                 "description": expense['description'],
                 "amount": float(expense['amount']),
                 "lead_name": lead_full_name if lead_full_name else None,
-                "company": expense['company'] if expense['company'] else None,
+                "company": expense.get('company', None) if expense.get('company', None) else None,
                 "source_table": expense['source_table']
             })
 
         # Sort combined data by date
         report_data.sort(key=lambda x: x['date'], reverse=True)
-
+        logging.debug(f"Combined expenditure report data: {report_data}")
         return jsonify(report_data), 200
 
     except psycopg2.Error as e:
@@ -498,7 +540,8 @@ def export_leads():
             return jsonify({"message": "Database connection failed"}), 500
         cur = conn.cursor(cursor_factory=extras.RealDictCursor)
 
-        cur.execute("SELECT * FROM leads ORDER BY created_at DESC;")
+        # Explicitly select all columns for consistency
+        cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC;")
         leads = cur.fetchall()
 
         si = StringIO()
