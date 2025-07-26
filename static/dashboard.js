@@ -89,13 +89,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             leads.forEach(lead => {
                 const row = document.createElement('tr');
+                // Added data-label attributes for responsive tables
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.firstName} ${lead.lastName || ''}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.company}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.stage}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.dateOfContact}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.followUp || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <td data-label="Name" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.firstName} ${lead.lastName || ''}</td>
+                    <td data-label="Company" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.company}</td>
+                    <td data-label="Stage" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.stage}</td>
+                    <td data-label="Contact Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.dateOfContact}</td>
+                    <td data-label="Follow-up Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.followUp || 'N/A'}</td>
+                    <td data-label="Actions" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}">View</button>
                         <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}">Delete</button>
                     </td>
@@ -121,6 +122,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('totalLeadsCount').textContent = totalLeads;
         document.getElementById('newLeadsCount').textContent = newLeads;
         document.getElementById('qualifiedLeadsCount').textContent = qualifiedLeads;
+        // Corrected the ID here:
         document.getElementById('closedWonLeadsCount').textContent = closedWonLeads;
         document.getElementById('closedLostLeadsCount').textContent = closedLostLeads;
 
@@ -416,11 +418,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 activities.forEach(activity => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${activity.id}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.description || 'N/A'}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.expenditure || '0.00'}</td>
+                        <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${activity.id}</td>
+                        <td data-label="Type" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type}</td>
+                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date}</td>
+                        <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.description || 'N/A'}</td>
+                        <td data-label="Expenditure" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.expenditure || '0.00'}</td>
                     `;
                     activitiesList.appendChild(row);
                 });
@@ -480,10 +482,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 expenses.forEach(expense => {
                     const row = document.createElement('tr');
                     row.innerHTML = `
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${expense.id}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount}</td>
+                        <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${expense.id}</td>
+                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date}</td>
+                        <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description}</td>
+                        <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount}</td>
                     `;
                     expensesList.appendChild(row);
                 });
@@ -650,19 +652,21 @@ document.addEventListener('DOMContentLoaded', function() {
 
             reportItems.forEach(item => {
                 const row = document.createElement('tr');
+                // Added data-label attributes for responsive tables
                 row.innerHTML = `
-                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.date}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.type_category}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.description || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.amount || 0).toFixed(2)}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.lead_name || 'N/A'}</td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.company || 'N/A'}</td>
+                    <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.date}</td>
+                    <td data-label="Category" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.type_category}</td>
+                    <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.description || 'N/A'}</td>
+                    <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.amount || 0).toFixed(2)}</td>
+                    <td data-label="Lead Name" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.lead_name || 'N/A'}</td>
+                    <td data-label="Company" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.company || 'N/A'}</td>
                 `;
                 reportTableBody.appendChild(row);
                 totalExpenditure += parseFloat(item.amount || 0);
             });
 
-            document.getElementById('totalExpenditure').textContent = totalExpenditure.toFixed(2);
+            // Corrected the ID here:
+            document.getElementById('totalExpenditureSummary').textContent = `Total Expenditure: KSh ${totalExpenditure.toFixed(2)}`;
         } catch (error) {
             console.error('Error fetching expenditure report:', error);
             showMessage('Failed to load expenditure report.', 'error');

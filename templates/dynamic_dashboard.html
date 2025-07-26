@@ -164,7 +164,7 @@
             width: 100%;
             border-collapse: collapse;
             font-size: 0.95rem;
-            white-space: nowrap; /* Prevent text wrapping in cells */
+            /* white-space: nowrap; REMOVED for mobile responsiveness */
         }
 
         table th, table td {
@@ -663,6 +663,52 @@
                 width: 100%;
                 height: auto;
             }
+
+            /* Responsive Table Styling for smaller screens */
+            .table-container {
+                border-radius: 0; /* Remove rounded corners for full width */
+                border-left: none;
+                border-right: none;
+            }
+            table {
+                border: 0; /* Remove table borders */
+            }
+            table thead {
+                display: none; /* Hide table headers on small screens */
+            }
+            table, table tbody, table tr, table td {
+                display: block; /* Make table elements behave like block elements */
+                width: 100%; /* Take full width */
+            }
+            table tr {
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+            table td {
+                text-align: right; /* Align content to the right */
+                padding-left: 50%; /* Make space for the label */
+                position: relative;
+                border: none; /* Remove cell borders */
+            }
+            table td::before {
+                content: attr(data-label); /* Use data-label for the pseudo-element content */
+                position: absolute;
+                left: 10px;
+                width: calc(50% - 20px); /* Adjust width for label */
+                padding-right: 10px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 600;
+                color: var(--text-dark);
+                text-align: left;
+            }
+            table td:last-child {
+                border-bottom: 0; /* No bottom border for the last cell in a row */
+            }
         }
 
         @media (max-width: 480px) {
@@ -675,12 +721,6 @@
             }
             .stats-grid {
                 grid-template-columns: 1fr;
-            }
-            /* Ensure tables are more responsive on very small screens */
-            .table-container {
-                border-radius: 0; /* Remove rounded corners for full width */
-                border-left: none;
-                border-right: none;
             }
             table th, table td {
                 padding: 0.8rem;
@@ -765,7 +805,8 @@
                                 </tr>
                             </thead>
                             <tbody>
-                                </tbody>
+                                <!-- Leads will be populated here by JavaScript -->
+                            </tbody>
                         </table>
                     </div>
                 </div>
@@ -792,15 +833,16 @@
                         <table id="expenditureReportTable">
                             <thead>
                                 <tr>
-                                    <th>Date</th>
-                                    <th>Description</th>
-                                    <th>Lead Name</th>
-                                    <th>Company</th>
-                                    <th>Amount (KSh)</th>
+                                    <th data-label="Date">Date</th>
+                                    <th data-label="Description">Description</th>
+                                    <th data-label="Lead Name">Lead Name</th>
+                                    <th data-label="Company">Company</th>
+                                    <th data-label="Amount (KSh)">Amount (KSh)</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                </tbody>
+                                <!-- Expenditure report items will be populated here by JavaScript -->
+                            </tbody>
                         </table>
                     </div>
                     <div id="totalExpenditureSummary">Total Expenditure: KSh 0.00</div>
