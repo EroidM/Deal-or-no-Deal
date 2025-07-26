@@ -118,10 +118,10 @@ def handle_leads():
 
         if request.method == 'POST':
             data = request.json
-            data = convert_empty_to_none(data, ['lastName', 'title', 'email', 'phone', 'product', 'followUp', 'notes'])
-            # dateOfContact is NOT NULL, so it must always have a value
+            # Ensure dateOfContact is not empty as it's NOT NULL
             if not data.get('dateOfContact'):
                 return jsonify({"message": "Date of Contact is required."}), 400
+            data = convert_empty_to_none(data, ['lastName', 'title', 'email', 'phone', 'product', 'followUp', 'notes'])
 
             cur.execute(
                 """
@@ -148,12 +148,13 @@ def handle_leads():
 
         elif request.method == 'PUT':
             data = request.json
-            data = convert_empty_to_none(data, ['lastName', 'title', 'email', 'phone', 'product', 'followUp', 'notes'])
             lead_id = data.get('id')
             if not lead_id:
                 return jsonify({"message": "Lead ID is required for update"}), 400
+            # Ensure dateOfContact is not empty as it's NOT NULL
             if not data.get('dateOfContact'):
                 return jsonify({"message": "Date of Contact is required."}), 400
+            data = convert_empty_to_none(data, ['lastName', 'title', 'email', 'phone', 'product', 'followUp', 'notes'])
 
             cur.execute(
                 """
@@ -201,9 +202,12 @@ def handle_lead_activities():
 
         if request.method == 'POST':
             data = request.json
-            data = convert_empty_to_none(data, ['description', 'lead_id', 'expenditure'])
             if not data.get('activity_date'):
                 return jsonify({"message": "Activity Date is required."}), 400
+            if not data.get('activity_type'): # Ensure activity type is present
+                return jsonify({"message": "Activity Type is required."}), 400
+
+            data = convert_empty_to_none(data, ['description', 'lead_id', 'expenditure'])
 
             # Insert into calendar_events as lead activities are also events
             cur.execute(
@@ -212,7 +216,7 @@ def handle_lead_activities():
                 VALUES (%s, %s, %s, %s, %s) RETURNING id;
                 """,
                 (data['activity_date'], data['activity_type'], data.get('description'),
-                 data.get('lead_id'), data.get('expenditure', 0.00))
+                 data.get('lead_id'), data.get('expenditure', 0.00)) # Use .get with default for expenditure
             )
             new_activity_id = cur.fetchone()['id']
             conn.commit()
@@ -260,11 +264,11 @@ def handle_general_expenses():
 
         if request.method == 'POST':
             data = request.json
-            data = convert_empty_to_none(data, ['description'])
             if not data.get('date'):
                 return jsonify({"message": "Date is required."}), 400
             if not data.get('amount'):
                 return jsonify({"message": "Amount is required."}), 400
+            data = convert_empty_to_none(data, ['description'])
 
             cur.execute(
                 """
@@ -289,7 +293,6 @@ def handle_general_expenses():
 
         elif request.method == 'PUT':
             data = request.json
-            data = convert_empty_to_none(data, ['description'])
             expense_id = data.get('id')
             if not expense_id:
                 return jsonify({"message": "Expense ID is required for update"}), 400
@@ -297,6 +300,7 @@ def handle_general_expenses():
                 return jsonify({"message": "Date is required."}), 400
             if not data.get('amount'):
                 return jsonify({"message": "Amount is required."}), 400
+            data = convert_empty_to_none(data, ['description'])
 
             cur.execute(
                 """
@@ -340,11 +344,11 @@ def handle_calendar_events():
 
         if request.method == 'POST':
             data = request.json
-            data = convert_empty_to_none(data, ['description', 'lead_id', 'amount'])
             if not data.get('date'):
                 return jsonify({"message": "Date is required."}), 400
             if not data.get('type'):
                 return jsonify({"message": "Event type is required."}), 400
+            data = convert_empty_to_none(data, ['description', 'lead_id', 'amount'])
 
             cur.execute(
                 """
@@ -404,7 +408,7 @@ def get_expenditure_report():
         # Fetch general expenses with a source identifier
         query_general = """
             SELECT id, date, 'General Expense' AS type_category, description, amount,
-                   NULL AS lead_id, NULL AS lead_name, NULL AS company, 'general_expenses' AS source_table
+                   NULL AS lead_id, NULL AS firstName, NULL AS lastName, NULL AS company, 'general_expenses' AS source_table
             FROM general_expenses
         """
         params_general = []
@@ -422,28 +426,29 @@ def get_expenditure_report():
         cur.execute(query_general, params_general)
         general_expenses = cur.fetchall()
 
-        # Fetch lead-related expenses from calendar_events with a source identifier
-        query_lead_expenses = """
+        # Fetch ALL calendar_events with amount > 0, using LEFT JOIN for leads
+        # This ensures visits with amounts are included even if not linked to a lead
+        query_calendar_expenses = """
             SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount,
                    l.id AS lead_id, l.firstName, l.lastName, l.company, 'calendar_events' AS source_table
             FROM calendar_events ce
-            JOIN leads l ON ce.lead_id = l.id
+            LEFT JOIN leads l ON ce.lead_id = l.id
             WHERE ce.amount > 0
         """
-        lead_expense_params = []
+        calendar_expense_params = []
 
         if start_date and end_date:
-            query_lead_expenses += " AND ce.date BETWEEN %s AND %s"
-            lead_expense_params.extend([start_date, end_date])
+            query_calendar_expenses += " AND ce.date BETWEEN %s AND %s"
+            calendar_expense_params.extend([start_date, end_date])
         elif start_date:
-            query_lead_expenses += " AND ce.date >= %s"
-            lead_expense_params.append(start_date)
+            query_calendar_expenses += " AND ce.date >= %s"
+            calendar_expense_params.append(start_date)
         elif end_date:
-            query_lead_expenses += " AND ce.date <= %s"
-            lead_expense_params.append(end_date)
+            query_calendar_expenses += " AND ce.date <= %s"
+            calendar_expense_params.append(end_date)
 
-        cur.execute(query_lead_expenses, lead_expense_params)
-        lead_expenses = cur.fetchall()
+        cur.execute(query_calendar_expenses, calendar_expense_params)
+        calendar_expenses = cur.fetchall()
 
         # Combine and format results
         report_data = []
@@ -454,11 +459,12 @@ def get_expenditure_report():
                 "type_category": expense['type_category'],
                 "description": expense['description'],
                 "amount": float(expense['amount']),
-                "lead_name": expense['lead_name'],
-                "company": expense['company'],
-                "source_table": expense['source_table'] # Add source table for debugging
+                "lead_name": expense['lead_name'], # Will be None as per query
+                "company": expense['company'],     # Will be None as per query
+                "source_table": expense['source_table']
             })
-        for expense in lead_expenses:
+        for expense in calendar_expenses:
+            # Handle lead_name and company for calendar events that might not have a linked lead
             lead_full_name = f"{expense['firstname'] or ''} {expense['lastname'] or ''}".strip()
             report_data.append({
                 "id": expense['id'],
@@ -467,8 +473,8 @@ def get_expenditure_report():
                 "description": expense['description'],
                 "amount": float(expense['amount']),
                 "lead_name": lead_full_name if lead_full_name else None,
-                "company": expense['company'],
-                "source_table": expense['source_table'] # Add source table for debugging
+                "company": expense['company'] if expense['company'] else None,
+                "source_table": expense['source_table']
             })
 
         # Sort combined data by date
@@ -556,27 +562,28 @@ def export_expenditure_report():
         cur.execute(query_general, params_general)
         general_expenses = cur.fetchall()
 
-        query_lead_expenses = """
+        # Modified query to use LEFT JOIN for calendar events with amounts
+        query_calendar_expenses = """
             SELECT ce.date, ce.type AS type_category, ce.description, ce.amount,
                    l.firstName, l.lastName, l.company
             FROM calendar_events ce
-            JOIN leads l ON ce.lead_id = l.id
+            LEFT JOIN leads l ON ce.lead_id = l.id
             WHERE ce.amount > 0
         """
-        params_lead_expenses = []
+        params_calendar_expenses = []
 
         if start_date and end_date:
-            query_lead_expenses += " AND ce.date BETWEEN %s AND %s"
-            params_lead_expenses.extend([start_date, end_date])
+            query_calendar_expenses += " AND ce.date BETWEEN %s AND %s"
+            params_calendar_expenses.extend([start_date, end_date])
         elif start_date:
-            query_lead_expenses += " AND ce.date >= %s"
-            params_lead_expenses.append(start_date)
+            query_calendar_expenses += " AND ce.date >= %s"
+            params_calendar_expenses.append(start_date)
         elif end_date:
-            query_lead_expenses += " AND ce.date <= %s"
-            params_lead_expenses.append(end_date)
+            query_calendar_expenses += " AND ce.date <= %s"
+            params_calendar_expenses.append(end_date)
 
-        cur.execute(query_lead_expenses, params_lead_expenses)
-        lead_expenses = cur.fetchall()
+        cur.execute(query_calendar_expenses, params_calendar_expenses)
+        calendar_expenses = cur.fetchall()
 
         report_data = []
         for item in general_expenses:
@@ -588,7 +595,8 @@ def export_expenditure_report():
                 'lead_name': item['lead_name'],
                 'company': item['company']
             })
-        for item in lead_expenses:
+        for item in calendar_expenses:
+            # Handle cases where lead is not linked (firstName/lastName/company would be None)
             lead_full_name = f"{item['firstname'] or ''} {item['lastname'] or ''}".strip()
             report_data.append({
                 'date': str(item['date']),
@@ -596,7 +604,7 @@ def export_expenditure_report():
                 'description': item['description'],
                 'amount': float(item['amount']),
                 'lead_name': lead_full_name if lead_full_name else None,
-                'company': item['company']
+                'company': item['company'] if item['company'] else None
             })
 
         report_data.sort(key=lambda x: x['date']) # Sort for CSV output
@@ -616,8 +624,8 @@ def export_expenditure_report():
                 item['type_category'],
                 item['description'],
                 item['amount'],
-                item['lead_name'],
-                item['company']
+                item['lead_name'] if item['lead_name'] is not None else 'N/A', # Ensure N/A for CSV export
+                item['company'] if item['company'] is not None else 'N/A'     # Ensure N/A for CSV export
             ])
 
         output = si.getvalue()
@@ -634,15 +642,5 @@ def export_expenditure_report():
             conn.close()
 
 if __name__ == '__main__':
-    # IMPORTANT: When running locally, you might want to run init_db() ONLY once
-    # to set up a *local* PostgreSQL database or ensure the schema is applied.
-    # For Render, it's better to manage schema/seed through Render's build process
-    # or dedicated migration tools.
-    # Ensure DATABASE_URL is set in your local .env if you want to test locally with PG.
-    # If not set, it will try to connect to an undefined DATABASE_URL, which will fail.
-    # To run locally with SQLite again temporarily, you'd have to revert this file.
-    # init_db() # Keep this commented out for automatic deployments
-
-    # === YOU NEED TO MAKE THE CHANGE HERE ===
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
