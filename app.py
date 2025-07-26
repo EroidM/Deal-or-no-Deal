@@ -281,7 +281,8 @@ def handle_calendar_events():
         if conn:
             conn.close()
 
-@app.route('/expenditure_report', methods=['GET'])
+# Corrected route to include /api/ prefix
+@app.route('/api/expenditure_report', methods=['GET'])
 def get_expenditure_report():
     conn = None
     try:
@@ -351,7 +352,8 @@ def get_expenditure_report():
         if conn:
             conn.close()
 
-@app.route('/export_leads', methods=['GET'])
+# Corrected route to include /api/ prefix
+@app.route('/api/export_leads', methods=['GET'])
 def export_leads():
     conn = None
     try:
@@ -394,8 +396,8 @@ def export_leads():
         if conn:
             conn.close()
 
-
-@app.route('/export_expenditure_report', methods=['GET'])
+# Corrected route to include /api/ prefix
+@app.route('/api/export_expenditure_report', methods=['GET'])
 def export_expenditure_report():
     conn = None
     try:
