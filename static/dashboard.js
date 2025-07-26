@@ -91,14 +91,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 const row = document.createElement('tr');
                 // Added data-label attributes for responsive tables
                 row.innerHTML = `
-                    <td data-label="Name" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.firstName} ${lead.lastName || ''}</td>
-                    <td data-label="Company" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.company}</td>
-                    <td data-label="Stage" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.stage}</td>
-                    <td data-label="Contact Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.dateOfContact}</td>
+                    <td data-label="Name" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${lead.firstName || 'N/A'} ${lead.lastName || ''}</td>
+                    <td data-label="Company" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.company || 'N/A'}</td>
+                    <td data-label="Stage" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.stage || 'N/A'}</td>
+                    <td data-label="Contact Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.dateOfContact || 'N/A'}</td>
                     <td data-label="Follow-up Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${lead.followUp || 'N/A'}</td>
                     <td data-label="Actions" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}">View</button>
-                        <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}">Delete</button>
+                        <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}" title="View/Edit Lead"><i class="fas fa-eye"></i></button>
+                        <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 `;
                 leadsList.appendChild(row);
@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
         leads.forEach(lead => {
             const option = document.createElement('option');
             option.value = lead.id;
-            option.textContent = `${lead.firstName} ${lead.lastName || ''} (${lead.company})`;
+            option.textContent = `${lead.firstName || 'N/A'} ${lead.lastName || ''} (${lead.company || 'N/A'})`;
             eventLeadSelect.appendChild(option);
         });
 
@@ -149,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function() {
              // Find the lead in the fetched leads and display its name
              const selectedLead = leads.find(lead => lead.id == activityLeadIdInput.value);
              if (selectedLead) {
-                 document.getElementById('activityLeadName').textContent = `${selectedLead.firstName} ${selectedLead.lastName || ''} (${selectedLead.company})`;
+                 document.getElementById('activityLeadName').textContent = `${selectedLead.firstName || 'N/A'} ${selectedLead.lastName || ''} (${selectedLead.company || 'N/A'})`;
              }
         }
     }
@@ -222,8 +222,8 @@ document.addEventListener('DOMContentLoaded', function() {
         sortedFollowups.forEach(lead => {
             const listItem = document.createElement('li');
             listItem.innerHTML = `
-                <span class="lead-name">${lead.firstName} ${lead.lastName || ''} (${lead.company})</span>
-                <span class="followup-details">Follow-up on: ${lead.followUp} (Stage: ${lead.stage})</span>
+                <span class="lead-name">${lead.firstName || 'N/A'} ${lead.lastName || ''} (${lead.company || 'N/A'})</span>
+                <span class="followup-details">Follow-up on: ${lead.followUp || 'N/A'} (Stage: ${lead.stage || 'N/A'})</span>
             `;
             upcomingList.appendChild(listItem);
         });
@@ -264,8 +264,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to view lead details (and populate edit form)
     document.getElementById('recentLeadsTable').addEventListener('click', async function(event) {
-        if (event.target.classList.contains('view-lead-btn')) {
-            const leadId = event.target.dataset.id;
+        if (event.target.closest('.view-lead-btn')) { // Use closest to handle clicks on icon inside button
+            const leadId = event.target.closest('.view-lead-btn').dataset.id;
             showLoading();
             try {
                 const response = await fetch(`/api/leads?id=${leadId}`); // Corrected API path
@@ -276,18 +276,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const lead = leads[0]; // Assuming GET by ID returns an array with one lead
 
                 if (lead) {
-                    // Removed problematic lines that tried to populate non-existent 'viewLead' elements
-                    // The 'leadModal' is used for editing, so populate its form fields directly.
+                    // Populate Edit Lead form fields directly
                     document.getElementById('leadId').value = lead.id; // Set hidden ID for update
-                    document.getElementById('firstName').value = lead.firstName;
+                    document.getElementById('firstName').value = lead.firstName || '';
                     document.getElementById('lastName').value = lead.lastName || '';
                     document.getElementById('title').value = lead.title || '';
-                    document.getElementById('company').value = lead.company;
+                    document.getElementById('company').value = lead.company || '';
                     document.getElementById('email').value = lead.email || '';
                     document.getElementById('phone').value = lead.phone || '';
                     document.getElementById('product').value = lead.product || '';
-                    document.getElementById('stage').value = lead.stage;
-                    document.getElementById('dateOfContact').value = lead.dateOfContact;
+                    document.getElementById('stage').value = lead.stage || '';
+                    document.getElementById('dateOfContact').value = lead.dateOfContact || '';
                     document.getElementById('followUp').value = lead.followUp || '';
                     document.getElementById('notes').value = lead.notes || '';
 
@@ -297,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     // Populate Add Activity form (if applicable, for visitModal)
                     document.getElementById('activityLeadId').value = lead.id;
                     // Ensure activityLeadName element exists in HTML if you want to display it
-                    // document.getElementById('activityLeadName').textContent = `${lead.firstName} ${lead.lastName || ''} (${lead.company})`;
+                    // document.getElementById('activityLeadName').textContent = `${lead.firstName || 'N/A'} ${lead.lastName || ''} (${lead.company || 'N/A'})`;
                     fetchLeadActivities(lead.id); // Fetch activities for this lead
 
                 } else {
@@ -314,8 +313,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to delete a lead
     document.getElementById('recentLeadsTable').addEventListener('click', async function(event) {
-        if (event.target.classList.contains('delete-lead-btn')) {
-            const leadId = event.target.dataset.id;
+        if (event.target.closest('.delete-lead-btn')) { // Use closest to handle clicks on icon inside button
+            const leadId = event.target.closest('.delete-lead-btn').dataset.id;
             if (confirm('Are you sure you want to delete this lead?')) {
                 showLoading();
                 try {
@@ -404,8 +403,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${activity.id}</td>
-                        <td data-label="Type" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type}</td>
-                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date}</td>
+                        <td data-label="Type" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type || 'N/A'}</td>
+                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date || 'N/A'}</td>
                         <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.description || 'N/A'}</td>
                         <td data-label="Expenditure" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.expenditure || '0.00'}</td>
                     `;
@@ -468,9 +467,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const row = document.createElement('tr');
                     row.innerHTML = `
                         <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${expense.id}</td>
-                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date}</td>
-                        <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description}</td>
-                        <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount}</td>
+                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date || 'N/A'}</td>
+                        <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description || 'N/A'}</td>
+                        <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount || '0.00'}</td>
                     `;
                     expensesList.appendChild(row);
                 });
@@ -525,10 +524,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const events = await response.json();
 
             const calendarEvents = events.map(event => ({
-                title: `${event.type}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
-                start: event.date,
+                title: `${event.type || 'N/A'}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
+                start: event.date || 'N/A',
                 allDay: true,
-                className: `fc-event-${event.type.toLowerCase().replace(/\s/g, '-')}`, // For custom styling
+                className: `fc-event-${(event.type || '').toLowerCase().replace(/\s/g, '-')}`, // For custom styling
                 extendedProps: {
                     type: event.type,
                     leadId: event.lead_id,
@@ -639,8 +638,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 const row = document.createElement('tr');
                 // Added data-label attributes for responsive tables
                 row.innerHTML = `
-                    <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.date}</td>
-                    <td data-label="Category" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.type_category}</td>
+                    <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.date || 'N/A'}</td>
+                    <td data-label="Category" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.type_category || 'N/A'}</td>
                     <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.description || 'N/A'}</td>
                     <td data-label="Amount (KSh)" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.amount || 0).toFixed(2)}</td>
                     <td data-label="Lead Name" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.lead_name || 'N/A'}</td>
