@@ -363,8 +363,9 @@ def get_expenditure_report():
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
 
+        # Modified query to include 'id' for general_expenses
         query = """
-            SELECT date, 'General Expense' AS type_category, description, amount, NULL AS lead_name, NULL AS company
+            SELECT id, date, 'General Expense' AS type_category, description, amount, NULL AS lead_name, NULL AS company
             FROM general_expenses
         """
         params = []
@@ -385,10 +386,8 @@ def get_expenditure_report():
         general_expenses = cur.fetchall()
 
         # For lead-related expenses (from calendar_events with amount > 0)
-        # Note: This assumes 'visit' and 'general expense' types in calendar_events
-        # might also contribute to expenditure. Adjust types as needed.
         query_lead_expenses = """
-            SELECT ce.date, ce.type AS type_category, ce.description, ce.amount,
+            SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount,
                    l.firstName, l.lastName, l.company
             FROM calendar_events ce
             JOIN leads l ON ce.lead_id = l.id
@@ -415,6 +414,7 @@ def get_expenditure_report():
         report_data = []
         for expense in general_expenses:
             report_data.append({
+                "id": expense['id'], # Include ID for general expenses
                 "date": str(expense['date']),
                 "type_category": expense['type_category'],
                 "description": expense['description'],
@@ -425,6 +425,7 @@ def get_expenditure_report():
         for expense in lead_expenses:
             lead_full_name = f"{expense['firstname'] or ''} {expense['lastname'] or ''}".strip()
             report_data.append({
+                "id": expense['id'], # Include ID for lead-related expenses (calendar_events)
                 "date": str(expense['date']),
                 "type_category": expense['type_category'],
                 "description": expense['description'],

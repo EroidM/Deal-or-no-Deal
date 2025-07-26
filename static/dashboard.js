@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Initialize Flatpickr for date inputs
     flatpickr("#dateOfContact", {});
     flatpickr("#activityDate", {});
-    flatpickr("#expenseDate", {});
+    flatpickr("#expenseDate", {}); // This one might not be used if generalExpenseDate is the main one
     flatpickr("#eventDate", {});
     flatpickr("#reportStartDate", {});
     flatpickr("#reportEndDate", {});
@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Function to populate lead select dropdowns (for activities/events)
     function populateLeadSelect(leads = []) {
         const eventLeadSelect = document.getElementById('eventLeadId');
-        const activityLeadIdInput = document.getElementById('activityLeadId'); // Hidden input for activity form
+        // const activityLeadIdInput = document.getElementById('activityLeadId'); // Hidden input for activity form - not directly used for display
 
         // Clear existing options, add default "No Lead" option for calendar events
         eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>';
@@ -147,13 +147,14 @@ document.addEventListener('DOMContentLoaded', function() {
         });
 
         // If activityLeadIdInput exists (for visitModal), set its value if a lead is selected
-        if (activityLeadIdInput && activityLeadIdInput.value) {
-             // Find the lead in the fetched leads and display its name
-             const selectedLead = leads.find(lead => lead.id == activityLeadIdInput.value);
-             if (selectedLead) {
-                 document.getElementById('activityLeadName').textContent = `${selectedLead.firstName || 'N/A'} ${selectedLead.lastName || ''} (${selectedLead.company || 'N/A'})`;
-             }
-        }
+        // This part is for setting the hidden lead ID in the activity form, not for display.
+        // if (activityLeadIdInput && activityLeadIdInput.value) {
+        //      const selectedLead = leads.find(lead => lead.id == activityLeadIdInput.value);
+        //      if (selectedLead) {
+        //          // This element does not exist in the HTML, so commenting out
+        //          // document.getElementById('activityLeadName').textContent = `${selectedLead.firstName || 'N/A'} ${selectedLead.lastName || ''} (${selectedLead.company || 'N/A'})`;
+        //      }
+        // }
     }
 
 
@@ -297,8 +298,6 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     // Populate Add Activity form (if applicable, for visitModal)
                     document.getElementById('activityLeadId').value = lead.id;
-                    // Ensure activityLeadName element exists in HTML if you want to display it
-                    // document.getElementById('activityLeadName').textContent = `${lead.firstName || 'N/A'} ${lead.lastName || ''} (${lead.company || 'N/A'})`;
                     fetchLeadActivities(lead.id); // Fetch activities for this lead
 
                 } else {
@@ -331,7 +330,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     const result = await response.json();
                     showMessage(result.message, 'success');
                     fetchLeads(); // Refresh leads list
-                    // No need to showTab('leads') if already on leads tab
                 } catch (error) {
                     console.error('Error deleting lead:', error);
                     showMessage('Failed to delete lead.', 'error');
@@ -397,22 +395,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const activities = await response.json();
-            const activitiesList = document.getElementById('leadActivitiesList'); // Assuming this element exists in your viewLead tab
-            if (activitiesList) {
-                activitiesList.innerHTML = ''; // Clear existing activities
+            // This element is not in dynamic_dashboard.html, so this block will not execute
+            // const activitiesList = document.getElementById('leadActivitiesList');
+            // if (activitiesList) {
+            //     activitiesList.innerHTML = ''; // Clear existing activities
 
-                activities.forEach(activity => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${activity.id}</td>
-                        <td data-label="Type" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type || 'N/A'}</td>
-                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date || 'N/A'}</td>
-                        <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.description || 'N/A'}</td>
-                        <td data-label="Expenditure" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.expenditure || '0.00'}</td>
-                    `;
-                    activitiesList.appendChild(row);
-                });
-            }
+            //     activities.forEach(activity => {
+            //         const row = document.createElement('tr');
+            //         row.innerHTML = `
+            //             <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${activity.id}</td>
+            //             <td data-label="Type" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_type || 'N/A'}</td>
+            //             <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.activity_date || 'N/A'}</td>
+            //             <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.description || 'N/A'}</td>
+            //             <td data-label="Expenditure" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${activity.expenditure || '0.00'}</td>
+            //         `;
+            //         activitiesList.appendChild(row);
+            //     });
+            // }
         } catch (error) {
             console.error('Error fetching lead activities:', error);
             showMessage('Failed to load lead activities.', 'error');
@@ -443,7 +442,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
             showMessage(result.message, 'success');
             closeModal(visitModal); // Close the visit modal
-            fetchLeadActivities(activityData.lead_id); // Refresh activities for current lead
             fetchCalendarEvents(); // Refresh calendar events as well
         } catch (error) {
             console.error('Error adding lead activity:', error);
@@ -453,41 +451,43 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Function to fetch and display general expenses
-    async function fetchGeneralExpenses() {
-        try {
-            const response = await fetch('/api/general_expenses'); // Corrected API path
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const expenses = await response.json();
-            const expensesList = document.getElementById('generalExpensesList'); // Assuming this ID exists
-            if (expensesList) {
-                expensesList.innerHTML = ''; // Clear existing expenses
+    // Function to fetch and display general expenses - THIS IS NO LONGER USED TO POPULATE THE MAIN TABLE
+    // The expenditure report table is now populated by fetchExpenditureReport
+    // async function fetchGeneralExpenses() {
+    //     try {
+    //         const response = await fetch('/api/general_expenses'); // Corrected API path
+    //         if (!response.ok) {
+    //             throw new Error(`HTTP error! status: ${response.status}`);
+    //         }
+    //         const expenses = await response.json();
+    //         const expensesList = document.getElementById('generalExpensesList'); // Assuming this ID exists
+    //         if (expensesList) {
+    //             expensesList.innerHTML = ''; // Clear existing expenses
 
-                expenses.forEach(expense => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${expense.id}</td>
-                        <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date || 'N/A'}</td>
-                        <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description || 'N/A'}</td>
-                        <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount || '0.00'}</td>
-                        <td data-label="Actions" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${expense.id}" title="Edit Expense"><i class="fas fa-edit"></i></button>
-                            <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${expense.id}" title="Delete Expense"><i class="fas fa-trash-alt"></i></button>
-                        </td>
-                    `;
-                    expensesList.appendChild(row);
-                });
-            }
-        } catch (error) {
-            console.error('Error fetching general expenses:', error);
-            showMessage('Failed to load general expenses.', 'error');
-        }
-    }
+    //             expenses.forEach(expense => {
+    //                 const row = document.createElement('tr');
+    //                 row.innerHTML = `
+    //                     <td data-label="ID" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${expense.id}</td>
+    //                     <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.date || 'N/A'}</td>
+    //                     <td data-label="Description" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.description || 'N/A'}</td>
+    //                     <td data-label="Amount" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${expense.amount || '0.00'}</td>
+    //                     <td data-label="Actions" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+    //                         <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${expense.id}" title="Edit Expense"><i class="fas fa-edit"></i></button>
+    //                         <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${expense.id}" title="Delete Expense"><i class="fas fa-trash-alt"></i></button>
+    //                     </td>
+    //                 `;
+    //                 expensesList.appendChild(row);
+    //             });
+    //         }
+    //     } catch (error) {
+    //         console.error('Error fetching general expenses:', error);
+    //         showMessage('Failed to load general expenses.', 'error');
+    //     }
+    // }
 
-    // Event listener for editing a general expense
-    document.getElementById('generalExpensesList').addEventListener('click', async function(event) {
+    // Event listener for editing/deleting an expense from the expenditure report table
+    document.getElementById('expenditureReportTableBody').addEventListener('click', async function(event) {
+        // Handle Edit button click
         if (event.target.closest('.edit-expense-btn')) {
             const expenseId = event.target.closest('.edit-expense-btn').dataset.id;
             showLoading();
@@ -502,7 +502,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (expense) {
                     document.getElementById('expenseId').value = expense.id; // Hidden input for expense ID
                     document.getElementById('generalExpenseDate').value = expense.date || '';
-                    document.getElementById('generalExpenseAmount').value = expense.amount || '0.00';
+                    document.getElementById('generalExpenseAmount').value = parseFloat(expense.amount || 0).toFixed(2);
                     document.getElementById('generalExpenseDescription').value = expense.description || '';
 
                     showModal(generalExpenseModal, 'Edit General Expense');
@@ -516,10 +516,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 hideLoading();
             }
         }
-    });
 
-    // Event listener for deleting a general expense
-    document.getElementById('generalExpensesList').addEventListener('click', async function(event) {
+        // Handle Delete button click
         if (event.target.closest('.delete-expense-btn')) {
             const expenseId = event.target.closest('.delete-expense-btn').dataset.id;
             if (confirm('Are you sure you want to delete this expense?')) {
@@ -535,8 +533,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     const result = await response.json();
                     showMessage(result.message, 'success');
-                    fetchGeneralExpenses(); // Refresh expenses list
-                    fetchCalendarEvents(); // Refresh calendar events as well
+                    fetchExpenditureReport(); // Refresh expenditure report
+                    fetchCalendarEvents(); // Refresh calendar events as well (in case it was a calendar expense)
                 } catch (error) {
                     console.error('Error deleting expense:', error);
                     showMessage('Failed to delete expense.', 'error');
@@ -579,7 +577,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const result = await response.json();
             showMessage(result.message, 'success');
             closeModal(generalExpenseModal); // Close the modal
-            fetchGeneralExpenses(); // Refresh expenses list
+            fetchExpenditureReport(); // Refresh expenditure report
             fetchCalendarEvents(); // Refresh calendar events as well
         } catch (error) {
             console.error('Error saving general expense:', error);
@@ -608,7 +606,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     type: event.type,
                     leadId: event.lead_id,
                     amount: event.amount,
-                    description: event.description
+                    description: event.description,
+                    id: event.id // Include event ID for potential future use
                 }
             }));
 
@@ -683,6 +682,7 @@ document.addEventListener('DOMContentLoaded', function() {
             this.reset();
             closeModal(generalEventModal); // Close the modal
             fetchCalendarEvents(); // Refresh calendar events
+            fetchExpenditureReport(); // Refresh expenditure report as well
         } catch (error) {
             console.error('Error adding calendar event:', error);
             showMessage('Failed to add calendar event.', 'error');
@@ -705,14 +705,22 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             const reportItems = await response.json();
-            const reportTableBody = document.getElementById('expenditureReportTable').querySelector('tbody');
+            const reportTableBody = document.getElementById('expenditureReportTableBody'); // Use the new tbody ID
             reportTableBody.innerHTML = ''; // Clear existing items
 
             let totalExpenditure = 0;
 
             reportItems.forEach(item => {
                 const row = document.createElement('tr');
-                // Added data-label attributes for responsive tables
+                let actionsHtml = '';
+                // Only show edit/delete buttons for 'General Expense' type, using the item.id
+                if (item.type_category === 'General Expense') {
+                    actionsHtml = `
+                        <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" title="Edit Expense"><i class="fas fa-edit"></i></button>
+                        <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" title="Delete Expense"><i class="fas fa-trash-alt"></i></button>
+                    `;
+                }
+
                 row.innerHTML = `
                     <td data-label="Date" class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${item.date || 'N/A'}</td>
                     <td data-label="Category" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.type_category || 'N/A'}</td>
@@ -720,12 +728,12 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td data-label="Amount (KSh)" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${parseFloat(item.amount || 0).toFixed(2)}</td>
                     <td data-label="Lead Name" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.lead_name || 'N/A'}</td>
                     <td data-label="Company" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${item.company || 'N/A'}</td>
+                    <td data-label="Actions" class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${actionsHtml}</td>
                 `;
                 reportTableBody.appendChild(row);
                 totalExpenditure += parseFloat(item.amount || 0);
             });
 
-            // Corrected the ID here:
             document.getElementById('totalExpenditureSummary').textContent = `Total Expenditure: KSh ${totalExpenditure.toFixed(2)}`;
         } catch (error) {
             console.error('Error fetching expenditure report:', error);
@@ -807,49 +815,49 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // --- Tab Switching Logic ---
-    function showTab(tabId) {
-        // Hide all tab contents
-        document.querySelectorAll('.tab-content').forEach(content => {
-            content.classList.add('hidden');
-        });
-        // Deactivate all tab buttons
-        document.querySelectorAll('.tab-button').forEach(button => {
-            button.classList.remove('bg-indigo-700', 'text-white');
-            button.classList.add('bg-indigo-500', 'text-gray-200');
-        });
+    // --- Tab Switching Logic (if you had tabs, this would be relevant) ---
+    // function showTab(tabId) {
+    //     // Hide all tab contents
+    //     document.querySelectorAll('.tab-content').forEach(content => {
+    //         content.classList.add('hidden');
+    //     });
+    //     // Deactivate all tab buttons
+    //     document.querySelectorAll('.tab-button').forEach(button => {
+    //         button.classList.remove('bg-indigo-700', 'text-white');
+    //         button.classList.add('bg-indigo-500', 'text-gray-200');
+    //     });
 
-        // Show the selected tab content
-        const selectedTabContent = document.getElementById(tabId);
-        if (selectedTabContent) {
-            selectedTabContent.classList.remove('hidden');
-        }
+    //     // Show the selected tab content
+    //     const selectedTabContent = document.getElementById(tabId);
+    //     if (selectedTabContent) {
+    //         selectedTabContent.classList.remove('hidden');
+    //     }
 
-        // Activate the selected tab button
-        const selectedTabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
-        if (selectedTabButton) {
-            selectedTabButton.classList.remove('bg-indigo-500', 'text-gray-200');
-            selectedTabButton.classList.add('bg-indigo-700', 'text-white');
-        }
+    //     // Activate the selected tab button
+    //     const selectedTabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+    //     if (selectedTabButton) {
+    //         selectedTabButton.classList.remove('bg-indigo-500', 'text-gray-200');
+    //         selectedTabButton.classList.add('bg-indigo-700', 'text-white');
+    //     }
 
-        // Fetch data for the tab if necessary
-        if (tabId === 'leads') {
-            fetchLeads();
-        } else if (tabId === 'generalExpenses') {
-            fetchGeneralExpenses();
-        } else if (tabId === 'calendar') {
-            fetchCalendarEvents();
-        } else if (tabId === 'expenditureReport') {
-            fetchExpenditureReport();
-        }
-    }
+    //     // Fetch data for the tab if necessary
+    //     if (tabId === 'leads') {
+    //         fetchLeads();
+    //     } else if (tabId === 'generalExpenses') { // This tab might not exist or is now covered by expenditure report
+    //         fetchGeneralExpenses();
+    //     } else if (tabId === 'calendar') {
+    //         fetchCalendarEvents();
+    //     } else if (tabId === 'expenditureReport') {
+    //         fetchExpenditureReport();
+    //     }
+    // }
 
-    // Event listeners for tab buttons
-    document.querySelectorAll('.tab-button').forEach(button => {
-        button.addEventListener('click', function() {
-            showTab(this.dataset.tab);
-        });
-    });
+    // Event listeners for tab buttons (if you had tabs)
+    // document.querySelectorAll('.tab-button').forEach(button => {
+    //     button.addEventListener('click', function() {
+    //         showTab(this.dataset.tab);
+    //     });
+    // });
 
     // --- Message and Loading Indicators ---
     const messageContainer = document.getElementById('messageContainer');
@@ -871,9 +879,8 @@ document.addEventListener('DOMContentLoaded', function() {
         loadingIndicator.style.display = 'none';
     }
 
-    // Initial load: Show the leads tab by default
+    // Initial load: Fetch all necessary data
     fetchLeads(); // Fetch leads on initial load
     fetchCalendarEvents(); // Fetch calendar events on initial load
-    fetchGeneralExpenses(); // Fetch general expenses on initial load
     fetchExpenditureReport(); // Fetch expenditure report on initial load
 });
