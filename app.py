@@ -124,9 +124,15 @@ def handle_leads():
         if request.method == 'POST':
             data = request.json
             logging.debug(f"Received lead POST data: {data}")
-            # Ensure dateOfContact is not empty as it's NOT NULL
-            if not data.get('dateOfContact'):
+
+            # Validate required fields for POST
+            if not data.get('firstName') or data.get('firstName').strip() == '':
+                return jsonify({"message": "First Name is required."}), 400
+            if not data.get('company') or data.get('company').strip() == '':
+                return jsonify({"message": "Company is required."}), 400
+            if not data.get('dateOfContact') or data.get('dateOfContact').strip() == '':
                 return jsonify({"message": "Date of Contact is required."}), 400
+
             data = convert_empty_to_none(data, ['lastName', 'title', 'email', 'phone', 'product', 'followUp', 'notes'])
 
             cur.execute(
@@ -156,10 +162,8 @@ def handle_leads():
                 cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC;")
                 leads = cur.fetchall()
             
-            # --- NEW DEBUG LOGGING FOR LEADS ---
             logging.debug(f"Raw leads data fetched from DB in handle_leads GET: {leads}")
-            # --- END NEW DEBUG LOGGING ---
-
+            
             return jsonify(leads), 200
 
         elif request.method == 'PUT':
@@ -168,9 +172,15 @@ def handle_leads():
             lead_id = data.get('id')
             if not lead_id:
                 return jsonify({"message": "Lead ID is required for update"}), 400
-            # Ensure dateOfContact is not empty as it's NOT NULL
-            if not data.get('dateOfContact'):
+            
+            # Validate required fields for PUT
+            if not data.get('firstName') or data.get('firstName').strip() == '':
+                return jsonify({"message": "First Name is required."}), 400
+            if not data.get('company') or data.get('company').strip() == '':
+                return jsonify({"message": "Company is required."}), 400
+            if not data.get('dateOfContact') or data.get('dateOfContact').strip() == '':
                 return jsonify({"message": "Date of Contact is required."}), 400
+
             data = convert_empty_to_none(data, ['lastName', 'title', 'email', 'phone', 'product', 'followUp', 'notes'])
 
             cur.execute(
@@ -435,7 +445,8 @@ def handle_calendar_events():
                 last_name = event.get('lastName') or ''
                 event['lead_name'] = f"{first_name} {last_name}".strip()
                 # Ensure company is None if not present, otherwise use its value
-                event['company'] = event.get('company', None)
+                company_name = event.get('company')
+                event['company'] = company_name if company_name else None
                 # Clean up unused fields from join if they are not needed on frontend
                 event.pop('firstName', None)
                 event.pop('lastName', None)
@@ -550,7 +561,7 @@ def get_expenditure_report():
         logging.debug(f"Executing query_calendar_expenses: {query_calendar_expenses} with params: {calendar_expense_params}")
         cur.execute(query_calendar_expenses, calendar_expense_params)
         calendar_expenses = cur.fetchall()
-        logging.debug(f"Fetched raw calendar expenses with lead info: {calendar_expenses}") # NEW LOG
+        logging.debug(f"Fetched raw calendar expenses with lead info: {calendar_expenses}")
 
         # Combine and format results
         report_data = []
@@ -582,7 +593,7 @@ def get_expenditure_report():
             if company_name == '':
                 company_name = None
 
-            logging.debug(f"Processing calendar expense item: ID={expense['id']}, Raw firstName='{expense.get('firstName')}', Raw lastName='{expense.get('lastName')}', Constructed lead_name='{lead_full_name}', Raw company='{expense.get('company')}', Processed company='{company_name}'") # NEW DETAILED LOG
+            logging.debug(f"Processing calendar expense item: ID={expense['id']}, Raw firstName='{expense.get('firstName')}', Raw lastName='{expense.get('lastName')}', Constructed lead_name='{lead_full_name}', Raw company='{expense.get('company')}', Processed company='{company_name}'")
 
             report_data.append({
                 "id": expense['id'],
@@ -598,7 +609,7 @@ def get_expenditure_report():
 
         # Sort combined data by date
         report_data.sort(key=lambda x: x['date'], reverse=True)
-        logging.debug(f"Final combined expenditure report data: {report_data}") # NEW LOG
+        logging.debug(f"Final combined expenditure report data: {report_data}")
         return jsonify(report_data), 200
 
     except psycopg2.Error as e:
@@ -635,7 +646,7 @@ def export_leads():
             cw.writerow([
                 lead['id'], lead['firstName'], lead['lastName'], lead['title'], # Use correct casing for export
                 lead['company'], lead['email'], lead['phone'], lead['product'],
-                lead['stage'], lead['dateofcontact'], lead['followup'], lead['notes'], lead['created_at']
+                lead['dateofcontact'], lead['followup'], lead['notes'], lead['created_at']
             ])
 
         output = si.getvalue()
@@ -766,3 +777,4 @@ def export_expenditure_report():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
+

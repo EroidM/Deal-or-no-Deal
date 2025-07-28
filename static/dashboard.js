@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', function() {
     flatpickr("#reportStartDate", {});
     flatpickr("#reportEndDate", {});
     flatpickr("#generalExpenseDate", {});
+    flatpickr("#followUp", {}); // Ensure followUp also has flatpickr
 
     // --- Modal Handling Functions ---
     const leadModal = document.getElementById('leadModal');
@@ -160,9 +161,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         return sortOrder === 'asc' ? valA - valB : valB - valA;
                     }
                     // Handle date sorting
-                    if (sortBy.includes('Date') || sortBy.includes('date')) { // Assuming date fields contain 'Date' or 'date'
-                        valA = new Date(valA);
-                        valB = new Date(valB);
+                    if (sortBy.includes('Date') || sortBy.includes('date') || sortBy.includes('followUp')) { // Added followUp
+                        valA = valA ? new Date(valA) : null;
+                        valB = valB ? new Date(valB) : null;
+                        
+                        // Handle null/undefined dates for sorting
+                        if (valA === null && valB === null) return 0;
+                        if (valA === null) return sortOrder === 'asc' ? 1 : -1; // Nulls last for asc, first for desc
+                        if (valB === null) return sortOrder === 'asc' ? -1 : 1;
+
                         return sortOrder === 'asc' ? valA - valB : valB - valA;
                     }
                     // Handle string sorting (case-insensitive)
@@ -218,13 +225,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
         leadsToRender.forEach(lead => {
             const row = document.createElement('tr');
-            const firstName = lead.firstName || 'N/A';
+            const firstName = lead.firstName || '';
             const lastName = lead.lastName || '';
+            const fullName = `${firstName} ${lastName}`.trim();
+            const displayName = fullName || 'N/A'; // Use N/A if both first and last name are empty
+
             const dateOfContact = lead.dateOfContact ? new Date(lead.dateOfContact).toISOString().split('T')[0] : 'N/A';
             const followUp = lead.followUp ? new Date(lead.followUp).toISOString().split('T')[0] : 'N/A';
 
             row.innerHTML = `
-                <td data-label="Name">${firstName} ${lastName}</td>
+                <td data-label="Name">${displayName}</td>
                 <td data-label="Company">${lead.company || 'N/A'}</td>
                 <td data-label="Stage">${lead.stage || 'N/A'}</td>
                 <td data-label="Contact Date">${dateOfContact}</td>
@@ -382,6 +392,20 @@ document.addEventListener('DOMContentLoaded', function() {
         const leadData = Object.fromEntries(formData.entries());
         const leadId = document.getElementById('leadId').value;
 
+        // Client-side validation for required fields
+        if (!leadData.firstName || leadData.firstName.trim() === '') {
+            showMessage('First Name is required.', 'error');
+            return;
+        }
+        if (!leadData.company || leadData.company.trim() === '') {
+            showMessage('Company is required.', 'error');
+            return;
+        }
+        if (!leadData.dateOfContact || leadData.dateOfContact.trim() === '') {
+            showMessage('Date of Contact is required.', 'error');
+            return;
+        }
+
         let url = '/api/leads';
         let method = 'POST';
 
@@ -468,7 +492,16 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('recentLeadsTable').addEventListener('click', async function(event) {
         if (event.target.closest('.delete-lead-btn')) {
             const leadId = event.target.closest('.delete-lead-btn').dataset.id;
-            if (confirm('Are you sure you want to delete this lead? This will also remove associated calendar events and activities.')) {
+            // Replaced alert with showMessage for consistency and better UX
+            showMessage('Are you sure you want to delete this lead? This will also remove associated calendar events and activities. Click again to confirm.', 'warning');
+            
+            // Simple double-click confirmation for demonstration. For production, consider a custom confirmation modal.
+            let confirmDeleteTimeout;
+            const confirmBtn = event.target.closest('.delete-lead-btn');
+            confirmBtn.dataset.confirmClick = (parseInt(confirmBtn.dataset.confirmClick) || 0) + 1;
+
+            if (confirmBtn.dataset.confirmClick === '2') {
+                clearTimeout(confirmDeleteTimeout);
                 console.log("Deleting lead with ID:", leadId);
                 showLoading();
                 try {
@@ -487,12 +520,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     showMessage(result.message, 'success');
                     fetchLeads();
                     fetchCalendarEvents();
+                    fetchExpenditureReport(); // Also refresh expenditure report
                 } catch (error) {
                     console.error('Error deleting lead:', error);
                     showMessage('Failed to delete lead.', 'error');
                 } finally {
                     hideLoading();
+                    confirmBtn.dataset.confirmClick = '0'; // Reset confirm click
                 }
+            } else {
+                confirmDeleteTimeout = setTimeout(() => {
+                    confirmBtn.dataset.confirmClick = '0'; // Reset after a short delay
+                    showMessage('', ''); // Clear message
+                }, 3000);
             }
         }
     });
@@ -628,7 +668,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('eventType').value = item.type || '';
                         document.getElementById('eventDescription').value = item.description || '';
                         document.getElementById('eventAmount').value = parseFloat(item.amount || 0).toFixed(2);
-                        await populateLeadSelect(allLeads);
+                        await populateLeadSelect(allLeads); // Ensure leads are loaded before setting value
                         document.getElementById('eventLeadId').value = item.lead_id || '';
                         showModal(generalEventModal, 'Edit Calendar Event');
                     }
@@ -644,7 +684,16 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         if (targetBtn.classList.contains('delete-expense-btn')) {
-            if (confirm('Are you sure you want to delete this item?')) {
+            // Replaced alert with showMessage for consistency and better UX
+            showMessage('Are you sure you want to delete this item? Click again to confirm.', 'warning');
+            
+            // Simple double-click confirmation for demonstration. For production, consider a custom confirmation modal.
+            let confirmDeleteTimeout;
+            const confirmBtn = event.target.closest('.delete-expense-btn');
+            confirmBtn.dataset.confirmClick = (parseInt(confirmBtn.dataset.confirmClick) || 0) + 1;
+
+            if (confirmBtn.dataset.confirmClick === '2') {
+                clearTimeout(confirmDeleteTimeout);
                 console.log(`Deleting item with ID: ${itemId} from source: ${sourceType}`);
                 showLoading();
                 try {
@@ -672,13 +721,19 @@ document.addEventListener('DOMContentLoaded', function() {
                     showMessage(result.message, 'success');
                     fetchExpenditureReport();
                     fetchCalendarEvents();
-                    fetchLeads();
+                    fetchLeads(); // Refresh leads as well, in case a linked event was deleted
                 } catch (error) {
                     console.error('Error deleting item:', error);
                     showMessage('Failed to delete item.', 'error');
                 } finally {
                     hideLoading();
+                    confirmBtn.dataset.confirmClick = '0'; // Reset confirm click
                 }
+            } else {
+                confirmDeleteTimeout = setTimeout(() => {
+                    confirmBtn.dataset.confirmClick = '0'; // Reset after a short delay
+                    showMessage('', ''); // Clear message
+                }, 3000);
             }
         }
     });
@@ -697,7 +752,8 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Calendar events data received from API:", events);
 
             const calendarEvents = events.map(event => ({
-                title: `${event.type || 'N/A'}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
+                // Ensure lead_name and company are correctly displayed
+                title: `${event.type || 'N/A'}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + (event.company ? ', ' + event.company : '') + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
                 start: event.date || 'N/A',
                 allDay: true,
                 className: `fc-event-${(event.type || '').toLowerCase().replace(/\s/g, '-')}`,
@@ -706,7 +762,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     leadId: event.lead_id,
                     amount: event.amount,
                     description: event.description,
-                    id: event.id
+                    id: event.id,
+                    leadName: event.lead_name, // Pass lead name for tooltip
+                    company: event.company // Pass company for tooltip
                 }
             }));
 
@@ -725,11 +783,25 @@ document.addEventListener('DOMContentLoaded', function() {
                     eventDidMount: function(info) {
                         const tooltip = document.getElementById('calendarTooltip');
                         info.el.addEventListener('mouseover', function() {
-                            tooltip.innerHTML = `
+                            const eventProps = info.event.extendedProps;
+                            let tooltipHtml = `
                                 <strong>${info.event.title}</strong>
                                 <span>Date: ${info.event.startStr}</span>
-                                ${info.event.extendedProps.description ? `<span>Description: ${info.event.extendedProps.description}</span>` : ''}
                             `;
+                            if (eventProps.description) {
+                                tooltipHtml += `<span>Description: ${eventProps.description}</span>`;
+                            }
+                            if (eventProps.leadName) {
+                                tooltipHtml += `<span>Lead: ${eventProps.leadName}</span>`;
+                            }
+                            if (eventProps.company) {
+                                tooltipHtml += `<span>Company: ${eventProps.company}</span>`;
+                            }
+                            if (eventProps.amount && eventProps.amount > 0) {
+                                tooltipHtml += `<span>Amount: KSh ${parseFloat(eventProps.amount).toFixed(2)}</span>`;
+                            }
+
+                            tooltip.innerHTML = tooltipHtml;
                             tooltip.style.left = `${info.el.getBoundingClientRect().left + window.scrollX}px`;
                             tooltip.style.top = `${info.el.getBoundingClientRect().top + window.scrollY - tooltip.offsetHeight - 10}px`;
                             tooltip.classList.add('active');
@@ -739,7 +811,17 @@ document.addEventListener('DOMContentLoaded', function() {
                         });
                     },
                     eventClick: function(info) {
-                        showMessage(`Event: ${info.event.title} on ${info.event.startStr}`, 'info');
+                        // When an event is clicked on the calendar, open the generalEventModal for editing
+                        const eventProps = info.event.extendedProps;
+                        document.getElementById('eventId').value = eventProps.id;
+                        document.getElementById('eventDate').value = info.event.startStr;
+                        document.getElementById('eventType').value = eventProps.type || '';
+                        document.getElementById('eventDescription').value = eventProps.description || '';
+                        document.getElementById('eventAmount').value = parseFloat(eventProps.amount || 0).toFixed(2);
+                        populateLeadSelect(allLeads); // Ensure leads are loaded for the dropdown
+                        document.getElementById('eventLeadId').value = eventProps.leadId || ''; // Select the linked lead
+
+                        showModal(generalEventModal, 'Edit Calendar Event');
                     }
                 });
                 calendar.render();
@@ -794,6 +876,7 @@ document.addEventListener('DOMContentLoaded', function() {
             closeModal(generalEventModal);
             fetchCalendarEvents();
             fetchExpenditureReport();
+            fetchLeads(); // Re-fetch leads to update follow-ups and stats
         } catch (error) {
             console.error('Error saving calendar event:', error);
             showMessage('Failed to save calendar event.', 'error');
@@ -845,32 +928,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Item"><i class="fas fa-edit"></i></button>
                 <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Item"><i class="fas fa-trash-alt"></i></button>
             `;
-            if (!item.id) {
+            // If item has no ID (e.g., aggregated data or a special entry), hide action buttons.
+            // This condition might need adjustment based on how 'id' is guaranteed for editable items.
+            if (item.id === undefined || item.id === null) { 
                 actionsHtml = 'N/A';
             }
 
             // --- Improved Lead Name and Company Display Logic ---
-            let leadNameDisplay = 'N/A';
-            let companyNameDisplay = 'N/A';
-
-            if (item.lead_name) {
-                leadNameDisplay = item.lead_name;
-            }
-            if (item.company) {
-                companyNameDisplay = item.company;
-            }
-
-            // If lead name is N/A but company is available, show company in lead name column
-            // This is a stylistic choice for the report
-            if (leadNameDisplay === 'N/A' && companyNameDisplay !== 'N/A') {
-                leadNameDisplay = companyNameDisplay;
-                companyNameDisplay = 'N/A'; // Clear company column if moved to lead name
-            } else if (leadNameDisplay === 'N/A' && companyNameDisplay === 'N/A') {
-                // Keep both as N/A if neither is available
-            }
-            // If leadNameDisplay has a value, and companyNameDisplay also has a value, keep them separate.
-            // If leadNameDisplay has a value but companyNameDisplay is N/A, it's already fine.
-
+            let leadNameDisplay = item.lead_name || 'N/A';
+            let companyNameDisplay = item.company || 'N/A';
 
             const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A';
 
@@ -978,19 +1044,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Call these AFTER the initial fetch functions have populated currentLeadsData and currentExpenditureData
     // For leads table
     document.getElementById('recentLeadsTable').addEventListener('click', function(event) {
-        if (event.target.tagName === 'TH' && event.target.dataset.sortBy) {
-            enableTableSorting('recentLeadsTable', currentLeadsData, renderLeadsTable);
-            // Manually trigger click on the header that was clicked to sort
-            event.target.click(); 
+        // Check if the click was on a TH element with data-sort-by
+        const targetTh = event.target.closest('th[data-sort-by]');
+        if (targetTh) {
+            // If sorting is not yet enabled, enable it once.
+            // This ensures the event listener is set up only once per table.
+            if (!targetTh.dataset.sortingEnabled) {
+                enableTableSorting('recentLeadsTable', currentLeadsData, renderLeadsTable);
+                targetTh.dataset.sortingEnabled = 'true'; // Mark as enabled
+            }
+            // Manually trigger click on the header to apply sorting
+            targetTh.click(); 
         }
     });
 
     // For expenditure report table
     document.getElementById('expenditureReportTable').addEventListener('click', function(event) {
-        if (event.target.tagName === 'TH' && event.target.dataset.sortBy) {
-            enableTableSorting('expenditureReportTable', currentExpenditureData, renderExpenditureReportTable);
-            // Manually trigger click on the header that was clicked to sort
-            event.target.click();
+        // Check if the click was on a TH element with data-sort-by
+        const targetTh = event.target.closest('th[data-sort-by]');
+        if (targetTh) {
+            // If sorting is not yet enabled, enable it once.
+            if (!targetTh.dataset.sortingEnabled) {
+                enableTableSorting('expenditureReportTable', currentExpenditureData, renderExpenditureReportTable);
+                targetTh.dataset.sortingEnabled = 'true'; // Mark as enabled
+            }
+            // Manually trigger click on the header to apply sorting
+            targetTh.click();
         }
     });
 });
+
