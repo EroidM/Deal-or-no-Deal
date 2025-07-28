@@ -936,9 +936,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 actionsHtml = 'N/A';
             }
 
-            // --- Improved Lead Name and Company Display Logic ---
-            let leadNameDisplay = item.lead_name || 'N/A';
-            let companyNameDisplay = item.company || 'N/A';
+            // --- CRITICAL LINES FOR EXPENDITURE REPORT LEAD NAME AND COMPANY DISPLAY ---
+            // Ensure correct property names (lowercase with underscore for lead_name, lowercase for company)
+            let leadNameDisplay = item.lead_name || 'N/A'; // Use item.lead_name
+            let companyNameDisplay = item.company || 'N/A'; // Use item.company
 
             const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A';
 
