@@ -74,11 +74,11 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addEventModalBtn').addEventListener('click', function() {
         showModal(generalEventModal, 'Add Calendar Event');
         document.getElementById('addEventForm').reset();
-        document.getElementById('eventAmount').value = '0.00'; // Reset amount to default for new event
+        document.getElementById('eventAmount').value = '0.00'; // Reset amount to default
         populateLeadSelect(); // Populate lead dropdown for linking events
     });
 
-    // Event listeners for closing modals via close buttons
+    // Event listeners for closing modals (using their IDs)
     document.getElementById('closeLeadModalBtn').addEventListener('click', function() {
         closeModal(leadModal);
     });
@@ -113,18 +113,25 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const leads = await response.json();
+            console.log("Leads data received from API:", leads); // Log received leads data
             const leadsList = document.getElementById('recentLeadsTable').querySelector('tbody');
             leadsList.innerHTML = ''; // IMPORTANT: Clear existing leads to prevent duplication
 
             // Populate the leads table
             leads.forEach(lead => {
                 const row = document.createElement('tr');
+                // Use .get() for robust access to properties from RealDictRow, with 'N/A' fallback
+                const firstName = lead.firstname || 'N/A'; // Use 'firstname' as per backend logs
+                const lastName = lead.lastname || ''; // Use 'lastname' as per backend logs
+                const dateOfContact = lead.dateofcontact || 'N/A'; // Use 'dateofcontact' as per backend logs
+                const followUp = lead.followup || 'N/A'; // Use 'followup' as per backend logs
+
                 row.innerHTML = `
-                    <td data-label="Name">${lead.firstName || 'N/A'} ${lead.lastName || ''}</td>
+                    <td data-label="Name">${firstName} ${lastName}</td>
                     <td data-label="Company">${lead.company || 'N/A'}</td>
                     <td data-label="Stage">${lead.stage || 'N/A'}</td>
-                    <td data-label="Contact Date">${lead.dateOfContact || 'N/A'}</td>
-                    <td data-label="Follow-up Date">${lead.followUp || 'N/A'}</td>
+                    <td data-label="Contact Date">${dateOfContact}</td>
+                    <td data-label="Follow-up Date">${followUp}</td>
                     <td data-label="Actions">
                         <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}" title="View/Edit Lead"><i class="fas fa-eye"></i></button>
                         <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash-alt"></i></button>
@@ -161,7 +168,7 @@ document.addEventListener('DOMContentLoaded', function() {
         updateLeadsByStageChart(leads); // Update the doughnut chart
     }
 
-    // Populates the lead dropdowns used in activity and event forms
+    // Populates the lead select dropdowns used in activity and event forms
     function populateLeadSelect(leads = []) {
         console.log("Executing populateLeadSelect()...");
         const eventLeadSelect = document.getElementById('eventLeadId');
@@ -171,7 +178,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const option = document.createElement('option');
             option.value = lead.id;
             // Display lead name and company, with 'N/A' fallback
-            option.textContent = `${lead.firstName || 'N/A'} ${lead.lastName || ''} (${lead.company || 'N/A'})`;
+            option.textContent = `${lead.firstname || 'N/A'} ${lead.lastname || ''} (${lead.company || 'N/A'})`;
             eventLeadSelect.appendChild(option);
         });
     }
@@ -233,8 +240,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Filter and sort leads by follow-up date (only future dates)
         const sortedFollowups = leads
-            .filter(lead => lead.followUp && new Date(lead.followUp) >= today)
-            .sort((a, b) => new Date(a.followUp) - new Date(b.followUp));
+            .filter(lead => lead.followup && new Date(lead.followup) >= today) // Use 'followup' as per backend logs
+            .sort((a, b) => new Date(a.followup) - new Date(b.followup)); // Use 'followup' as per backend logs
 
         if (sortedFollowups.length === 0) {
             const listItem = document.createElement('li');
@@ -247,8 +254,8 @@ document.addEventListener('DOMContentLoaded', function() {
         sortedFollowups.forEach(lead => {
             const listItem = document.createElement('li');
             listItem.innerHTML = `
-                <span class="lead-name">${lead.firstName || 'N/A'} ${lead.lastName || ''} (${lead.company || 'N/A'})</span>
-                <span class="followup-details">Follow-up on: ${lead.followUp || 'N/A'} (Stage: ${lead.stage || 'N/A'})</span>
+                <span class="lead-name">${lead.firstname || 'N/A'} ${lead.lastname || ''} (${lead.company || 'N/A'})</span>
+                <span class="followup-details">Follow-up on: ${lead.followup || 'N/A'} (Stage: ${lead.stage || 'N/A'})</span>
             `;
             upcomingList.appendChild(listItem);
         });
@@ -315,16 +322,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (lead) {
                     // Populate the lead modal form fields for editing
                     document.getElementById('leadId').value = lead.id;
-                    document.getElementById('firstName').value = lead.firstName || '';
-                    document.getElementById('lastName').value = lead.lastName || '';
+                    document.getElementById('firstName').value = lead.firstname || ''; // Use 'firstname'
+                    document.getElementById('lastName').value = lead.lastname || ''; // Use 'lastname'
                     document.getElementById('title').value = lead.title || '';
                     document.getElementById('company').value = lead.company || '';
                     document.getElementById('email').value = lead.email || '';
                     document.getElementById('phone').value = lead.phone || '';
                     document.getElementById('product').value = lead.product || '';
                     document.getElementById('stage').value = lead.stage || '';
-                    document.getElementById('dateOfContact').value = lead.dateOfContact || '';
-                    document.getElementById('followUp').value = lead.followUp || '';
+                    document.getElementById('dateOfContact').value = lead.dateofcontact || ''; // Use 'dateofcontact'
+                    document.getElementById('followUp').value = lead.followup || ''; // Use 'followup'
                     document.getElementById('notes').value = lead.notes || '';
 
                     showModal(leadModal, 'Edit Lead'); // Show modal with "Edit" title
@@ -534,6 +541,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const events = await response.json();
+            console.log("Calendar events data received from API:", events); // Log received calendar data
 
             // Map backend event data to FullCalendar event object format
             const calendarEvents = events.map(event => ({
@@ -654,6 +662,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const reportItems = await response.json();
+            console.log("Expenditure report data received from API:", reportItems); // Log received expenditure data
             const reportTableBody = document.getElementById('expenditureReportTableBody');
             reportTableBody.innerHTML = ''; // IMPORTANT: Clear existing items to prevent duplication
 
@@ -675,13 +684,17 @@ document.addEventListener('DOMContentLoaded', function() {
                     actionsHtml = 'N/A';
                 }
 
+                // Safely access properties with fallbacks
+                const leadName = item.lead_name || 'N/A';
+                const companyName = item.company || 'N/A';
+
                 row.innerHTML = `
                     <td data-label="Date">${item.date || 'N/A'}</td>
                     <td data-label="Category">${item.type_category || 'N/A'}</td>
                     <td data-label="Description">${item.description || 'N/A'}</td>
                     <td data-label="Amount (KSh)">${parseFloat(item.amount || 0).toFixed(2)}</td>
-                    <td data-label="Lead Name">${item.lead_name || 'N/A'}</td>
-                    <td data-label="Company">${item.company || 'N/A'}</td>
+                    <td data-label="Lead Name">${leadName}</td>
+                    <td data-label="Company">${companyName}</td>
                     <td data-label="Actions">${actionsHtml}</td>
                 `;
                 reportTableBody.appendChild(row);

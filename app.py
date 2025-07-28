@@ -465,15 +465,14 @@ def get_expenditure_report():
         general_expenses = cur.fetchall()
         logging.debug(f"Fetched general expenses: {general_expenses}")
 
-        # Fetch ALL calendar_events with amount > 0, using LEFT JOIN for leads
-        # This ensures visits with amounts are included even if not linked to a lead
-        # Explicitly select all columns from calendar_events and lead join
+        # Fetch ALL calendar_events with amount >= 0 and not NULL, using LEFT JOIN for leads
+        # This ensures visits with amounts (even 0) are included and lead info is attempted
         query_calendar_expenses = """
             SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount,
                    l.id AS lead_id, l.firstName, l.lastName, l.company, 'calendar_events' AS source_table
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
-            WHERE ce.amount > 0
+            WHERE ce.amount IS NOT NULL AND ce.amount >= 0
         """
         calendar_expense_params = []
 
@@ -507,6 +506,7 @@ def get_expenditure_report():
             })
         for expense in calendar_expenses:
             # Handle lead_name and company for calendar events that might not have a linked lead
+            # Use .get() with default to safely access keys from RealDictRow
             lead_full_name = f"{expense.get('firstname', '') or ''} {expense.get('lastname', '') or ''}".strip()
             report_data.append({
                 "id": expense['id'],
@@ -611,7 +611,7 @@ def export_expenditure_report():
                    l.firstName, l.lastName, l.company
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
-            WHERE ce.amount > 0
+            WHERE ce.amount IS NOT NULL AND ce.amount >= 0
         """
         params_calendar_expenses = []
 
@@ -640,14 +640,14 @@ def export_expenditure_report():
             })
         for item in calendar_expenses:
             # Handle cases where lead is not linked (firstName/lastName/company would be None)
-            lead_full_name = f"{item['firstname'] or ''} {item['lastname'] or ''}".strip()
+            lead_full_name = f"{item.get('firstname', '') or ''} {item.get('lastname', '') or ''}".strip()
             report_data.append({
                 'date': str(item['date']),
                 'type_category': item['type_category'],
                 'description': item['description'],
                 'amount': float(item['amount']),
                 'lead_name': lead_full_name if lead_full_name else None,
-                'company': item['company'] if item['company'] else None
+                'company': item.get('company', None) if item.get('company', None) else None
             })
 
         report_data.sort(key=lambda x: x['date']) # Sort for CSV output
