@@ -9,11 +9,8 @@
 
     <!-- Local CSS for Flatpickr from node_modules -->
     <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.css') }}">
-    <!-- Local CSS for FullCalendar Core from node_modules -->
-    <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='@fullcalendar/core/main.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='@fullcalendar/daygrid/main.min.css') }}">
-
-    <style>
+    <!-- FullCalendar CSS is injected by its JS, so no direct link tags needed here -->
+        <style>
         /* Modern, Space-centric Styling */
         :root {
             --primary-color: #007bff;
@@ -25,10 +22,10 @@
             --background-light: #f4f7f6;
             --card-background: #ffffff;
             --text-dark: #343a40;
-            --text-muted: #6a7482;
             --border-color: #e0e6ed;
             --shadow-light: rgba(0, 0, 0, 0.08);
-            --font-family: 'Inter', sans-serif; /* Using Inter as per guidelines */
+            --shadow-medium: rgba(0, 0, 0, 0.15);
+            --font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
         body {
@@ -38,151 +35,148 @@
             background-color: var(--background-light);
             color: var(--text-dark);
             line-height: 1.6;
+        }
+
+        .container {
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
-        header {
-            background-color: var(--card-background);
-            color: var(--text-dark);
-            padding: 1rem 2rem;
-            border-bottom: 1px solid var(--border-color);
-            box-shadow: var(--shadow-light);
+        .header {
+            background-color: var(--text-dark);
+            color: white;
+            padding: 1.2rem 2.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            box-shadow: 0 2px 10px var(--shadow-medium);
+            z-index: 10;
         }
 
-        header h1 {
+        .header h1 {
             margin: 0;
-            font-size: 1.8rem;
-            color: var(--primary-color);
+            font-size: 2rem;
+            font-weight: 600;
         }
 
-        .dashboard-container {
+        /* Header actions removed as buttons are moved to cards */
+        .header-actions {
+            display: none; /* Hide the header actions div now */
+        }
+
+        .main-content {
+            flex-grow: 1;
+            padding: 2.5rem;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-            gap: 1.5rem;
-            padding: 1.5rem;
-            max-width: 1400px;
-            margin: 1.5rem auto;
-            flex-grow: 1; /* Allow container to grow and take available space */
+            grid-template-columns: 2fr 1fr; /* Main content area with two columns */
+            gap: 2.5rem;
+            align-items: start;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2.5rem;
+            margin-bottom: 2.5rem;
         }
 
         .card {
             background-color: var(--card-background);
-            padding: 1.5rem;
-            border-radius: 12px; /* More rounded corners */
-            box-shadow: var(--shadow-light);
-            display: flex;
-            flex-direction: column;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
-            position: relative; /* For loading overlay */
+            border-radius: 12px;
+            box-shadow: 0 4px 15px var(--shadow-light);
+            padding: 2rem;
+            transition: transform 0.2s ease-in-out;
+            position: relative; /* For button positioning */
         }
 
         .card:hover {
             transform: translateY(-5px);
-            box-shadow: rgba(0, 0, 0, 0.15) 0px 8px 24px;
         }
 
-        .card-header {
+        .card h2 {
+            margin-top: 0;
+            color: var(--text-dark);
+            font-size: 1.6rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.5rem;
-            border-bottom: 1px solid var(--border-color);
+        }
+        /* Style for card title buttons */
+        .card h2 .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            margin-left: 10px;
+            white-space: nowrap; /* Prevent button text from wrapping */
         }
 
-        .card-header h2 {
-            margin: 0;
-            font-size: 1.25rem;
-            color: var(--text-dark);
+        /* Specific styling for icon-only buttons in card headers */
+        .card h2 .btn-icon {
+            padding: 0.6rem; /* Adjust padding for square icon buttons */
+            width: 40px; /* Fixed width for consistent sizing */
+            height: 40px; /* Fixed height for consistent sizing */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%; /* Make them circular */
+            margin-left: 8px; /* Space between icons */
+        }
+        .card h2 .btn-icon i {
+            font-size: 1.1rem; /* Adjust icon size */
         }
 
-        .card-content {
-            flex-grow: 1; /* Allow content to take available height */
+        /* For the specific button group in Recent Leads */
+        .card h2 .button-group-header {
+            display: flex;
+            gap: 8px; /* Space between buttons */
+            margin-left: auto; /* Push to the right */
         }
+
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 1rem;
-            margin-bottom: 1rem;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 1.5rem;
+            margin-top: 1.5rem;
         }
 
         .stat-item {
             background-color: var(--background-light);
-            padding: 1rem;
+            padding: 1.2rem;
             border-radius: 8px;
             text-align: center;
-            box-shadow: rgba(0, 0, 0, 0.05) 0px 1px 2px 0px;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
         .stat-item h3 {
-            margin: 0 0 0.5rem 0;
-            font-size: 1rem;
+            margin: 0;
+            font-size: 1.1rem;
             color: var(--text-muted);
+            font-weight: 500;
         }
 
         .stat-item p {
-            margin: 0;
-            font-size: 1.8rem;
+            margin: 0.6rem 0 0;
+            font-size: 2rem;
             font-weight: bold;
             color: var(--primary-color);
         }
 
-        .stat-item.new p { color: var(--info-color); }
-        .stat-item.qualified p { color: var(--warning-color); }
-        .stat-item.won p { color: var(--success-color); }
-        .stat-item.lost p { color: var(--danger-color); }
-
-
-        .button-group {
+        .chart-container {
+            height: 300px; /* Standard height for charts */
             display: flex;
-            gap: 0.5rem;
-            margin-top: 1rem;
-            flex-wrap: wrap; /* Allow buttons to wrap */
-        }
-
-        .btn {
-            padding: 0.75rem 1.25rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            font-weight: 500;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-            display: inline-flex;
+            justify-content: center;
             align-items: center;
-            gap: 0.5rem;
         }
 
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: #0056b3;
-            transform: translateY(-2px);
-        }
-
-        .btn-secondary {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background-color: #5a6268;
-            transform: translateY(-2px);
-        }
-
-        .table-responsive {
+        .table-container {
             overflow-x: auto;
-            margin-top: 1rem;
+            margin-top: 1.5rem;
             border-radius: 8px;
             border: 1px solid var(--border-color);
         }
@@ -190,24 +184,36 @@
         table {
             width: 100%;
             border-collapse: collapse;
-            white-space: nowrap; /* Prevent text wrapping in cells */
+            font-size: 0.95rem;
+            /* white-space: nowrap; REMOVED for mobile responsiveness */
         }
 
-        table thead th {
-            background-color: var(--background-light);
-            padding: 0.8rem 1rem;
+        table th, table td {
+            padding: 1rem 1.2rem;
             text-align: left;
-            font-size: 0.85rem;
-            color: var(--text-muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
             border-bottom: 1px solid var(--border-color);
         }
 
-        table tbody td {
-            padding: 0.8rem 1rem;
-            border-bottom: 1px solid var(--border-color);
-            vertical-align: middle; /* Align content vertically */
+        table th {
+            background-color: #f8fafd;
+            font-weight: 600;
+            color: var(--text-dark);
+            cursor: pointer;
+            position: sticky;
+            top: 0;
+            z-index: 1;
+        }
+
+        table th.asc::after {
+            content: ' \25B2'; /* Up arrow */
+            font-size: 0.7em;
+            vertical-align: super;
+        }
+
+        table th.desc::after {
+            content: ' \25BC'; /* Down arrow */
+            font-size: 0.7em;
+            vertical-align: super;
         }
 
         table tbody tr:last-child td {
@@ -215,192 +221,145 @@
         }
 
         table tbody tr:hover {
-            background-color: #f0f3f6;
+            background-color: #f0f4f7;
         }
 
-        table tbody td button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1rem;
-            margin: 0 0.2rem;
-            padding: 0.3rem;
-            border-radius: 4px;
-            transition: background-color 0.2s ease;
-        }
-
-        table tbody td button:hover {
-            background-color: rgba(0, 0, 0, 0.05);
-        }
-
-        /* Responsive table behavior */
-        @media screen and (max-width: 768px) {
-            table thead {
-                display: none; /* Hide table headers on small screens */
-            }
-
-            table, table tbody, table tr, table td {
-                display: block; /* Make table elements behave like block elements */
-                width: 100%;
-            }
-
-            table tr {
-                margin-bottom: 1rem;
-                border: 1px solid var(--border-color);
-                border-radius: 8px;
-                overflow: hidden; /* For rounded corners */
-            }
-
-            table tbody td {
-                text-align: right;
-                padding-left: 50%; /* Space for the pseudo-element label */
-                position: relative;
-            }
-
-            table tbody td::before {
-                content: attr(data-label); /* Use data-label for the pseudo-element */
-                position: absolute;
-                left: 10px;
-                width: calc(50% - 20px);
-                text-align: left;
-                font-weight: bold;
-                color: var(--text-dark);
-            }
-        }
-
-        .chart-container {
-            position: relative;
-            height: 250px; /* Fixed height for chart */
-            width: 100%;
+        .btn-group {
             display: flex;
-            justify-content: center;
-            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
-        .chart-container canvas {
-            max-height: 100%;
-            max-width: 100%;
-        }
-
-        .list-group {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .list-group-item {
-            padding: 0.75rem 0;
-            border-bottom: 1px solid var(--border-color);
-            display: flex;
-            flex-direction: column;
+        .btn {
+            padding: 0.6rem 1rem;
             font-size: 0.9rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            font-weight: 500;
         }
 
-        .list-group-item:last-child {
-            border-bottom: none;
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
         }
 
-        .list-group-item .lead-name {
-            font-weight: bold;
-            color: var(--primary-color);
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            transform: translateY(-1px);
         }
 
-        .list-group-item .followup-details {
-            color: var(--text-muted);
-            font-size: 0.85rem;
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+        }
+        .btn-danger:hover {
+            background-color: #bd2130;
+            transform: translateY(-1px);
         }
 
         /* Modal Styles */
         .modal {
+            display: none;
             position: fixed;
-            top: 0;
+            z-index: 1000;
             left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
-            display: flex;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            display: flex; /* Changed to flex for centering */
             justify-content: center;
             align-items: center;
+            padding: 20px;
             opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-            z-index: 1000;
+            transition: opacity 0.3s ease;
+            pointer-events: none; /* Allows clicks through when hidden */
         }
 
         .modal.active {
             opacity: 1;
-            visibility: visible;
+            pointer-events: auto;
         }
 
         .modal-content {
             background-color: var(--card-background);
-            padding: 2rem;
+            margin: auto;
+            padding: 30px;
             border-radius: 12px;
-            box-shadow: rgba(0, 0, 0, 0.2) 0px 10px 30px;
+            box-shadow: 0 8px 30px var(--shadow-medium);
             width: 90%;
-            max-width: 600px;
-            transform: translateY(-20px);
-            transition: transform 0.3s ease;
+            max-width: 750px; /* Increased max-width for two columns */
             position: relative;
-            max-height: 90vh; /* Limit height for scrollable content */
-            overflow-y: auto; /* Enable scrolling for long forms */
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
         }
 
         .modal.active .modal-content {
             transform: translateY(0);
         }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-            color: var(--primary-color);
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.8rem;
-            cursor: pointer;
+        .close-button {
             color: var(--text-muted);
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 32px;
+            font-weight: normal;
+            cursor: pointer;
             transition: color 0.2s ease;
         }
 
-        .close-btn:hover {
+        .close-button:hover,
+        .close-button:focus {
             color: var(--danger-color);
+            text-decoration: none;
         }
 
+        .modal-content h2 {
+            color: var(--text-dark);
+            margin-top: 0;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        /* NEW: Form grid for two columns */
         .form-grid {
             display: grid;
-            grid-template-columns: 1fr;
-            gap: 1rem;
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            gap: 15px 30px; /* Row gap, Column gap */
         }
 
-        @media (min-width: 600px) {
-            .form-grid {
-                grid-template-columns: 1fr 1fr; /* Two columns on larger screens */
-            }
-            .form-group.full-width {
-                grid-column: span 2; /* Make this group span both columns */
-            }
+        /* Ensure textareas and full-width elements span both columns */
+        .form-grid .form-group.full-width {
+            grid-column: span 2;
         }
 
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 0; /* Managed by form-grid gap */
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: 500;
+            margin-bottom: 8px;
+            font-weight: 600;
             color: var(--text-dark);
             font-size: 0.95rem;
         }
@@ -412,13 +371,13 @@
         .form-group input[type="number"],
         .form-group select,
         .form-group textarea {
-            width: 100%;
-            padding: 0.75rem;
+            width: calc(100% - 24px); /* Account for padding and border */
+            padding: 12px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            font-family: var(--font-family);
             font-size: 1rem;
-            box-sizing: border-box; /* Include padding in width */
+            color: var(--text-dark);
+            background-color: #fdfdfd;
             transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
@@ -430,88 +389,75 @@
             outline: none;
         }
 
-        .form-group textarea {
-            resize: vertical;
-            min-height: 80px;
-        }
-
-        .modal-content .btn-primary {
-            width: 100%;
-            margin-top: 1.5rem;
-        }
-
-        /* FullCalendar specific styles */
-        .fc .fc-button-primary {
+        .modal-content button[type="submit"] {
             background-color: var(--primary-color);
             color: white;
-            border-color: var(--primary-color);
+            border: none;
+            padding: 14px 25px;
             border-radius: 8px;
-            transition: background-color 0.2s ease;
-        }
-
-        .fc .fc-button-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
-        }
-
-        .fc .fc-button-primary:not(:disabled).fc-button-active {
-            background-color: #004085;
-            border-color: #004085;
-        }
-
-        .fc-event {
-            border-radius: 4px;
-            padding: 2px 4px;
-            font-size: 0.85em;
             cursor: pointer;
-            border: 1px solid transparent; /* default */
+            font-size: 1.1rem;
+            width: 100%;
+            margin-top: 25px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, transform 0.2s ease;
         }
 
-        /* Event type specific colors */
-        .fc-event-call { background-color: #17a2b8; border-color: #17a2b8; color: white; } /* Info color */
-        .fc-event-email { background-color: #ffc107; border-color: #ffc107; color: #343a40; } /* Warning color */
-        .fc-event-meeting { background-color: #28a745; border-color: #28a745; color: white; } /* Success color */
-        .fc-event-cold-visit { background-color: #dc3545; border-color: #dc3545; color: white; } /* Danger color */
-        /* Add more as needed */
+        .modal-content button[type="submit"]:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
+        }
 
-        /* Calendar Tooltip */
-        .calendar-tooltip {
-            position: absolute;
-            background-color: rgba(0, 0, 0, 0.85);
+        /* Message Box Styles */
+        .message-container {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 15px 25px;
+            border-radius: 8px;
+            font-weight: bold;
             color: white;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            pointer-events: none; /* Allows clicks to pass through */
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
             opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            z-index: 1001; /* Above modals */
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
+            transition: opacity 0.3s ease;
         }
 
-        .calendar-tooltip.active {
+        .message-container.active {
             opacity: 1;
-            visibility: visible;
         }
 
-        /* Loading Overlay */
+        .message-container.success {
+            background-color: var(--success-color);
+        }
+
+        .message-container.error {
+            background-color: var(--danger-color);
+        }
+
+        .message-container.info {
+            background-color: var(--info-color);
+        }
+
+        /* Loading Overlay Styles */
         .loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(255, 255, 255, 0.8);
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            z-index: 2000; /* Higher than modals */
+            z-index: 1000; /* Ensure it's on top of everything */
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
         }
 
         .loading-overlay.active {
@@ -520,12 +466,13 @@
         }
 
         .spinner {
-            border: 6px solid #f3f3f3;
-            border-top: 6px solid var(--primary-color);
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid var(--primary-color); /* Primary color */
             border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin-bottom: 15px;
         }
 
         @keyframes spin {
@@ -533,231 +480,474 @@
             100% { transform: rotate(360deg); }
         }
 
-        /* Message Container */
-        .message-container {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 12px 20px;
-            border-radius: 8px;
+        .loading-overlay p {
+            color: var(--text-dark);
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* FullCalendar Specific Styles - Aesthetic Enhancements */
+        .fc-toolbar-title {
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+        .fc-button {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            color: white !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .fc-button:hover {
+            background-color: #0056b3 !important;
+            border-color: #0056b3 !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .fc-daygrid-day-number {
+            color: var(--text-muted);
+        }
+        .fc-day-other .fc-daygrid-day-number {
+            color: #c0c7d2; /* Faded numbers for days outside the current month */
+        }
+        
+        /* Custom Event Colors based on Type */
+        /* Group 1: Positive Lead Interaction */
+        .fc-event-visit {
+            background-color: #28a745 !important; /* Success Green */
+            border-color: #28a745 !important;
+            color: white !important;
+        }
+        .fc-event-meeting {
+            background-color: #6610f2 !important; /* Purple */
+            border-color: #6610f2 !important;
+            color: white !important;
+        }
+        .fc-event-call { /* New */
+            background-color: #17a2b8 !important; /* Info Blue */
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+        .fc-event-email { /* New */
+            background-color: #5bc0de !important; /* Lighter Info Blue */
+            border-color: #5bc0de !important;
+            color: white !important;
+        }
+        .fc-event-follow-up { /* Keep existing follow-up color, similar to info */
+            background-color: #17a2b8 !important; 
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+
+        /* Group 2: New Outreach/Warning */
+        .fc-event-cold-visit {
+            background-color: #fd7e14 !important; /* Orange */
+            border-color: #fd7e14 !important;
+            color: white !important;
+        }
+
+        /* Group 3: Financial */
+        .fc-event-general-expense {
+            background-color: #dc3545 !important; /* Danger Red */
+            border-color: #dc3545 !important;
+            color: white !important;
+        }
+
+        /* Group 4: Internal/Other */
+        .fc-event-office-day-note {
+            background-color: #6c757d !important; /* Secondary Gray */
+            border-color: #6c757d !important;
+            color: white !important;
+        }
+        .fc-event-other {
+            background-color: #20c997 !important; /* Teal */
+            border-color: #20c997 !important;
+            color: white !important;
+        }
+
+        /* Calendar Day Cell Styling for "Gray Days" */
+        .fc-daygrid-day {
+            background-color: #fcfcfc; /* Very light background for all days */
+            border: 1px solid var(--border-color); /* Subtle border */
+        }
+        /* Optional: Highlight days with events slightly more if needed, or let event colors dominate */
+        .fc-daygrid-day-frame.fc-day-today {
+            background-color: #e6f7ff; /* Light blue for today */
+        }
+
+
+        /* Calendar Tooltip Styling */
+        .calendar-tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.85);
             color: white;
-            font-weight: 500;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            pointer-events: none; /* Allows mouse events to pass through to calendar */
+            z-index: 100; /* Above calendar but below modals */
             opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-            z-index: 2001; /* Higher than loading overlay */
-            min-width: 250px;
-            text-align: center;
+            transition: opacity 0.2s ease-in-out;
+            max-width: 250px;
+            box-shadow: 0 4px 12px var(--shadow-medium);
         }
 
-        .message-container.active {
-            opacity: 1;
-            visibility: visible;
+        .calendar-tooltip strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1rem;
+        }
+        .calendar-tooltip span {
+            display: block;
+            font-size: 0.85rem;
+            color: #ccc;
         }
 
-        .message-container.success { background-color: var(--success-color); }
-        .message-container.error { background-color: var(--danger-color); }
-        .message-container.info { background-color: var(--info-color); }
+        /* Upcoming Follow-ups List Styling */
+        .upcoming-followups-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1.5rem;
+        }
 
-        /* Footer */
-        footer {
-            text-align: center;
-            padding: 1rem;
-            margin-top: 2rem;
+        .upcoming-followups-list li {
+            background-color: var(--background-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .upcoming-followups-list .lead-name {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .upcoming-followups-list .followup-details {
             color: var(--text-muted);
             font-size: 0.85rem;
-            border-top: 1px solid var(--border-color);
-            background-color: var(--card-background);
         }
 
-        /* Specific styles for the filter section in expenditure report */
-        .filter-controls {
+        .input-group {
             display: flex;
-            gap: 1rem;
-            margin-bottom: 1rem;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-end; /* Align buttons/inputs at the bottom */
             flex-wrap: wrap; /* Allow wrapping on smaller screens */
-            align-items: flex-end; /* Align items to the bottom */
         }
 
-        .filter-controls .form-group {
-            margin-bottom: 0; /* Remove bottom margin from form groups within filter controls */
-            flex-grow: 1; /* Allow date inputs to grow */
-            min-width: 150px; /* Ensure date inputs don't get too small */
+        .input-group .form-group {
+            flex-grow: 1;
+            margin-bottom: 0; /* Remove default margin as input-group manages spacing */
         }
 
-        .filter-controls .btn {
+        .input-group button {
+            padding: 12px 20px;
+            height: 46px; /* Match height of input fields */
             flex-shrink: 0; /* Prevent buttons from shrinking */
         }
 
-        .expenditure-summary {
-            font-size: 1.2rem;
-            font-weight: bold;
-            color: var(--text-dark);
-            margin-top: 1.5rem;
-            text-align: right;
-            padding-right: 1rem;
+        /* Expenditure Report specific styling */
+        #expenditureReportTable th {
+            white-space: nowrap; /* Keep headers on one line */
         }
 
+        #totalExpenditureSummary {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-top: 1.5rem;
+            text-align: right;
+            color: var(--text-dark);
+            padding-right: 1.2rem;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr; /* Stack columns on smaller wide screens */
+                padding: 1.5rem;
+            }
+            .header {
+                padding: 1rem 1.5rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .header h1 {
+                font-size: 1.6rem;
+                margin-bottom: 10px;
+            }
+            .header-actions {
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                justify-content: center;
+                margin-top: 10px;
+            }
+            .header-actions .btn {
+                margin: 5px;
+            }
+            .main-content {
+                padding: 1rem;
+                gap: 1.5rem;
+            }
+            .dashboard-grid {
+                gap: 1.5rem;
+            }
+            .card {
+                padding: 1.5rem;
+            }
+            .card h2 {
+                font-size: 1.4rem;
+                margin-bottom: 1rem;
+            }
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+            /* Adjust form grid for small screens to stack columns */
+            .modal-content .form-grid {
+                grid-template-columns: 1fr; /* Single column on small screens */
+                gap: 15px;
+            }
+            .form-grid .form-group.full-width {
+                grid-column: span 1; /* Reset span for single column */
+            }
+            .form-group input, .form-group select, .form-group textarea {
+                width: calc(100% - 20px);
+                padding: 10px;
+            }
+            .input-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .input-group button {
+                width: 100%;
+                height: auto;
+            }
+
+            /* Responsive Table Styling for smaller screens */
+            .table-container {
+                border-radius: 0; /* Remove rounded corners for full width */
+                border-left: none;
+                border-right: none;
+            }
+            table {
+                border: 0; /* Remove table borders */
+            }
+            table thead {
+                display: none; /* Hide table headers on small screens */
+            }
+            table, table tbody, table tr, table td {
+                display: block; /* Make table elements behave like block elements */
+                width: 100%; /* Take full width */
+            }
+            table tr {
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+            table td {
+                text-align: right; /* Align content to the right */
+                padding-left: 50%; /* Make space for the label */
+                position: relative;
+                border: none; /* Remove cell borders */
+            }
+            table td::before {
+                content: attr(data-label); /* Use data-label for the pseudo-element content */
+                position: absolute;
+                left: 10px;
+                width: calc(50% - 20px); /* Adjust width for label */
+                padding-right: 10px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 600;
+                color: var(--text-dark);
+                text-align: left;
+            }
+            table td:last-child {
+                border-bottom: 0; /* No bottom border for the last cell in a row */
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header-actions .btn {
+                margin: 5px 0;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            table th, table td {
+                padding: 0.8rem;
+                font-size: 0.85rem;
+            }
+        }
     </style>
 </head>
 <body>
-    <header>
-        <h1>Sales & Marketing Dashboard</h1>
-        <nav>
-            <!-- Navigation links can go here if needed -->
-        </nav>
-    </header>
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p>Loading...</p>
+    </div>
+    <div id="messageContainer" class="message-container"></div>
+    <div class="container">
+        <header class="header">
+            <h1>Sales & Marketing Dashboard</h1>
+            <!-- Header actions removed and moved to specific cards -->
+            <div class="header-actions">
+                <!-- Buttons moved to cards below -->
+            </div>
+        </header>
 
-    <div class="dashboard-container">
-        <!-- Leads Overview Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Leads Overview</h2>
-                <button class="btn btn-primary" id="addLeadModalBtn"><i class="fas fa-plus"></i> Add Lead</button>
-            </div>
-            <div class="card-content">
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <h3>Total Leads</h3>
-                        <p id="totalLeadsCount">0</p>
+        <main class="main-content">
+            <section class="left-column">
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h2>Leads Statistics</h2>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <h3>Total Leads</h3>
+                                <p id="totalLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>New Leads</h3>
+                                <p id="newLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>Qualified Leads</h3>
+                                <p id="qualifiedLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>Closed Won</h3>
+                                <p id="closedWonLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>Closed Lost</h3>
+                                <p id="closedLostLeadsCount">0</p>
+                            </div>
+                        </div>
                     </div>
-                    <div class="stat-item new">
-                        <h3>New Leads</h3>
-                        <p id="newLeadsCount">0</p>
-                    </div>
-                    <div class="stat-item qualified">
-                        <h3>Qualified Leads</h3>
-                        <p id="qualifiedLeadsCount">0</p>
-                    </div>
-                    <div class="stat-item won">
-                        <h3>Closed Won</h3>
-                        <p id="closedWonLeadsCount">0</p>
-                    </div>
-                    <div class="stat-item lost">
-                        <h3>Closed Lost</h3>
-                        <p id="closedLostLeadsCount">0</p>
-                    </div>
-                </div>
-                <div class="chart-container">
-                    <canvas id="leadsByStageChart"></canvas>
-                </div>
-            </div>
-        </div>
 
-        <!-- Recent Leads Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Recent Leads</h2>
-                <button class="btn btn-secondary" id="exportLeadsBtn"><i class="fas fa-file-export"></i> Export Leads</button>
-            </div>
-            <div class="card-content">
-                <div class="table-responsive">
-                    <table id="recentLeadsTable">
-                        <thead>
-                            <tr>
-                                <th>Name</th>
-                                <th>Company</th>
-                                <th>Stage</th>
-                                <th>Contact Date</th>
-                                <th>Follow-up Date</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <!-- Lead data will be loaded here by JavaScript -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- Upcoming Follow-ups Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Upcoming Follow-ups</h2>
-            </div>
-            <div class="card-content">
-                <ul class="list-group" id="upcomingFollowupsList">
-                    <!-- Upcoming follow-ups will be loaded here by JavaScript -->
-                    <li>No upcoming follow-ups.</li>
-                </ul>
-            </div>
-        </div>
-
-        <!-- Planning Calendar Card -->
-        <div class="card">
-            <div class="card-header">
-                <h2>Planning Calendar</h2>
-                <button class="btn btn-primary" id="addEventModalBtn"><i class="fas fa-calendar-plus"></i> Add Event</button>
-            </div>
-            <div class="card-content">
-                <div id="calendar" style="height: 400px;"></div>
-            </div>
-        </div>
-
-        <!-- Expenditure Report Card -->
-        <div class="card full-width">
-            <div class="card-header">
-                <h2>Expenditure Report</h2>
-                <div class="button-group">
-                    <button class="btn btn-primary" id="addExpenseModalBtn"><i class="fas fa-plus"></i> Add Expense</button>
-                    <button class="btn btn-secondary" id="exportExpenditureReportBtn"><i class="fas fa-file-export"></i> Export Report</button>
-                </div>
-            </div>
-            <div class="card-content">
-                <div class="filter-controls">
-                    <div class="form-group">
-                        <label for="reportStartDate">Start Date:</label>
-                        <input type="date" id="reportStartDate">
+                    <div class="card">
+                        <h2>Leads by Stage</h2>
+                        <div class="chart-container">
+                            <canvas id="leadsByStageChart"></canvas>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label for="reportEndDate">End Date:</label>
-                        <input type="date" id="reportEndDate">
+                </div>
+
+                <div class="card">
+                    <h2>
+    			Recent Leads
+                <div class="button-group-header">
+        			<button class="btn btn-primary btn-icon" id="addLeadModalBtn" title="Add New Lead"><i class="fas fa-plus"></i></button>
+        			<button id="exportLeadsBtn" class="btn btn-secondary btn-icon" title="Export Leads"><i class="fas fa-download"></i></button>
+                </div>
+		    </h2>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="leadSearchInput">Search Leads:</label>
+                            <input type="text" id="leadSearchInput" placeholder="Search by name, company, stage...">
+                        </div>
                     </div>
-                    <button class="btn btn-primary" id="filterReportBtn"><i class="fas fa-filter"></i> Filter</button>
-                    <button class="btn btn-secondary" id="clearReportDatesBtn"><i class="fas fa-times"></i> Clear Dates</button>
+                    <div class="table-container">
+                        <table id="recentLeadsTable">
+                            <thead>
+                                <tr>
+                                    <th data-sort-by="firstName" class="sortable">Name</th>
+                                    <th data-sort-by="company" class="sortable">Company</th>
+                                    <th data-sort-by="stage" class="sortable">Stage</th>
+                                    <th data-sort-by="dateOfContact" class="sortable">Contact Date</th>
+                                    <th data-sort-by="followUp" class="sortable">Follow-up Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Leads will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="table-responsive">
-                    <table id="expenditureReportTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Category</th>
-                                <th>Description</th>
-                                <th>Amount (KSh)</th>
-                                <th>Lead Name</th>
-                                <th>Company</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="expenditureReportTableBody">
-                            <!-- Expenditure data will be loaded here by JavaScript -->
-                        </tbody>
-                    </table>
+
+                <div class="card">
+                    <h2>
+                        Expenditure Report
+                        <button class="btn btn-secondary btn-icon" id="addExpenseModalBtn" title="Add Expense"><i class="fas fa-dollar-sign"></i></button>
+                    </h2>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="reportStartDate">Start Date:</label>
+                            <input type="date" id="reportStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="reportEndDate">End Date:</label>
+                            <input type="date" id="reportEndDate">
+                        </div>
+                        <button class="btn btn-secondary btn-icon" id="filterReportBtn" title="Filter Report"><i class="fas fa-filter"></i></button>
+                        <button class="btn btn-secondary btn-icon" id="clearReportDatesBtn" title="Clear Dates"><i class="fas fa-times"></i></button> <!-- NEW BUTTON -->
+                        <button class="btn btn-primary btn-icon" id="exportExpenditureReportBtn" title="Export CSV"><i class="fas fa-file-csv"></i></button>
+                    </div>
+                    <div class="table-container">
+                        <table id="expenditureReportTable">
+                            <thead>
+                                <tr>
+                                    <th data-label="Date">Date</th>
+                                    <th data-label="Category">Category</th>
+                                    <th data-label="Description">Description</th>
+                                    <th data-label="Amount (KSh)">Amount (KSh)</th>
+                                    <th data-label="Lead Name">Lead Name</th>
+                                    <th data-label="Company">Company</th>
+                                    <th>Actions</th> <!-- Added for expense actions -->
+                                </tr>
+                            </thead>
+                            <tbody id="expenditureReportTableBody"> <!-- Changed ID for clarity -->
+                                <!-- Expenditure report items will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="totalExpenditureSummary">Total Expenditure: KSh 0.00</div>
                 </div>
-                <div class="expenditure-summary" id="totalExpenditureSummary">
-                    Total Expenditure: KSh 0.00
+            </section>
+
+            <section class="right-column">
+                <div class="card">
+                    <h2>Upcoming Follow-ups</h2>
+                    <ul id="upcomingFollowupsList" class="upcoming-followups-list">
+                        </ul>
                 </div>
-            </div>
-        </div>
+
+                <div class="card">
+                    <h2>
+                        Planning Calendar
+                        <button class="btn btn-primary btn-icon" id="addEventModalBtn" title="Add Event"><i class="fas fa-calendar-plus"></i></button>
+                    </h2>
+                    <div id="calendar"></div>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <footer>
-        <p>&copy; 2025 Sales & Marketing Dashboard. All rights reserved.</p>
-    </footer>
-
-    <!-- Modals -->
-
-    <!-- Lead Modal -->
     <div id="leadModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add New Lead</h2>
-                <button class="close-btn" id="closeLeadModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeLeadModalBtn">&times;</span>
+            <h2 id="leadModalTitle">Add New Lead</h2>
             <form id="addLeadForm">
-                <input type="hidden" id="leadId" name="id"> <!-- Hidden input for lead ID -->
+                <input type="hidden" id="leadId">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="firstName">First Name:</label>
@@ -816,42 +1006,38 @@
         </div>
     </div>
 
-    <!-- Visit Modal (now for Lead Activities) -->
     <div id="visitModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add Lead Activity</h2>
-                <button class="close-btn" id="closeVisitModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeVisitModalBtn">&times;</span>
+            <h2>Add New Visit</h2>
             <form id="addActivityForm">
+                <input type="hidden" id="activityLeadId" name="lead_id">
                 <div class="form-grid">
                     <div class="form-group">
-                        <label for="activityDate">Date:</label>
+                        <label for="activityDate">Activity Date:</label>
                         <input type="date" id="activityDate" name="activity_date" required>
                     </div>
                     <div class="form-group">
                         <label for="activityType">Activity Type:</label>
                         <select id="activityType" name="activity_type" required>
-                            <option value="Call">Call</option>
-                            <option value="Email">Email</option>
-                            <option value="Meeting">Meeting</option>
-                            <option value="Cold Visit">Cold Visit</option>
-                            <option value="Demo">Demo</option>
+                            <option value="call">Call</option>
+                            <option value="email">Email</option>
+                            <option value="visit">Visit</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="general_expense">General Expense</option>
                         </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="activityExpenditure">Expenditure (KSh):</label>
+                        <input type="number" id="activityExpenditure" name="expenditure" step="0.01" min="0" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="activityLocationName">Location Name (Optional):</label>
+                        <input type="text" id="activityLocationName" name="location_name">
                     </div>
                     <div class="form-group full-width">
                         <label for="activityDescription">Description:</label>
                         <textarea id="activityDescription" name="description" rows="3"></textarea>
-                    </div>
-                    <div class="form-group">
-                        <label for="activityExpenditure">Expenditure (KSh):</label>
-                        <input type="number" id="activityExpenditure" name="expenditure" step="0.01" value="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label for="activityLeadId">Link to Lead (Optional):</label>
-                        <select id="activityLeadId" name="lead_id">
-                            <!-- Options populated by JavaScript -->
-                        </select>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Activity</button>
@@ -859,13 +1045,10 @@
         </div>
     </div>
 
-    <!-- General Expense Modal -->
     <div id="generalExpenseModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add General Expense</h2>
-                <button class="close-btn" id="closeGeneralExpenseModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeGeneralExpenseModalBtn">&times;</span>
+            <h2>Add General Expense</h2>
             <form id="addExpenseForm">
                 <input type="hidden" id="expenseId" name="id"> <!-- Hidden input for expense ID -->
                 <div class="form-grid">
@@ -875,11 +1058,11 @@
                     </div>
                     <div class="form-group">
                         <label for="generalExpenseAmount">Amount (KSh):</label>
-                        <input type="number" id="generalExpenseAmount" name="amount" step="0.01" required>
+                        <input type="number" id="generalExpenseAmount" name="amount" step="0.01" min="0" required>
                     </div>
                     <div class="form-group full-width">
                         <label for="generalExpenseDescription">Description:</label>
-                        <textarea id="generalExpenseDescription" name="description" rows="3" required></textarea>
+                        <input type="text" id="generalExpenseDescription" name="description" required>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Expense</button>
@@ -887,15 +1070,12 @@
         </div>
     </div>
 
-    <!-- General Event Modal (for Calendar Events) -->
     <div id="generalEventModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add Calendar Event</h2>
-                <button class="close-btn" id="closeGeneralEventModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeGeneralEventModalBtn">&times;</span>
+            <h2>Add Calendar Event</h2>
             <form id="addEventForm">
-                <input type="hidden" id="eventId" name="id"> <!-- NEW: Hidden input for event ID -->
+                <input type="hidden" id="eventId" name="id"> <!-- ADDED THIS LINE -->
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="eventDate">Date:</label>
@@ -904,26 +1084,28 @@
                     <div class="form-group">
                         <label for="eventType">Event Type:</label>
                         <select id="eventType" name="type" required>
-                            <option value="Call">Call</option>
-                            <option value="Email">Email</option>
-                            <option value="Meeting">Meeting</option>
-                            <option value="Cold Visit">Cold Visit</option>
-                            <option value="Demo">Demo</option>
-                            <option value="Other">Other</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="cold_visit">Cold Visit</option>
+                            <option value="office_day_note">Office Day Note</option>
+                            <option value="other">Other</option>
+                            <option value="General Expense">General Expense</option> <!-- Added for consistency -->
+                            <option value="visit">Visit</option> <!-- Added for consistency -->
+                            <option value="call">Call</option> <!-- Added for consistency -->
+                            <option value="email">Email</option> <!-- Added for consistency -->
                         </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="eventAmount">Amount (KSh):</label>
-                        <input type="number" id="eventAmount" name="amount" step="0.01" value="0.00">
                     </div>
                     <div class="form-group full-width">
                         <label for="eventDescription">Description:</label>
-                        <textarea id="eventDescription" name="description" rows="3"></textarea>
+                        <textarea id="eventDescription" name="description" rows="3" required></textarea>
                     </div>
                     <div class="form-group full-width">
                         <label for="eventLeadId">Link to Lead (Optional):</label>
                         <select id="eventLeadId" name="lead_id">
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventAmount">Amount (KSh):</label>
+                        <input type="number" id="eventAmount" name="amount" step="0.01" min="0" value="0.00">
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Event</button>
@@ -932,11 +1114,6 @@
     </div>
 
     <div id="calendarTooltip" class="calendar-tooltip"></div>
-    <div id="loadingOverlay" class="loading-overlay">
-        <div class="spinner"></div>
-    </div>
-    <div id="messageContainer" class="message-container"></div>
-
 
     <!-- Local JavaScript for Chart.js from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='chart.js/dist/chart.umd.js') }}"></script>
@@ -947,7 +1124,7 @@
     <!-- Local JavaScript for Flatpickr from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.js') }}"></script>
 
-    <!-- Your custom dashboard.js -->
+    <!-- Your custom dashboard.js should be the LAST script loaded -->
     <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>
