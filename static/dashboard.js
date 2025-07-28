@@ -193,7 +193,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         if (leads.length === 0) {
             console.log("No leads available to populate dropdown.");
-            return; // Exit if no leads to prevent errors
+            // No return here, as we still want the default "No Lead" option
         }
 
         leads.forEach(lead => {
