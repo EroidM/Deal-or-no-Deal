@@ -763,6 +763,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             const calendarEvents = events.map(event => ({
                 // Ensure lead_name and company are correctly displayed
+                // Corrected the parenthesis issue here
                 title: `${event.type || 'N/A'}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + (event.company ? ', ' + event.company : '') + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
                 start: event.date || 'N/A',
                 allDay: true,
