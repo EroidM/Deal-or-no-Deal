@@ -640,7 +640,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (!targetBtn) return;
 
         const itemId = targetBtn.dataset.id;
-        const sourceType = targetBtn.dataset.source;
+        const sourceType = targetBtn.dataset.source; // Use targetBtn.dataset.source
 
         if (targetBtn.classList.contains('edit-expense-btn')) {
             console.log(`Editing item with ID: ${itemId} from source: ${sourceType}`);
@@ -678,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('eventType').value = item.type || '';
                         document.getElementById('eventDescription').value = item.description || '';
                         document.getElementById('eventAmount').value = parseFloat(item.amount || 0).toFixed(2);
-                        await populateLeadSelect(allLeads); // Ensure leads are loaded before setting value
+                        populateLeadSelect(allLeads); // Ensure leads are loaded before setting value
                         document.getElementById('eventLeadId').value = item.lead_id || '';
                         showModal(generalEventModal, 'Edit Calendar Event');
                     }
@@ -711,7 +711,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (sourceType === 'general_expenses') {
                         url = `/api/general_expenses?id=${itemId}`;
                     } else if (sourceType === 'calendar_events') {
-                        url = `/api/calendar_events?id=${itemId}`;
+                        // Corrected: Ensure no extra parenthesis here
+                        url = `/api/calendar_events?id=${itemId}`; 
                     } else {
                         throw new Error("Unknown source type for deletion.");
                     }
@@ -761,23 +762,37 @@ document.addEventListener('DOMContentLoaded', function() {
             const events = await response.json();
             console.log("Calendar events data received from API:", events);
 
-            const calendarEvents = events.map(event => ({
-                // Ensure lead_name and company are correctly displayed
-                // Corrected the parenthesis issue here
-                title: `${event.type || 'N/A'}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + (event.company ? ', ' + event.company : '') + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
-                start: event.date || 'N/A',
-                allDay: true,
-                className: `fc-event-${(event.type || '').toLowerCase().replace(/\s/g, '-')}`,
-                extendedProps: {
-                    type: event.type,
-                    leadId: event.lead_id,
-                    amount: event.amount,
-                    description: event.description,
-                    id: event.id,
-                    leadName: event.lead_name, // Pass lead name for tooltip
-                    company: event.company // Pass company for tooltip
+            const calendarEvents = events.map(event => {
+                let leadInfo = '';
+                if (event.lead_name) {
+                    leadInfo = `(${event.lead_name}`;
+                    if (event.company) {
+                        leadInfo += `, ${event.company}`;
+                    }
+                    leadInfo += ')';
                 }
-            }));
+                
+                let amountInfo = '';
+                if (event.amount && event.amount > 0) {
+                    amountInfo = ` - KSh${parseFloat(event.amount).toFixed(2)}`;
+                }
+
+                return {
+                    title: `${event.type || 'N/A'}: ${event.description || ''} ${leadInfo}${amountInfo}`,
+                    start: event.date || 'N/A',
+                    allDay: true,
+                    className: `fc-event-${(event.type || '').toLowerCase().replace(/\s/g, '-')}`,
+                    extendedProps: {
+                        type: event.type,
+                        leadId: event.lead_id,
+                        amount: event.amount,
+                        description: event.description,
+                        id: event.id,
+                        leadName: event.lead_name, // Pass lead name for tooltip
+                        company: event.company // Pass company for tooltip
+                    }
+                };
+            });
 
             if (calendar) {
                 calendar.setOption('events', calendarEvents);
