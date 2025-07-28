@@ -225,13 +225,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         leadsToRender.forEach(lead => {
             const row = document.createElement('tr');
-            const firstName = lead.firstName || '';
-            const lastName = lead.lastName || '';
+            // --- CRITICAL LINES FOR DISPLAYING NAME AND DATES ---
+            // Ensure correct property names (lowercase from Python backend)
+            const firstName = lead.firstname || ''; // Use .firstname, not .firstName
+            const lastName = lead.lastname || '';   // Use .lastname, not .lastName
             const fullName = `${firstName} ${lastName}`.trim();
             const displayName = fullName || 'N/A'; // Use N/A if both first and last name are empty
 
-            const dateOfContact = lead.dateOfContact ? new Date(lead.dateOfContact).toISOString().split('T')[0] : 'N/A';
-            const followUp = lead.followUp ? new Date(lead.followUp).toISOString().split('T')[0] : 'N/A';
+            const dateOfContact = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : 'N/A'; // Use .dateofcontact
+            const followUp = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : 'N/A'; // Use .followup
 
             row.innerHTML = `
                 <td data-label="Name">${displayName}</td>
@@ -281,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const option = document.createElement('option');
             option.value = lead.id;
             // Display lead name and company, with 'N/A' fallback for name if empty
-            const leadDisplayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+            const leadDisplayName = `${lead.firstname || ''} ${lead.lastname || ''}`.trim(); // Use .firstname, .lastname
             const companyDisplayName = lead.company || '';
 
             if (leadDisplayName && companyDisplayName) {
@@ -352,8 +354,8 @@ document.addEventListener('DOMContentLoaded', function() {
         today.setHours(0, 0, 0, 0);
 
         const sortedFollowups = leads
-            .filter(lead => lead.followUp && new Date(lead.followUp) >= today)
-            .sort((a, b) => new Date(a.followUp) - new Date(b.followUp));
+            .filter(lead => lead.followup && new Date(lead.followup) >= today) // Use .followup
+            .sort((a, b) => new Date(a.followup) - new Date(b.followup)); // Use .followup
 
         if (sortedFollowups.length === 0) {
             const listItem = document.createElement('li');
@@ -364,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         sortedFollowups.forEach(lead => {
             const listItem = document.createElement('li');
-            const leadDisplayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+            const leadDisplayName = `${lead.firstname || ''} ${lead.lastname || ''}`.trim(); // Use .firstname, .lastname
             const companyDisplayName = lead.company || '';
             let displayString = '';
 
@@ -380,8 +382,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
             listItem.innerHTML = `
                 <span class="lead-name">${displayString}</span>
-                <span class="followup-details">Follow-up on: ${new Date(lead.followUp).toISOString().split('T')[0]} (Stage: ${lead.stage || 'N/A'})</span>
-            `;
+                <span class="followup-details">Follow-up on: ${new Date(lead.followup).toISOString().split('T')[0]} (Stage: ${lead.stage || 'N/A'})</span>
+            `; // Use .followup
             upcomingList.appendChild(listItem);
         });
     }
@@ -463,16 +465,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (lead) {
                     document.getElementById('leadId').value = lead.id;
-                    document.getElementById('firstName').value = lead.firstName || '';
-                    document.getElementById('lastName').value = lead.lastName || '';
+                    document.getElementById('firstName').value = lead.firstname || ''; // Use .firstname
+                    document.getElementById('lastName').value = lead.lastname || '';   // Use .lastname
                     document.getElementById('title').value = lead.title || '';
                     document.getElementById('company').value = lead.company || '';
                     document.getElementById('email').value = lead.email || '';
                     document.getElementById('phone').value = lead.phone || '';
                     document.getElementById('product').value = lead.product || '';
                     document.getElementById('stage').value = lead.stage || '';
-                    document.getElementById('dateOfContact').value = lead.dateOfContact ? new Date(lead.dateOfContact).toISOString().split('T')[0] : '';
-                    document.getElementById('followUp').value = lead.followUp ? new Date(lead.followUp).toISOString().split('T')[0] : '';
+                    document.getElementById('dateOfContact').value = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : ''; // Use .dateofcontact
+                    document.getElementById('followUp').value = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : ''; // Use .followup
                     document.getElementById('notes').value = lead.notes || '';
 
                     showModal(leadModal, 'Edit Lead');
@@ -1073,4 +1075,3 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 });
-
