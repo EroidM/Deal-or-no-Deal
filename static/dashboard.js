@@ -2,6 +2,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM Content Loaded. Initializing dashboard.");
 
+    // Global variable to store fetched leads
+    let allLeads = []; // *** NEW: Declare global variable for leads ***
+
     // --- Loading Spinner Functions ---
     // These functions control the visibility of a loading overlay and spinner.
     // The 'loadingOverlay' element must exist in your HTML.
@@ -90,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showModal(generalEventModal, 'Add Calendar Event');
         document.getElementById('addEventForm').reset();
         document.getElementById('eventAmount').value = '0.00'; // Reset amount to default
-        populateLeadSelect(); // Populate lead dropdown for linking events
+        populateLeadSelect(allLeads); // *** MODIFIED: Pass allLeads to populate dropdown ***
     });
 
     // Event listeners for closing modals (using their IDs)
@@ -129,12 +132,15 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const leads = await response.json();
             console.log("Leads data received from API:", leads); // Log received leads data
+
+            allLeads = leads; // *** NEW: Store fetched leads globally ***
+
             const leadsList = document.getElementById('recentLeadsTable').querySelector('tbody');
             leadsList.innerHTML = ''; // IMPORTANT: Clear existing leads to prevent duplication
 
             // Populate the leads table
             leads.forEach(lead => {
-                const row = document.createElement('tr');
+                const row = document:createElement('tr');
                 // Use .get() for robust access to properties from RealDictRow, with 'N/A' fallback
                 const firstName = lead.firstname || 'N/A'; // Use 'firstname' as per backend logs
                 const lastName = lead.lastname || ''; // Use 'lastname' as per backend logs
@@ -155,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 leadsList.appendChild(row);
             });
             updateLeadStats(leads); // Update lead statistics cards
-            populateLeadSelect(leads); // Populate lead dropdowns in modals
+            populateLeadSelect(leads); // Populate lead dropdowns in modals (this call is fine, uses the just-fetched leads)
             updateUpcomingFollowups(leads); // Update the upcoming follow-ups list
         } catch (error) {
             console.error('Error fetching leads:', error);
@@ -184,26 +190,25 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // Populates the lead select dropdowns used in activity and event forms
-    function populateLeadSelect(leads = []) {
+    // This function now expects to receive the leads array as an argument
+    function populateLeadSelect(leads) { // *** MODIFIED: Removed default empty array, now expects leads ***
         console.log("Executing populateLeadSelect()...");
-        console.log("Leads received by populateLeadSelect:", leads); // *** NEW LOG ***
+        console.log("Leads received by populateLeadSelect:", leads);
         const eventLeadSelect = document.getElementById('eventLeadId');
-        // Clear existing options, add default "No Lead" option for calendar events
-        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>';
+        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>'; // Default option
 
-        if (leads.length === 0) {
+        if (!leads || leads.length === 0) { // Check if leads is null/undefined or empty
             console.log("No leads available to populate dropdown.");
-            // No return here, as we still want the default "No Lead" option
+            return;
         }
 
         leads.forEach(lead => {
             const option = document.createElement('option');
             option.value = lead.id;
-            // Display lead name and company, with 'N/A' fallback
             option.textContent = `${lead.firstname || 'N/A'} ${lead.lastname || ''} (${lead.company || 'N/A'})`;
             eventLeadSelect.appendChild(option);
         });
-        console.log("Lead select dropdown populated."); // *** NEW LOG ***
+        console.log("Lead select dropdown populated.");
     }
 
     // Updates the Leads by Stage doughnut chart using Chart.js
@@ -808,7 +813,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoading(); // Show loading spinner
         try {
             const startDate = document.getElementById('reportStartDate').value;
-            const endDate = document.getElementById('reportEndDate').value;
+            const endDate = document.getElementById('reportEndDate'].value;
             let url = `/api/export_expenditure_report`;
             const params = new URLSearchParams();
             if (startDate) params.append('start_date', startDate);
