@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const leadModal = document.getElementById('leadModal');
     const visitModal = document.getElementById('visitModal');
     const generalExpenseModal = document.getElementById('generalExpenseModal');
-    const generalEventModal = document.getElementById('generalEventModal');
+    const generalEventModal = document.getElementById('generalEventModal'); // Reference to the general event modal
 
     function showModal(modalElement, title = '') {
         console.log(`Showing modal: ${modalElement.id} with title: ${title}`);
@@ -87,6 +87,8 @@ document.addEventListener('DOMContentLoaded', function() {
         showModal(generalEventModal, 'Add Calendar Event');
         document.getElementById('addEventForm').reset();
         document.getElementById('eventAmount').value = '0.00';
+        // Clear hidden ID for new event
+        document.getElementById('eventId').value = ''; // Ensure eventId is cleared for new entries
         populateLeadSelect(allLeads); // Pass allLeads to populate dropdown
     });
 
@@ -132,7 +134,7 @@ document.addEventListener('DOMContentLoaded', function() {
             leadsList.innerHTML = '';
 
             leads.forEach(lead => {
-                const row = document.createElement('tr'); // FIX: Changed ':' to '.' here
+                const row = document.createElement('tr');
                 const firstName = lead.firstname || 'N/A';
                 const lastName = lead.lastname || '';
                 const dateOfContact = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : 'N/A';
@@ -481,64 +483,99 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
+    // Event listener for editing/deleting an expense from the Expenditure Report table
     document.getElementById('expenditureReportTableBody').addEventListener('click', async function(event) {
-        if (event.target.closest('.edit-expense-btn')) {
-            const expenseId = event.target.closest('.edit-expense-btn').dataset.id;
-            console.log("Editing expense with ID:", expenseId);
+        const targetBtn = event.target.closest('.edit-expense-btn, .delete-expense-btn');
+        if (!targetBtn) return; // Exit if not an edit/delete button
+
+        const itemId = targetBtn.dataset.id;
+        const sourceType = targetBtn.dataset.source; // NEW: Get source type from button
+
+        if (targetBtn.classList.contains('edit-expense-btn')) {
+            console.log(`Editing item with ID: ${itemId} from source: ${sourceType}`);
             showLoading();
             try {
-                const response = await fetch(`/api/general_expenses?id=${expenseId}`);
+                let url;
+                if (sourceType === 'general_expenses') {
+                    url = `/api/general_expenses?id=${itemId}`;
+                } else if (sourceType === 'calendar_events') {
+                    url = `/api/calendar_events?id=${itemId}`;
+                } else {
+                    throw new Error("Unknown source type for editing.");
+                }
+
+                const response = await fetch(url);
                 if (!response.ok) {
                     const errorText = await response.text();
-                    console.error(`API Error fetching expense details:`, errorText);
+                    console.error(`API Error fetching item details for editing:`, errorText);
                     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
-                const expenses = await response.json();
-                const expense = expenses[0];
-                console.log("Fetched expense details for editing:", expense);
+                const items = await response.json();
+                const item = items[0]; // Assuming API returns array with one item
+                console.log("Fetched item details for editing:", item);
 
-                if (expense) {
-                    document.getElementById('expenseId').value = expense.id;
-                    document.getElementById('generalExpenseDate').value = expense.date ? new Date(expense.date).toISOString().split('T')[0] : '';
-                    document.getElementById('generalExpenseAmount').value = parseFloat(expense.amount || 0).toFixed(2);
-                    document.getElementById('generalExpenseDescription').value = expense.description || '';
-
-                    showModal(generalExpenseModal, 'Edit General Expense');
+                if (item) {
+                    if (sourceType === 'general_expenses') {
+                        document.getElementById('expenseId').value = item.id;
+                        document.getElementById('generalExpenseDate').value = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+                        document.getElementById('generalExpenseAmount').value = parseFloat(item.amount || 0).toFixed(2);
+                        document.getElementById('generalExpenseDescription').value = item.description || '';
+                        showModal(generalExpenseModal, 'Edit General Expense');
+                    } else if (sourceType === 'calendar_events') {
+                        document.getElementById('eventId').value = item.id; // Set hidden ID for calendar event
+                        document.getElementById('eventDate').value = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
+                        document.getElementById('eventType').value = item.type || '';
+                        document.getElementById('eventDescription').value = item.description || '';
+                        document.getElementById('eventAmount').value = parseFloat(item.amount || 0).toFixed(2);
+                        // Populate lead dropdown and select the correct lead
+                        await populateLeadSelect(allLeads); // Ensure dropdown is populated before selecting
+                        document.getElementById('eventLeadId').value = item.lead_id || ''; // Select linked lead
+                        showModal(generalEventModal, 'Edit Calendar Event');
+                    }
                 } else {
-                    showMessage('Expense not found.', 'error');
+                    showMessage('Item not found.', 'error');
                 }
             } catch (error) {
-                console.error('Error fetching expense details:', error);
-                showMessage('Failed to load expense details.', 'error');
+                console.error('Error fetching item details:', error);
+                showMessage('Failed to load item details.', 'error');
             } finally {
                 hideLoading();
             }
         }
 
-        if (event.target.closest('.delete-expense-btn')) {
-            const expenseId = event.target.closest('.delete-expense-btn').dataset.id;
-            if (confirm('Are you sure you want to delete this expense?')) {
-                console.log("Deleting expense with ID:", expenseId);
+        if (targetBtn.classList.contains('delete-expense-btn')) {
+            if (confirm('Are you sure you want to delete this item?')) {
+                console.log(`Deleting item with ID: ${itemId} from source: ${sourceType}`);
                 showLoading();
                 try {
-                    const response = await fetch(`/api/general_expenses?id=${expenseId}`, {
+                    let url;
+                    if (sourceType === 'general_expenses') {
+                        url = `/api/general_expenses?id=${itemId}`;
+                    } else if (sourceType === 'calendar_events') {
+                        url = `/api/calendar_events?id=${itemId}`;
+                    } else {
+                        throw new Error("Unknown source type for deletion.");
+                    }
+
+                    const response = await fetch(url, {
                         method: 'DELETE'
                     });
 
                     if (!response.ok) {
                         const errorText = await response.text();
-                        console.error(`API Error deleting expense:`, errorText);
+                        console.error(`API Error deleting item:`, errorText);
                         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                     }
 
                     const result = await response.json();
-                    console.log(`Expense deletion successful. Result:`, result);
+                    console.log(`Item deletion successful. Result:`, result);
                     showMessage(result.message, 'success');
-                    fetchExpenditureReport();
-                    fetchCalendarEvents();
+                    fetchExpenditureReport(); // Refresh report
+                    fetchCalendarEvents(); // Refresh calendar (if applicable)
+                    fetchLeads(); // Refresh leads (if lead-related item was deleted)
                 } catch (error) {
-                    console.error('Error deleting expense:', error);
-                    showMessage('Failed to delete expense.', 'error');
+                    console.error('Error deleting item:', error);
+                    showMessage('Failed to delete item.', 'error');
                 } finally {
                     hideLoading();
                 }
@@ -620,14 +657,24 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         const formData = new FormData(this);
         const eventData = Object.fromEntries(formData.entries());
+        const eventId = document.getElementById('eventId').value; // Get hidden ID for update operations
+
+        let url = '/api/calendar_events';
+        let method = 'POST';
+
+        if (eventId) { // If eventId exists, it's an update operation
+            method = 'PUT';
+            eventData.id = eventId; // Add ID to the data payload
+        }
+
         eventData.lead_id = eventData.lead_id === '' ? null : eventData.lead_id;
         eventData.amount = eventData.amount === '' ? 0 : parseFloat(eventData.amount);
 
-        console.log("Adding Calendar Event:", eventData);
+        console.log(`Attempting to ${method} Calendar Event:`, eventData);
         showLoading();
         try {
-            const response = await fetch('/api/calendar_events', {
-                method: 'POST',
+            const response = await fetch(url, {
+                method: method,
                 headers: {
                     'Content-Type': 'application/json'
                 },
@@ -636,12 +683,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`API Error adding calendar event:`, errorText);
+                console.error(`API Error during ${method} Calendar Event:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
-            console.log(`Calendar event added successful. Result:`, result);
+            console.log(`Calendar event ${method} successful. Result:`, result);
             showMessage(result.message, 'success');
             console.log("Attempting to close event modal and fetch data...");
             this.reset();
@@ -649,8 +696,8 @@ document.addEventListener('DOMContentLoaded', function() {
             fetchCalendarEvents();
             fetchExpenditureReport();
         } catch (error) {
-            console.error('Error adding calendar event:', error);
-            showMessage('Failed to add calendar event.', 'error');
+            console.error('Error saving calendar event:', error);
+            showMessage('Failed to save calendar event.', 'error');
         } finally {
             hideLoading();
         }
@@ -682,15 +729,17 @@ document.addEventListener('DOMContentLoaded', function() {
             reportItems.forEach(item => {
                 console.log("Processing expenditure item:", item);
                 const row = document.createElement('tr');
-                let actionsHtml = '';
-                if (item.type_category === 'General Expense' && item.source_table === 'general_expenses') {
-                    actionsHtml = `
-                        <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" title="Edit Expense"><i class="fas fa-edit"></i></button>
-                        <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" title="Delete Expense"><i class="fas fa-trash-alt"></i></button>
-                    `;
-                } else {
+                let actionsHtml = `
+                    <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Item"><i class="fas fa-edit"></i></button>
+                    <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Item"><i class="fas fa-trash-alt"></i></button>
+                `;
+                // If the item doesn't have an ID (e.g., if it's a summary row or something unexpected), or if it's a calendar event with no amount, disable actions
+                // Re-evaluating: The backend only sends items with amount > 0 for calendar events to this report.
+                // So, all items in this report should be editable/deletable if they have an ID.
+                if (!item.id) { // This condition might be too broad, but useful as a fallback
                     actionsHtml = 'N/A';
                 }
+
 
                 const leadName = item.lead_name || 'N/A';
                 const companyName = item.company || 'N/A';
@@ -721,7 +770,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listener for filtering the expenditure report by date range
     document.getElementById('filterReportBtn').addEventListener('click', function() {
         const startDate = document.getElementById('reportStartDate').value;
-        const endDate = document.getElementById('reportEndDate').value; // FIX: Changed ']' to ')' here
+        const endDate = document.getElementById('reportEndDate').value; // FIX: Corrected ']' to ')'
         fetchExpenditureReport(startDate, endDate); // Call the function to fetch and display the filtered report
     });
 
@@ -765,7 +814,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoading();
         try {
             const startDate = document.getElementById('reportStartDate').value;
-            const endDate = document.getElementById('reportEndDate').value; // FIX: Changed ']' to ')' here
+            const endDate = document.getElementById('reportEndDate').value; // FIX: Corrected ']' to ')'
             let url = `/api/export_expenditure_report`;
             const params = new URLSearchParams();
             if (startDate) params.append('start_date', startDate);

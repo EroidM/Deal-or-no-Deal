@@ -369,7 +369,7 @@ def handle_general_expenses():
             conn.close()
 
 # API for Calendar Events
-@app.route('/api/calendar_events', methods=['GET', 'POST'])
+@app.route('/api/calendar_events', methods=['GET', 'POST', 'PUT', 'DELETE']) # Added PUT and DELETE
 def handle_calendar_events():
     conn = None
     try:
@@ -401,26 +401,82 @@ def handle_calendar_events():
             return jsonify({"message": "Calendar event added successfully", "id": new_event_id}), 201
 
         elif request.method == 'GET':
-            logging.debug("Fetching all calendar events with linked lead info.")
-            # Explicitly select all columns from calendar_events and lead join
-            cur.execute("""
-                SELECT ce.id, ce.date, ce.type, ce.description, ce.amount,
-                       l.id AS lead_id, l.firstName, l.lastName, l.company
-                FROM calendar_events ce
-                LEFT JOIN leads l ON ce.lead_id = l.id
-                ORDER BY ce.date;
-            """)
-            events = cur.fetchall()
-            # Format lead_name for display
+            event_id = request.args.get('id') # Allow fetching single event
+            if event_id:
+                logging.debug(f"Fetching calendar event with ID: {event_id}")
+                cur.execute("""
+                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount,
+                           l.id AS lead_id, l.firstName, l.lastName, l.company
+                    FROM calendar_events ce
+                    LEFT JOIN leads l ON ce.lead_id = l.id
+                    WHERE ce.id = %s;
+                """, (event_id,))
+                events = cur.fetchall()
+            else:
+                logging.debug("Fetching all calendar events with linked lead info.")
+                # Explicitly select all columns from calendar_events and lead join
+                cur.execute("""
+                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount,
+                           l.id AS lead_id, l.firstName, l.lastName, l.company
+                    FROM calendar_events ce
+                    LEFT JOIN leads l ON ce.lead_id = l.id
+                    ORDER BY ce.date;
+                """)
+                events = cur.fetchall()
+
+            # Format lead_name for display for all fetched events
             for event in events:
-                # Ensure 'firstname' and 'lastname' are handled even if None from LEFT JOIN
-                event['lead_name'] = f"{event.get('firstName', '') or ''} {event.get('lastName', '') or ''}".strip()
+                # Robustly get first and last name, handling potential None from LEFT JOIN
+                first_name = event.get('firstName') or ''
+                last_name = event.get('lastName') or ''
+                event['lead_name'] = f"{first_name} {last_name}".strip()
                 event['company'] = event.get('company', None) # Ensure company is None if not present
-                # Clean up unused fields from join
+                # Clean up unused fields from join if they are not needed on frontend
                 event.pop('firstName', None)
                 event.pop('lastName', None)
             logging.debug(f"Fetched calendar events: {events}")
             return jsonify(events), 200
+
+        elif request.method == 'PUT': # NEW: Handle PUT requests for calendar events
+            data = request.json
+            logging.debug(f"Received calendar event PUT data: {data}")
+            event_id = data.get('id')
+            if not event_id:
+                return jsonify({"message": "Event ID is required for update"}), 400
+            if not data.get('date'):
+                return jsonify({"message": "Date is required."}), 400
+            if not data.get('type'):
+                return jsonify({"message": "Event type is required."}), 400
+            data = convert_empty_to_none(data, ['description', 'lead_id', 'amount'])
+
+            cur.execute(
+                """
+                UPDATE calendar_events SET
+                    date = %s, type = %s, description = %s, lead_id = %s, amount = %s
+                WHERE id = %s;
+                """,
+                (data['date'], data['type'], data.get('description'),
+                 data.get('lead_id'), data.get('amount', 0.00), event_id)
+            )
+            conn.commit()
+            if cur.rowcount == 0:
+                logging.warning(f"Calendar event with ID {event_id} not found for update or no changes made.")
+                return jsonify({"message": "Calendar event not found or no changes made"}), 404
+            logging.info(f"Calendar event with ID {event_id} updated successfully.")
+            return jsonify({"message": "Calendar event updated successfully"}), 200
+
+        elif request.method == 'DELETE': # NEW: Handle DELETE requests for calendar events
+            event_id = request.args.get('id')
+            if not event_id:
+                return jsonify({"message": "Event ID is required for deletion"}), 400
+            logging.debug(f"Deleting calendar event with ID: {event_id}")
+            cur.execute("DELETE FROM calendar_events WHERE id = %s;", (event_id,))
+            conn.commit()
+            if cur.rowcount == 0:
+                logging.warning(f"Calendar event with ID {event_id} not found for deletion.")
+                return jsonify({"message": "Calendar event not found"}), 404
+            logging.info(f"Calendar event with ID {event_id} deleted successfully.")
+            return jsonify({"message": "Calendar event deleted successfully"}), 200
 
     except psycopg2.Error as e:
         logging.error(f"Database error in handle_calendar_events: {e}")
@@ -500,20 +556,24 @@ def get_expenditure_report():
                 "type_category": expense['type_category'],
                 "description": expense['description'],
                 "amount": float(expense['amount']),
-                "lead_name": None, # Explicitly None for general expenses as they don't have a lead
+                "lead_id": None, # Explicitly None for general expenses as they don't have a lead
+                "lead_name": None, # Explicitly None for general expenses
                 "company": None,     # Explicitly None for general expenses
                 "source_table": expense['source_table']
             })
         for expense in calendar_expenses:
             # Handle lead_name and company for calendar events that might not have a linked lead
             # Use .get() with default to safely access keys from RealDictRow
-            lead_full_name = f"{expense.get('firstName', '') or ''} {expense.get('lastName', '') or ''}".strip()
+            first_name = expense.get('firstName') or ''
+            last_name = expense.get('lastName') or ''
+            lead_full_name = f"{first_name} {last_name}".strip()
             report_data.append({
                 "id": expense['id'],
                 "date": str(expense['date']),
                 "type_category": expense['type_category'],
                 "description": expense['description'],
                 "amount": float(expense['amount']),
+                "lead_id": expense.get('lead_id'), # Include lead_id
                 "lead_name": lead_full_name if lead_full_name else None,
                 "company": expense.get('company', None) if expense.get('company', None) else None,
                 "source_table": expense['source_table']
@@ -640,7 +700,9 @@ def export_expenditure_report():
             })
         for item in calendar_expenses:
             # Handle cases where lead is not linked (firstName/lastName/company would be None)
-            lead_full_name = f"{item.get('firstName', '') or ''} {item.get('lastName', '') or ''}".strip()
+            first_name = item.get('firstName') or ''
+            last_name = item.get('lastName') or ''
+            lead_full_name = f"{first_name} {last_name}".strip()
             report_data.append({
                 'date': str(item['date']),
                 'type_category': item['type_category'],
