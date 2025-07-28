@@ -772,6 +772,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 let amountInfo = '';
+                // Corrected: Removed extra ')' from this line.
                 if (event.amount && event.amount > 0) {
                     amountInfo = ` - KSh${parseFloat(event.amount).toFixed(2)}`;
                 }
