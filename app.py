@@ -369,7 +369,7 @@ def handle_general_expenses():
             conn.close()
 
 # API for Calendar Events
-@app.route('/api/calendar_events', methods=['GET', 'POST', 'PUT', 'DELETE']) # Added PUT and DELETE
+@app.route('/api/calendar_events', methods=['GET', 'POST', 'PUT', 'DELETE'])
 def handle_calendar_events():
     conn = None
     try:
@@ -430,7 +430,8 @@ def handle_calendar_events():
                 first_name = event.get('firstName') or ''
                 last_name = event.get('lastName') or ''
                 event['lead_name'] = f"{first_name} {last_name}".strip()
-                event['company'] = event.get('company', None) # Ensure company is None if not present
+                # Ensure company is None if not present, otherwise use its value
+                event['company'] = event.get('company', None)
                 # Clean up unused fields from join if they are not needed on frontend
                 event.pop('firstName', None)
                 event.pop('lastName', None)
@@ -522,10 +523,9 @@ def get_expenditure_report():
         logging.debug(f"Fetched general expenses: {general_expenses}")
 
         # Fetch ALL calendar_events with amount > 0, using LEFT JOIN for leads
-        # This ensures visits with POSITIVE amounts are included
         query_calendar_expenses = """
             SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount,
-                   l.id AS lead_id, l.firstName, l.lastName, l.company, 'calendar_events' AS source_table
+                   l.id AS lead_id, l.firstName, l.lastName, l.company
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
             WHERE ce.amount > 0
@@ -545,7 +545,7 @@ def get_expenditure_report():
         logging.debug(f"Executing query_calendar_expenses: {query_calendar_expenses} with params: {calendar_expense_params}")
         cur.execute(query_calendar_expenses, calendar_expense_params)
         calendar_expenses = cur.fetchall()
-        logging.debug(f"Fetched calendar expenses: {calendar_expenses}")
+        logging.debug(f"Fetched raw calendar expenses with lead info: {calendar_expenses}") # NEW LOG
 
         # Combine and format results
         report_data = []
@@ -567,6 +567,18 @@ def get_expenditure_report():
             first_name = expense.get('firstName') or ''
             last_name = expense.get('lastName') or ''
             lead_full_name = f"{first_name} {last_name}".strip()
+            
+            # If lead_full_name is empty after strip, set it to None
+            if not lead_full_name:
+                lead_full_name = None
+
+            # If company is an empty string, set it to None
+            company_name = expense.get('company')
+            if company_name == '':
+                company_name = None
+
+            logging.debug(f"Processing calendar expense item: ID={expense['id']}, Raw firstName='{expense.get('firstName')}', Raw lastName='{expense.get('lastName')}', Constructed lead_name='{lead_full_name}', Raw company='{expense.get('company')}', Processed company='{company_name}'") # NEW DETAILED LOG
+
             report_data.append({
                 "id": expense['id'],
                 "date": str(expense['date']),
@@ -574,14 +586,14 @@ def get_expenditure_report():
                 "description": expense['description'],
                 "amount": float(expense['amount']),
                 "lead_id": expense.get('lead_id'), # Include lead_id
-                "lead_name": lead_full_name if lead_full_name else None,
-                "company": expense.get('company', None) if expense.get('company', None) else None,
-                "source_table": expense['source_table']
+                "lead_name": lead_full_name,
+                "company": company_name,
+                "source_table": 'calendar_events' # Explicitly set source_table for calendar events here
             })
 
         # Sort combined data by date
         report_data.sort(key=lambda x: x['date'], reverse=True)
-        logging.debug(f"Combined expenditure report data: {report_data}")
+        logging.debug(f"Final combined expenditure report data: {report_data}") # NEW LOG
         return jsonify(report_data), 200
 
     except psycopg2.Error as e:
