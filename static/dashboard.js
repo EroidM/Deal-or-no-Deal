@@ -21,6 +21,21 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    // --- Message Box Function ---
+    // Displays a temporary message to the user (success, error, info)
+    function showMessage(message, type) {
+        const messageContainer = document.getElementById('messageContainer');
+        if (messageContainer) {
+            messageContainer.textContent = message;
+            messageContainer.className = `message-container ${type} active`; // Set type and activate
+            setTimeout(() => {
+                messageContainer.classList.remove('active'); // Hide after 3 seconds
+            }, 3000);
+        } else {
+            console.warn('Message container not found. Message:', message);
+        }
+    }
+
     // Initialize Flatpickr for all date input fields
     flatpickr("#dateOfContact", {});
     flatpickr("#activityDate", {});
@@ -123,8 +138,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Use .get() for robust access to properties from RealDictRow, with 'N/A' fallback
                 const firstName = lead.firstname || 'N/A'; // Use 'firstname' as per backend logs
                 const lastName = lead.lastname || ''; // Use 'lastname' as per backend logs
-                const dateOfContact = lead.dateofcontact || 'N/A'; // Use 'dateofcontact' as per backend logs
-                const followUp = lead.followup || 'N/A'; // Use 'followup' as per backend logs
+                const dateOfContact = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : 'N/A'; // Format date
+                const followUp = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : 'N/A'; // Format date
 
                 row.innerHTML = `
                     <td data-label="Name">${firstName} ${lastName}</td>
@@ -276,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function() {
             leadData.id = leadId; // Add ID to the data payload
         }
 
-        console.log(`${method} Lead:`, leadData);
+        console.log(`Attempting to ${method} Lead:`, leadData);
         showLoading(); // Show loading spinner
         try {
             const response = await fetch(url, {
@@ -289,11 +304,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!response.ok) {
                 const errorText = await response.text(); // Get detailed error message from server
+                console.error(`API Error during ${method} Lead:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
+            console.log(`Lead ${method} successful. Result:`, result); // Log success result
             showMessage(result.message, 'success'); // Show success message
+            console.log("Attempting to close lead modal and fetch leads...");
             closeModal(leadModal); // Close the lead modal
             fetchLeads(); // Refresh leads list and all dependent UI components
         } catch (error) {
@@ -314,10 +332,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch(`/api/leads?id=${leadId}`); // Fetch specific lead by ID
                 if (!response.ok) {
                     const errorText = await response.text();
+                    console.error(`API Error fetching lead details:`, errorText);
                     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
                 const leads = await response.json();
                 const lead = leads[0]; // Assuming the API returns an array with one lead
+                console.log("Fetched lead details for editing:", lead); // Log fetched lead details
 
                 if (lead) {
                     // Populate the lead modal form fields for editing
@@ -330,8 +350,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('phone').value = lead.phone || '';
                     document.getElementById('product').value = lead.product || '';
                     document.getElementById('stage').value = lead.stage || '';
-                    document.getElementById('dateOfContact').value = lead.dateofcontact || ''; // Use 'dateofcontact'
-                    document.getElementById('followUp').value = lead.followup || ''; // Use 'followup'
+                    // Format date fields for input[type="date"]
+                    document.getElementById('dateOfContact').value = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : '';
+                    document.getElementById('followUp').value = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : '';
                     document.getElementById('notes').value = lead.notes || '';
 
                     showModal(leadModal, 'Edit Lead'); // Show modal with "Edit" title
@@ -363,10 +384,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (!response.ok) {
                         const errorText = await response.text();
+                        console.error(`API Error deleting lead:`, errorText);
                         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                     }
 
                     const result = await response.json();
+                    console.log(`Lead deletion successful. Result:`, result);
                     showMessage(result.message, 'success'); // Show success message
                     fetchLeads(); // Refresh leads list and all dependent UI components
                     fetchCalendarEvents(); // Refresh calendar as lead deletion affects events
@@ -402,11 +425,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`API Error adding lead activity:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
+            console.log(`Lead activity added successful. Result:`, result);
             showMessage(result.message, 'success');
+            console.log("Attempting to close visit modal and fetch data...");
             closeModal(visitModal); // Close the activity modal
             fetchCalendarEvents(); // Refresh calendar events (as activities are calendar events)
             fetchExpenditureReport(); // Refresh expenditure report (if activity has an amount)
@@ -435,7 +461,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         expenseData.amount = parseFloat(expenseData.amount || 0); // Ensure amount is float
 
-        console.log(`${method} General Expense:`, expenseData);
+        console.log(`Attempting to ${method} General Expense:`, expenseData);
         showLoading(); // Show loading spinner
         try {
             const response = await fetch(url, {
@@ -448,11 +474,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`API Error during ${method} General Expense:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
+            console.log(`General expense ${method} successful. Result:`, result);
             showMessage(result.message, 'success');
+            console.log("Attempting to close general expense modal and fetch data...");
             closeModal(generalExpenseModal); // Close the expense modal
             fetchExpenditureReport(); // Refresh expenditure report
             fetchCalendarEvents(); // Refresh calendar events (if general expenses are displayed there)
@@ -475,15 +504,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 const response = await fetch(`/api/general_expenses?id=${expenseId}`); // Fetch specific expense by ID
                 if (!response.ok) {
                     const errorText = await response.text();
+                    console.error(`API Error fetching expense details:`, errorText);
                     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
                 const expenses = await response.json();
                 const expense = expenses[0]; // Assuming API returns array with one expense
+                console.log("Fetched expense details for editing:", expense);
 
                 if (expense) {
                     // Populate the general expense modal form fields for editing
                     document.getElementById('expenseId').value = expense.id;
-                    document.getElementById('generalExpenseDate').value = expense.date || '';
+                    document.getElementById('generalExpenseDate').value = expense.date ? new Date(expense.date).toISOString().split('T')[0] : '';
                     document.getElementById('generalExpenseAmount').value = parseFloat(expense.amount || 0).toFixed(2);
                     document.getElementById('generalExpenseDescription').value = expense.description || '';
 
@@ -512,10 +543,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     if (!response.ok) {
                         const errorText = await response.text();
+                        console.error(`API Error deleting expense:`, errorText);
                         throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                     }
 
                     const result = await response.json();
+                    console.log(`Expense deletion successful. Result:`, result);
                     showMessage(result.message, 'success'); // Show success message
                     fetchExpenditureReport(); // Refresh expenditure report
                     fetchCalendarEvents(); // Refresh calendar events (if general expenses are displayed there)
@@ -538,6 +571,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/calendar_events');
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`API Error fetching calendar events:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const events = await response.json();
@@ -628,11 +662,14 @@ document.addEventListener('DOMContentLoaded', function() {
 
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`API Error adding calendar event:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
+            console.log(`Calendar event added successful. Result:`, result);
             showMessage(result.message, 'success');
+            console.log("Attempting to close event modal and fetch data...");
             this.reset(); // Reset form fields
             closeModal(generalEventModal); // Close the event modal
             fetchCalendarEvents(); // Refresh calendar events
@@ -650,7 +687,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Executing fetchExpenditureReport()...");
         showLoading(); // Show loading spinner
         try {
-            let url = `/api/expenditure_report`;
+            let url = `/api/expenditure_report`; // Corrected API endpoint
             const params = new URLSearchParams();
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
@@ -659,6 +696,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(url);
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`API Error fetching expenditure report:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const reportItems = await response.json();
@@ -687,9 +725,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 // Safely access properties with fallbacks
                 const leadName = item.lead_name || 'N/A';
                 const companyName = item.company || 'N/A';
+                const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A'; // Format date
 
                 row.innerHTML = `
-                    <td data-label="Date">${item.date || 'N/A'}</td>
+                    <td data-label="Date">${expenseDate}</td>
                     <td data-label="Category">${item.type_category || 'N/A'}</td>
                     <td data-label="Description">${item.description || 'N/A'}</td>
                     <td data-label="Amount (KSh)">${parseFloat(item.amount || 0).toFixed(2)}</td>
@@ -732,6 +771,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/export_leads');
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`API Error exporting leads:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const blob = await response.blob(); // Get response as a Blob
@@ -768,6 +808,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch(url);
             if (!response.ok) {
                 const errorText = await response.text();
+                console.error(`API Error exporting expenditure report:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const blob = await response.blob();
