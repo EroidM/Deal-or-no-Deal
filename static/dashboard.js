@@ -4,6 +4,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Global variable to store fetched leads
     let allLeads = [];
+    // Global variables to store table data for client-side sorting
+    let currentLeadsData = [];
+    let currentExpenditureData = [];
 
     // --- Loading Spinner Functions ---
     function showLoading() {
@@ -48,7 +51,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const leadModal = document.getElementById('leadModal');
     const visitModal = document.getElementById('visitModal');
     const generalExpenseModal = document.getElementById('generalExpenseModal');
-    const generalEventModal = document.getElementById('generalEventModal'); // Reference to the general event modal
+    const generalEventModal = document.getElementById('generalEventModal');
 
     function showModal(modalElement, title = '') {
         console.log(`Showing modal: ${modalElement.id} with title: ${title}`);
@@ -87,7 +90,6 @@ document.addEventListener('DOMContentLoaded', function() {
         showModal(generalEventModal, 'Add Calendar Event');
         document.getElementById('addEventForm').reset();
         document.getElementById('eventAmount').value = '0.00';
-        // Clear hidden ID for new event
         document.getElementById('eventId').value = ''; // Ensure eventId is cleared for new entries
         populateLeadSelect(allLeads); // Pass allLeads to populate dropdown
     });
@@ -114,6 +116,73 @@ document.addEventListener('DOMContentLoaded', function() {
         if (event.target === generalEventModal) closeModal(generalEventModal);
     });
 
+    // --- Table Sorting Functionality ---
+    function enableTableSorting(tableId, dataArray, renderFunction) {
+        const table = document.getElementById(tableId);
+        if (!table) {
+            console.warn(`Table with ID ${tableId} not found for sorting.`);
+            return;
+        }
+        const headers = table.querySelectorAll('th[data-sort-by]');
+
+        headers.forEach(header => {
+            header.addEventListener('click', function() {
+                const sortBy = this.dataset.sortBy;
+                let sortOrder = this.dataset.sortOrder || 'asc'; // Default to ascending
+
+                // Remove existing sort indicators from other headers
+                headers.forEach(h => {
+                    if (h !== this) {
+                        h.classList.remove('asc', 'desc');
+                        h.dataset.sortOrder = '';
+                    }
+                });
+
+                // Toggle sort order for the clicked header
+                if (sortOrder === 'asc') {
+                    sortOrder = 'desc';
+                    this.classList.remove('asc');
+                    this.classList.add('desc');
+                } else {
+                    sortOrder = 'asc';
+                    this.classList.remove('desc');
+                    this.classList.add('asc');
+                }
+                this.dataset.sortOrder = sortOrder;
+
+                // Sort the data
+                dataArray.sort((a, b) => {
+                    let valA = a[sortBy];
+                    let valB = b[sortBy];
+
+                    // Handle numerical sorting
+                    if (typeof valA === 'number' && typeof valB === 'number') {
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    }
+                    // Handle date sorting
+                    if (sortBy.includes('Date') || sortBy.includes('date')) { // Assuming date fields contain 'Date' or 'date'
+                        valA = new Date(valA);
+                        valB = new Date(valB);
+                        return sortOrder === 'asc' ? valA - valB : valB - valA;
+                    }
+                    // Handle string sorting (case-insensitive)
+                    if (valA === null || valA === undefined) valA = '';
+                    if (valB === null || valB === undefined) valB = '';
+                    
+                    valA = String(valA).toLowerCase();
+                    valB = String(valB).toLowerCase();
+
+                    if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+                    if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+                    return 0;
+                });
+
+                // Re-render the table with sorted data
+                renderFunction(dataArray);
+            });
+        });
+    }
+
     // --- API Interaction Functions ---
 
     async function fetchLeads() {
@@ -129,32 +198,11 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log("Leads data received from API:", leads);
 
             allLeads = leads; // Store fetched leads globally
+            currentLeadsData = [...leads]; // Store a copy for sorting
 
-            const leadsList = document.getElementById('recentLeadsTable').querySelector('tbody');
-            leadsList.innerHTML = '';
-
-            leads.forEach(lead => {
-                const row = document.createElement('tr');
-                const firstName = lead.firstname || 'N/A';
-                const lastName = lead.lastname || '';
-                const dateOfContact = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : 'N/A';
-                const followUp = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : 'N/A';
-
-                row.innerHTML = `
-                    <td data-label="Name">${firstName} ${lastName}</td>
-                    <td data-label="Company">${lead.company || 'N/A'}</td>
-                    <td data-label="Stage">${lead.stage || 'N/A'}</td>
-                    <td data-label="Contact Date">${dateOfContact}</td>
-                    <td data-label="Follow-up Date">${followUp}</td>
-                    <td data-label="Actions">
-                        <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}" title="View/Edit Lead"><i class="fas fa-eye"></i></button>
-                        <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash-alt"></i></button>
-                    </td>
-                `;
-                leadsList.appendChild(row);
-            });
+            renderLeadsTable(currentLeadsData); // Render initial table
             updateLeadStats(leads);
-            populateLeadSelect(leads); // This call is fine, uses the just-fetched leads
+            populateLeadSelect(leads);
             updateUpcomingFollowups(leads);
         } catch (error) {
             console.error('Error fetching leads:', error);
@@ -163,6 +211,33 @@ document.addEventListener('DOMContentLoaded', function() {
             hideLoading();
         }
     }
+
+    function renderLeadsTable(leadsToRender) {
+        const leadsList = document.getElementById('recentLeadsTable').querySelector('tbody');
+        leadsList.innerHTML = ''; // Clear existing leads to prevent duplication
+
+        leadsToRender.forEach(lead => {
+            const row = document.createElement('tr');
+            const firstName = lead.firstName || 'N/A';
+            const lastName = lead.lastName || '';
+            const dateOfContact = lead.dateOfContact ? new Date(lead.dateOfContact).toISOString().split('T')[0] : 'N/A';
+            const followUp = lead.followUp ? new Date(lead.followUp).toISOString().split('T')[0] : 'N/A';
+
+            row.innerHTML = `
+                <td data-label="Name">${firstName} ${lastName}</td>
+                <td data-label="Company">${lead.company || 'N/A'}</td>
+                <td data-label="Stage">${lead.stage || 'N/A'}</td>
+                <td data-label="Contact Date">${dateOfContact}</td>
+                <td data-label="Follow-up Date">${followUp}</td>
+                <td data-label="Actions">
+                    <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}" title="View/Edit Lead"><i class="fas fa-eye"></i></button>
+                    <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash-alt"></i></button>
+                </td>
+            `;
+            leadsList.appendChild(row);
+        });
+    }
+
 
     function updateLeadStats(leads) {
         console.log("Executing updateLeadStats()...");
@@ -195,7 +270,19 @@ document.addEventListener('DOMContentLoaded', function() {
         leads.forEach(lead => {
             const option = document.createElement('option');
             option.value = lead.id;
-            option.textContent = `${lead.firstname || 'N/A'} ${lead.lastname || ''} (${lead.company || 'N/A'})`;
+            // Display lead name and company, with 'N/A' fallback for name if empty
+            const leadDisplayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+            const companyDisplayName = lead.company || '';
+
+            if (leadDisplayName && companyDisplayName) {
+                option.textContent = `${leadDisplayName} (${companyDisplayName})`;
+            } else if (leadDisplayName) {
+                option.textContent = leadDisplayName;
+            } else if (companyDisplayName) {
+                option.textContent = companyDisplayName;
+            } else {
+                option.textContent = `Lead ID: ${lead.id}`; // Fallback if neither name nor company
+            }
             eventLeadSelect.appendChild(option);
         });
         console.log("Lead select dropdown populated.");
@@ -255,8 +342,8 @@ document.addEventListener('DOMContentLoaded', function() {
         today.setHours(0, 0, 0, 0);
 
         const sortedFollowups = leads
-            .filter(lead => lead.followup && new Date(lead.followup) >= today)
-            .sort((a, b) => new Date(a.followup) - new Date(b.followup));
+            .filter(lead => lead.followUp && new Date(lead.followUp) >= today)
+            .sort((a, b) => new Date(a.followUp) - new Date(b.followUp));
 
         if (sortedFollowups.length === 0) {
             const listItem = document.createElement('li');
@@ -267,9 +354,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
         sortedFollowups.forEach(lead => {
             const listItem = document.createElement('li');
+            const leadDisplayName = `${lead.firstName || ''} ${lead.lastName || ''}`.trim();
+            const companyDisplayName = lead.company || '';
+            let displayString = '';
+
+            if (leadDisplayName && companyDisplayName) {
+                displayString = `${leadDisplayName} (${companyDisplayName})`;
+            } else if (leadDisplayName) {
+                displayString = leadDisplayName;
+            } else if (companyDisplayName) {
+                displayString = companyDisplayName;
+            } else {
+                displayString = `Lead ID: ${lead.id}`;
+            }
+
             listItem.innerHTML = `
-                <span class="lead-name">${lead.firstname || 'N/A'} ${lead.lastname || ''} (${lead.company || 'N/A'})</span>
-                <span class="followup-details">Follow-up on: ${lead.followup || 'N/A'} (Stage: ${lead.stage || 'N/A'})</span>
+                <span class="lead-name">${displayString}</span>
+                <span class="followup-details">Follow-up on: ${new Date(lead.followUp).toISOString().split('T')[0]} (Stage: ${lead.stage || 'N/A'})</span>
             `;
             upcomingList.appendChild(listItem);
         });
@@ -311,7 +412,7 @@ document.addEventListener('DOMContentLoaded', function() {
             showMessage(result.message, 'success');
             console.log("Attempting to close lead modal and fetch leads...");
             closeModal(leadModal);
-            fetchLeads();
+            fetchLeads(); // Re-fetch leads to update all lists and dropdowns
         } catch (error) {
             console.error('Error saving lead:', error);
             showMessage('Failed to save lead.', 'error');
@@ -338,16 +439,16 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 if (lead) {
                     document.getElementById('leadId').value = lead.id;
-                    document.getElementById('firstName').value = lead.firstname || '';
-                    document.getElementById('lastName').value = lead.lastname || '';
+                    document.getElementById('firstName').value = lead.firstName || '';
+                    document.getElementById('lastName').value = lead.lastName || '';
                     document.getElementById('title').value = lead.title || '';
                     document.getElementById('company').value = lead.company || '';
                     document.getElementById('email').value = lead.email || '';
                     document.getElementById('phone').value = lead.phone || '';
                     document.getElementById('product').value = lead.product || '';
                     document.getElementById('stage').value = lead.stage || '';
-                    document.getElementById('dateOfContact').value = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : '';
-                    document.getElementById('followUp').value = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : '';
+                    document.getElementById('dateOfContact').value = lead.dateOfContact ? new Date(lead.dateOfContact).toISOString().split('T')[0] : '';
+                    document.getElementById('followUp').value = lead.followUp ? new Date(lead.followUp).toISOString().split('T')[0] : '';
                     document.getElementById('notes').value = lead.notes || '';
 
                     showModal(leadModal, 'Edit Lead');
@@ -486,10 +587,10 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listener for editing/deleting an expense from the Expenditure Report table
     document.getElementById('expenditureReportTableBody').addEventListener('click', async function(event) {
         const targetBtn = event.target.closest('.edit-expense-btn, .delete-expense-btn');
-        if (!targetBtn) return; // Exit if not an edit/delete button
+        if (!targetBtn) return;
 
         const itemId = targetBtn.dataset.id;
-        const sourceType = targetBtn.dataset.source; // NEW: Get source type from button
+        const sourceType = targetBtn.dataset.source;
 
         if (targetBtn.classList.contains('edit-expense-btn')) {
             console.log(`Editing item with ID: ${itemId} from source: ${sourceType}`);
@@ -511,7 +612,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
                 const items = await response.json();
-                const item = items[0]; // Assuming API returns array with one item
+                const item = items[0];
                 console.log("Fetched item details for editing:", item);
 
                 if (item) {
@@ -522,14 +623,13 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('generalExpenseDescription').value = item.description || '';
                         showModal(generalExpenseModal, 'Edit General Expense');
                     } else if (sourceType === 'calendar_events') {
-                        document.getElementById('eventId').value = item.id; // Set hidden ID for calendar event
+                        document.getElementById('eventId').value = item.id;
                         document.getElementById('eventDate').value = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
                         document.getElementById('eventType').value = item.type || '';
                         document.getElementById('eventDescription').value = item.description || '';
                         document.getElementById('eventAmount').value = parseFloat(item.amount || 0).toFixed(2);
-                        // Populate lead dropdown and select the correct lead
-                        await populateLeadSelect(allLeads); // Ensure dropdown is populated before selecting
-                        document.getElementById('eventLeadId').value = item.lead_id || ''; // Select linked lead
+                        await populateLeadSelect(allLeads);
+                        document.getElementById('eventLeadId').value = item.lead_id || '';
                         showModal(generalEventModal, 'Edit Calendar Event');
                     }
                 } else {
@@ -570,9 +670,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     const result = await response.json();
                     console.log(`Item deletion successful. Result:`, result);
                     showMessage(result.message, 'success');
-                    fetchExpenditureReport(); // Refresh report
-                    fetchCalendarEvents(); // Refresh calendar (if applicable)
-                    fetchLeads(); // Refresh leads (if lead-related item was deleted)
+                    fetchExpenditureReport();
+                    fetchCalendarEvents();
+                    fetchLeads();
                 } catch (error) {
                     console.error('Error deleting item:', error);
                     showMessage('Failed to delete item.', 'error');
@@ -591,7 +691,6 @@ document.addEventListener('DOMContentLoaded', function() {
             const response = await fetch('/api/calendar_events');
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error(`API Error fetching calendar events:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const events = await response.json();
@@ -657,14 +756,14 @@ document.addEventListener('DOMContentLoaded', function() {
         event.preventDefault();
         const formData = new FormData(this);
         const eventData = Object.fromEntries(formData.entries());
-        const eventId = document.getElementById('eventId').value; // Get hidden ID for update operations
+        const eventId = document.getElementById('eventId').value;
 
         let url = '/api/calendar_events';
         let method = 'POST';
 
-        if (eventId) { // If eventId exists, it's an update operation
+        if (eventId) {
             method = 'PUT';
-            eventData.id = eventId; // Add ID to the data payload
+            eventData.id = eventId;
         }
 
         eventData.lead_id = eventData.lead_id === '' ? null : eventData.lead_id;
@@ -721,44 +820,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const reportItems = await response.json();
             console.log("Expenditure report data received from API:", reportItems);
-            const reportTableBody = document.getElementById('expenditureReportTableBody');
-            reportTableBody.innerHTML = '';
+            
+            currentExpenditureData = [...reportItems]; // Store a copy for sorting
+            renderExpenditureReportTable(currentExpenditureData); // Render initial table
 
-            let totalExpenditure = 0;
-
-            reportItems.forEach(item => {
-                console.log("Processing expenditure item:", item);
-                const row = document.createElement('tr');
-                let actionsHtml = `
-                    <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Item"><i class="fas fa-edit"></i></button>
-                    <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Item"><i class="fas fa-trash-alt"></i></button>
-                `;
-                // If the item doesn't have an ID (e.g., if it's a summary row or something unexpected), or if it's a calendar event with no amount, disable actions
-                // Re-evaluating: The backend only sends items with amount > 0 for calendar events to this report.
-                // So, all items in this report should be editable/deletable if they have an ID.
-                if (!item.id) { // This condition might be too broad, but useful as a fallback
-                    actionsHtml = 'N/A';
-                }
-
-
-                const leadName = item.lead_name || 'N/A';
-                const companyName = item.company || 'N/A';
-                const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A';
-
-                row.innerHTML = `
-                    <td data-label="Date">${expenseDate}</td>
-                    <td data-label="Category">${item.type_category || 'N/A'}</td>
-                    <td data-label="Description">${item.description || 'N/A'}</td>
-                    <td data-label="Amount (KSh)">${parseFloat(item.amount || 0).toFixed(2)}</td>
-                    <td data-label="Lead Name">${leadName}</td>
-                    <td data-label="Company">${companyName}</td>
-                    <td data-label="Actions">${actionsHtml}</td>
-                `;
-                reportTableBody.appendChild(row);
-                totalExpenditure += parseFloat(item.amount || 0);
-            });
-
-            document.getElementById('totalExpenditureSummary').textContent = `Total Expenditure: KSh ${totalExpenditure.toFixed(2)}`;
         } catch (error) {
             console.error('Error fetching expenditure report:', error);
             showMessage('Failed to load expenditure report.', 'error');
@@ -767,11 +832,70 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function renderExpenditureReportTable(reportItemsToRender) {
+        const reportTableBody = document.getElementById('expenditureReportTableBody');
+        reportTableBody.innerHTML = '';
+
+        let totalExpenditure = 0;
+
+        reportItemsToRender.forEach(item => {
+            console.log("Processing expenditure item:", item);
+            const row = document.createElement('tr');
+            let actionsHtml = `
+                <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Item"><i class="fas fa-edit"></i></button>
+                <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Item"><i class="fas fa-trash-alt"></i></button>
+            `;
+            if (!item.id) {
+                actionsHtml = 'N/A';
+            }
+
+            // --- Improved Lead Name and Company Display Logic ---
+            let leadNameDisplay = 'N/A';
+            let companyNameDisplay = 'N/A';
+
+            if (item.lead_name) {
+                leadNameDisplay = item.lead_name;
+            }
+            if (item.company) {
+                companyNameDisplay = item.company;
+            }
+
+            // If lead name is N/A but company is available, show company in lead name column
+            // This is a stylistic choice for the report
+            if (leadNameDisplay === 'N/A' && companyNameDisplay !== 'N/A') {
+                leadNameDisplay = companyNameDisplay;
+                companyNameDisplay = 'N/A'; // Clear company column if moved to lead name
+            } else if (leadNameDisplay === 'N/A' && companyNameDisplay === 'N/A') {
+                // Keep both as N/A if neither is available
+            }
+            // If leadNameDisplay has a value, and companyNameDisplay also has a value, keep them separate.
+            // If leadNameDisplay has a value but companyNameDisplay is N/A, it's already fine.
+
+
+            const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A';
+
+            row.innerHTML = `
+                <td data-label="Date">${expenseDate}</td>
+                <td data-label="Category">${item.type_category || 'N/A'}</td>
+                <td data-label="Description">${item.description || 'N/A'}</td>
+                <td data-label="Amount (KSh)">${parseFloat(item.amount || 0).toFixed(2)}</td>
+                <td data-label="Lead Name">${leadNameDisplay}</td>
+                <td data-label="Company">${companyNameDisplay}</td>
+                <td data-label="Actions">${actionsHtml}</td>
+            `;
+            reportTableBody.appendChild(row);
+            totalExpenditure += parseFloat(item.amount || 0);
+        });
+
+        document.getElementById('totalExpenditureSummary').textContent = `Total Expenditure: KSh ${totalExpenditure.toFixed(2)}`;
+    }
+
+
     // Event listener for filtering the expenditure report by date range
     document.getElementById('filterReportBtn').addEventListener('click', function() {
         const startDate = document.getElementById('reportStartDate').value;
-        const endDate = document.getElementById('reportEndDate').value; // FIX: Corrected ']' to ')'
-        fetchExpenditureReport(startDate, endDate); // Call the function to fetch and display the filtered report
+        const endDate = document.getElementById('reportEndDate').value;
+        fetchExpenditureReport(startDate, endDate);
     });
 
     // Event listener for clearing date filters on the expenditure report
@@ -814,7 +938,7 @@ document.addEventListener('DOMContentLoaded', function() {
         showLoading();
         try {
             const startDate = document.getElementById('reportStartDate').value;
-            const endDate = document.getElementById('reportEndDate').value; // FIX: Corrected ']' to ')'
+            const endDate = document.getElementById('reportEndDate').value;
             let url = `/api/export_expenditure_report`;
             const params = new URLSearchParams();
             if (startDate) params.append('start_date', startDate);
@@ -849,4 +973,24 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchLeads();
     fetchCalendarEvents();
     fetchExpenditureReport();
+
+    // Enable sorting after initial data load (or when data is updated)
+    // Call these AFTER the initial fetch functions have populated currentLeadsData and currentExpenditureData
+    // For leads table
+    document.getElementById('recentLeadsTable').addEventListener('click', function(event) {
+        if (event.target.tagName === 'TH' && event.target.dataset.sortBy) {
+            enableTableSorting('recentLeadsTable', currentLeadsData, renderLeadsTable);
+            // Manually trigger click on the header that was clicked to sort
+            event.target.click(); 
+        }
+    });
+
+    // For expenditure report table
+    document.getElementById('expenditureReportTable').addEventListener('click', function(event) {
+        if (event.target.tagName === 'TH' && event.target.dataset.sortBy) {
+            enableTableSorting('expenditureReportTable', currentExpenditureData, renderExpenditureReportTable);
+            // Manually trigger click on the header that was clicked to sort
+            event.target.click();
+        }
+    });
 });
