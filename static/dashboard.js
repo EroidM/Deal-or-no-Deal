@@ -39,14 +39,22 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    // Initialize Flatpickr for all date input fields
-    flatpickr("#dateOfContact", {});
-    flatpickr("#activityDate", {});
-    flatpickr("#eventDate", {});
-    flatpickr("#reportStartDate", {});
-    flatpickr("#reportEndDate", {});
-    flatpickr("#generalExpenseDate", {});
-    flatpickr("#followUp", {}); // Ensure followUp also has flatpickr
+    // --- Flatpickr Initialization for Uniform Calendar Selections ---
+    // Define common options for all date pickers to ensure uniformity
+    const commonFlatpickrOptions = {
+        dateFormat: "Y-m-d", // Consistent date format (YYYY-MM-DD)
+        allowInput: true,    // Allow manual input in addition to picker
+        // Add any other global Flatpickr options here for consistency
+    };
+
+    // Initialize Flatpickr for all date input fields using common options
+    flatpickr("#dateOfContact", commonFlatpickrOptions);
+    flatpickr("#activityDate", commonFlatpickrOptions);
+    flatpickr("#eventDate", commonFlatpickrOptions);
+    flatpickr("#reportStartDate", commonFlatpickrOptions);
+    flatpickr("#reportEndDate", commonFlatpickrOptions);
+    flatpickr("#generalExpenseDate", commonFlatpickrOptions);
+    flatpickr("#followUp", commonFlatpickrOptions); // Ensure followUp also has flatpickr
 
     // --- Modal Handling Functions ---
     const leadModal = document.getElementById('leadModal');
@@ -834,7 +842,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             hideLoading();
         }
-    }
+    });
 
     document.getElementById('addEventForm').addEventListener('submit', async function(event) {
         event.preventDefault();
@@ -915,7 +923,7 @@ document.addEventListener('DOMContentLoaded', function() {
         } finally {
             hideLoading();
         }
-    }
+    });
 
     function renderExpenditureReportTable(reportItemsToRender) {
         const reportTableBody = document.getElementById('expenditureReportTableBody');
