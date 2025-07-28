@@ -3,11 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     console.log("DOM Content Loaded. Initializing dashboard.");
 
     // Global variable to store fetched leads
-    let allLeads = []; // *** NEW: Declare global variable for leads ***
+    let allLeads = [];
 
     // --- Loading Spinner Functions ---
-    // These functions control the visibility of a loading overlay and spinner.
-    // The 'loadingOverlay' element must exist in your HTML.
     function showLoading() {
         console.log("Showing loading spinner.");
         const loadingOverlay = document.getElementById('loadingOverlay');
@@ -25,14 +23,13 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     // --- Message Box Function ---
-    // Displays a temporary message to the user (success, error, info)
     function showMessage(message, type) {
         const messageContainer = document.getElementById('messageContainer');
         if (messageContainer) {
             messageContainer.textContent = message;
-            messageContainer.className = `message-container ${type} active`; // Set type and activate
+            messageContainer.className = `message-container ${type} active`;
             setTimeout(() => {
-                messageContainer.classList.remove('active'); // Hide after 3 seconds
+                messageContainer.classList.remove('active');
             }, 3000);
         } else {
             console.warn('Message container not found. Message:', message);
@@ -45,16 +42,14 @@ document.addEventListener('DOMContentLoaded', function() {
     flatpickr("#eventDate", {});
     flatpickr("#reportStartDate", {});
     flatpickr("#reportEndDate", {});
-    flatpickr("#generalExpenseDate", {}); // Ensure Flatpickr is initialized for the general expense date
+    flatpickr("#generalExpenseDate", {});
 
     // --- Modal Handling Functions ---
-    // Get references to all modal elements
     const leadModal = document.getElementById('leadModal');
     const visitModal = document.getElementById('visitModal');
     const generalExpenseModal = document.getElementById('generalExpenseModal');
     const generalEventModal = document.getElementById('generalEventModal');
 
-    // Function to display a modal with an optional title
     function showModal(modalElement, title = '') {
         console.log(`Showing modal: ${modalElement.id} with title: ${title}`);
         if (title) {
@@ -63,40 +58,39 @@ document.addEventListener('DOMContentLoaded', function() {
                 modalTitleElement.textContent = title;
             }
         }
-        modalElement.classList.add('active'); // Activate CSS class to show modal
+        modalElement.classList.add('active');
     }
 
-    // Function to hide a modal and reset its form
     function closeModal(modalElement) {
         console.log(`Closing modal: ${modalElement.id}`);
-        modalElement.classList.remove('active'); // Deactivate CSS class to hide modal
+        modalElement.classList.remove('active');
         const form = modalElement.querySelector('form');
         if (form) {
-            form.reset(); // Reset form fields
+            form.reset();
         }
     }
 
     // Event listeners for opening modals via buttons
     document.getElementById('addLeadModalBtn').addEventListener('click', function() {
         showModal(leadModal, 'Add New Lead');
-        document.getElementById('addLeadForm').reset(); // Clear form for new entry
-        document.getElementById('leadId').value = ''; // Clear hidden ID for new lead
+        document.getElementById('addLeadForm').reset();
+        document.getElementById('leadId').value = '';
     });
 
     document.getElementById('addExpenseModalBtn').addEventListener('click', function() {
         showModal(generalExpenseModal, 'Add General Expense');
         document.getElementById('addExpenseForm').reset();
-        document.getElementById('expenseId').value = ''; // Clear hidden ID for new expense
+        document.getElementById('expenseId').value = '';
     });
 
     document.getElementById('addEventModalBtn').addEventListener('click', function() {
         showModal(generalEventModal, 'Add Calendar Event');
         document.getElementById('addEventForm').reset();
-        document.getElementById('eventAmount').value = '0.00'; // Reset amount to default
-        populateLeadSelect(allLeads); // *** MODIFIED: Pass allLeads to populate dropdown ***
+        document.getElementById('eventAmount').value = '0.00';
+        populateLeadSelect(allLeads); // Pass allLeads to populate dropdown
     });
 
-    // Event listeners for closing modals (using their IDs)
+    // Event listeners for closing modals
     document.getElementById('closeLeadModalBtn').addEventListener('click', function() {
         closeModal(leadModal);
     });
@@ -120,32 +114,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // --- API Interaction Functions ---
 
-    // Fetches lead data from the backend and updates the UI
     async function fetchLeads() {
         console.log("Executing fetchLeads()...");
-        showLoading(); // Show loading spinner
+        showLoading();
         try {
-            const response = await fetch('/api/leads'); // API endpoint for leads
+            const response = await fetch('/api/leads');
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const leads = await response.json();
-            console.log("Leads data received from API:", leads); // Log received leads data
+            console.log("Leads data received from API:", leads);
 
-            allLeads = leads; // *** NEW: Store fetched leads globally ***
+            allLeads = leads; // Store fetched leads globally
 
             const leadsList = document.getElementById('recentLeadsTable').querySelector('tbody');
-            leadsList.innerHTML = ''; // IMPORTANT: Clear existing leads to prevent duplication
+            leadsList.innerHTML = '';
 
-            // Populate the leads table
             leads.forEach(lead => {
-                const row = document.createElement('tr'); // *** FIX: Changed ':' to '.' here ***
-                // Use .get() for robust access to properties from RealDictRow, with 'N/A' fallback
-                const firstName = lead.firstname || 'N/A'; // Use 'firstname' as per backend logs
-                const lastName = lead.lastname || ''; // Use 'lastname' as per backend logs
-                const dateOfContact = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : 'N/A'; // Format date
-                const followUp = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : 'N/A'; // Format date
+                const row = document.createElement('tr'); // FIX: Changed ':' to '.' here
+                const firstName = lead.firstname || 'N/A';
+                const lastName = lead.lastname || '';
+                const dateOfContact = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : 'N/A';
+                const followUp = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : 'N/A';
 
                 row.innerHTML = `
                     <td data-label="Name">${firstName} ${lastName}</td>
@@ -160,18 +151,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 `;
                 leadsList.appendChild(row);
             });
-            updateLeadStats(leads); // Update lead statistics cards
-            populateLeadSelect(leads); // Populate lead dropdowns in modals (this call is fine, uses the just-fetched leads)
-            updateUpcomingFollowups(leads); // Update the upcoming follow-ups list
+            updateLeadStats(leads);
+            populateLeadSelect(leads); // This call is fine, uses the just-fetched leads
+            updateUpcomingFollowups(leads);
         } catch (error) {
             console.error('Error fetching leads:', error);
             showMessage('Failed to load leads.', 'error');
         } finally {
-            hideLoading(); // Hide loading spinner
+            hideLoading();
         }
     }
 
-    // Updates the lead statistics displayed in the dashboard cards
     function updateLeadStats(leads) {
         console.log("Executing updateLeadStats()...");
         const totalLeads = leads.length;
@@ -186,18 +176,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('closedWonLeadsCount').textContent = closedWonLeads;
         document.getElementById('closedLostLeadsCount').textContent = closedLostLeads;
 
-        updateLeadsByStageChart(leads); // Update the doughnut chart
+        updateLeadsByStageChart(leads);
     }
 
-    // Populates the lead select dropdowns used in activity and event forms
-    // This function now expects to receive the leads array as an argument
-    function populateLeadSelect(leads) { // *** MODIFIED: Removed default empty array, now expects leads ***
+    function populateLeadSelect(leads) {
         console.log("Executing populateLeadSelect()...");
         console.log("Leads received by populateLeadSelect:", leads);
         const eventLeadSelect = document.getElementById('eventLeadId');
-        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>'; // Default option
+        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>';
 
-        if (!leads || leads.length === 0) { // Check if leads is null/undefined or empty
+        if (!leads || leads.length === 0) {
             console.log("No leads available to populate dropdown.");
             return;
         }
@@ -211,8 +199,7 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Lead select dropdown populated.");
     }
 
-    // Updates the Leads by Stage doughnut chart using Chart.js
-    let leadsByStageChart; // Declare chart globally to allow destruction/re-creation
+    let leadsByStageChart;
     function updateLeadsByStageChart(leads) {
         console.log("Executing updateLeadsByStageChart()...");
         const stageCounts = leads.reduce((acc, lead) => {
@@ -226,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const ctx = document.getElementById('leadsByStageChart').getContext('2d');
 
         if (leadsByStageChart) {
-            leadsByStageChart.destroy(); // Destroy existing chart instance to prevent memory leaks
+            leadsByStageChart.destroy();
         }
 
         leadsByStageChart = new Chart(ctx, {
@@ -236,7 +223,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 datasets: [{
                     data: data,
                     backgroundColor: [
-                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#17a2b8' // Consistent colors
+                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#17a2b8'
                     ],
                     hoverOffset: 4
                 }]
@@ -246,10 +233,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 maintainAspectRatio: false,
                 plugins: {
                     legend: {
-                        position: 'right', // Legend on the right side
+                        position: 'right',
                     },
                     title: {
-                        display: false, // Title hidden as it's in the card header
+                        display: false,
                         text: 'Leads by Stage'
                     }
                 }
@@ -257,19 +244,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Updates the list of upcoming follow-ups
     function updateUpcomingFollowups(leads) {
         console.log("Executing updateUpcomingFollowups()...");
         const upcomingList = document.getElementById('upcomingFollowupsList');
-        upcomingList.innerHTML = ''; // Clear existing list items
+        upcomingList.innerHTML = '';
 
         const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to start of day for accurate comparison
+        today.setHours(0, 0, 0, 0);
 
-        // Filter and sort leads by follow-up date (only future dates)
         const sortedFollowups = leads
-            .filter(lead => lead.followup && new Date(lead.followup) >= today) // Use 'followup' as per backend logs
-            .sort((a, b) => new Date(a.followup) - new Date(b.followup)); // Use 'followup' as per backend logs
+            .filter(lead => lead.followup && new Date(lead.followup) >= today)
+            .sort((a, b) => new Date(a.followup) - new Date(b.followup));
 
         if (sortedFollowups.length === 0) {
             const listItem = document.createElement('li');
@@ -278,7 +263,6 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
-        // Populate the list
         sortedFollowups.forEach(lead => {
             const listItem = document.createElement('li');
             listItem.innerHTML = `
@@ -289,86 +273,82 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // Handles the submission of the Add/Edit Lead form
     document.getElementById('addLeadForm').addEventListener('submit', async function(event) {
-        event.preventDefault(); // Prevent default form submission
+        event.preventDefault();
         const formData = new FormData(this);
         const leadData = Object.fromEntries(formData.entries());
-        const leadId = document.getElementById('leadId').value; // Get hidden ID for update operations
+        const leadId = document.getElementById('leadId').value;
 
         let url = '/api/leads';
-        let method = 'POST'; // Default to POST for new lead
+        let method = 'POST';
 
-        if (leadId) { // If leadId exists, it's an update operation
+        if (leadId) {
             method = 'PUT';
-            leadData.id = leadId; // Add ID to the data payload
+            leadData.id = leadId;
         }
 
         console.log(`Attempting to ${method} Lead:`, leadData);
-        showLoading(); // Show loading spinner
+        showLoading();
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: {
-                    'Content-Type': 'application/json' // Specify JSON content
+                    'Content-Type': 'application/json'
                 },
-                body: JSON.stringify(leadData) // Send data as JSON string
+                body: JSON.stringify(leadData)
             });
 
             if (!response.ok) {
-                const errorText = await response.text(); // Get detailed error message from server
+                const errorText = await response.text();
                 console.error(`API Error during ${method} Lead:`, errorText);
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
 
             const result = await response.json();
-            console.log(`Lead ${method} successful. Result:`, result); // Log success result
-            showMessage(result.message, 'success'); // Show success message
+            console.log(`Lead ${method} successful. Result:`, result);
+            showMessage(result.message, 'success');
             console.log("Attempting to close lead modal and fetch leads...");
-            closeModal(leadModal); // Close the lead modal
-            fetchLeads(); // Refresh leads list and all dependent UI components
+            closeModal(leadModal);
+            fetchLeads();
         } catch (error) {
             console.error('Error saving lead:', error);
-            showMessage('Failed to save lead.', 'error'); // Show error message
+            showMessage('Failed to save lead.', 'error');
         } finally {
-            hideLoading(); // Hide loading spinner
+            hideLoading();
         }
     });
 
-    // Event listener for "View/Edit" lead button clicks in the Recent Leads table
     document.getElementById('recentLeadsTable').addEventListener('click', async function(event) {
-        if (event.target.closest('.view-lead-btn')) { // Use closest to handle clicks on the icon inside the button
+        if (event.target.closest('.view-lead-btn')) {
             const leadId = event.target.closest('.view-lead-btn').dataset.id;
             console.log("Viewing lead with ID:", leadId);
-            showLoading(); // Show loading spinner
+            showLoading();
             try {
-                const response = await fetch(`/api/leads?id=${leadId}`); // Fetch specific lead by ID
+                const response = await fetch(`/api/leads?id=${leadId}`);
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error(`API Error fetching lead details:`, errorText);
                     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
                 const leads = await response.json();
-                const lead = leads[0]; // Assuming the API returns an array with one lead
-                console.log("Fetched lead details for editing:", lead); // Log fetched lead details
+                const lead = leads[0];
+                console.log("Fetched lead details for editing:", lead);
 
                 if (lead) {
-                    // Populate the lead modal form fields for editing
                     document.getElementById('leadId').value = lead.id;
-                    document.getElementById('firstName').value = lead.firstname || ''; // Use 'firstname'
-                    document.getElementById('lastName').value = lead.lastname || ''; // Use 'lastname'
+                    document.getElementById('firstName').value = lead.firstname || '';
+                    document.getElementById('lastName').value = lead.lastname || '';
                     document.getElementById('title').value = lead.title || '';
                     document.getElementById('company').value = lead.company || '';
                     document.getElementById('email').value = lead.email || '';
                     document.getElementById('phone').value = lead.phone || '';
                     document.getElementById('product').value = lead.product || '';
                     document.getElementById('stage').value = lead.stage || '';
-                    // Format date fields for input[type="date"]
                     document.getElementById('dateOfContact').value = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : '';
                     document.getElementById('followUp').value = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : '';
                     document.getElementById('notes').value = lead.notes || '';
 
-                    showModal(leadModal, 'Edit Lead'); // Show modal with "Edit" title
+                    showModal(leadModal, 'Edit Lead');
                 } else {
                     showMessage('Lead not found.', 'error');
                 }
@@ -377,22 +357,20 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error fetching lead details:', error);
                 showMessage('Failed to load lead details.', 'error');
             } finally {
-                hideLoading(); // Hide loading spinner
+                hideLoading();
             }
         }
     });
 
-    // Event listener for "Delete" lead button clicks in the Recent Leads table
     document.getElementById('recentLeadsTable').addEventListener('click', async function(event) {
-        if (event.target.closest('.delete-lead-btn')) { // Use closest to handle clicks on the icon inside the button
+        if (event.target.closest('.delete-lead-btn')) {
             const leadId = event.target.closest('.delete-lead-btn').dataset.id;
-            // Confirm deletion with the user
             if (confirm('Are you sure you want to delete this lead? This will also remove associated calendar events and activities.')) {
                 console.log("Deleting lead with ID:", leadId);
-                showLoading(); // Show loading spinner
+                showLoading();
                 try {
                     const response = await fetch(`/api/leads?id=${leadId}`, {
-                        method: 'DELETE' // Send DELETE request
+                        method: 'DELETE'
                     });
 
                     if (!response.ok) {
@@ -403,30 +381,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     const result = await response.json();
                     console.log(`Lead deletion successful. Result:`, result);
-                    showMessage(result.message, 'success'); // Show success message
-                    fetchLeads(); // Refresh leads list and all dependent UI components
-                    fetchCalendarEvents(); // Refresh calendar as lead deletion affects events
+                    showMessage(result.message, 'success');
+                    fetchLeads();
+                    fetchCalendarEvents();
                 } catch (error) {
                     console.error('Error deleting lead:', error);
-                    showMessage('Failed to delete lead.', 'error'); // Show error message
+                    showMessage('Failed to delete lead.', 'error');
                 } finally {
-                    hideLoading(); // Hide loading spinner
+                    hideLoading();
                 }
             }
         }
     });
 
-    // Handles the submission of the Add Lead Activity form
     document.getElementById('addActivityForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const formData = new FormData(this);
         const activityData = Object.fromEntries(formData.entries());
-        // Ensure lead_id is included (can be null if not linked) and expenditure is parsed to float
         activityData.lead_id = document.getElementById('activityLeadId').value || null;
         activityData.expenditure = parseFloat(activityData.expenditure || 0);
 
         console.log("Adding Lead Activity:", activityData);
-        showLoading(); // Show loading spinner
+        showLoading();
         try {
             const response = await fetch('/api/lead_activities', {
                 method: 'POST',
@@ -446,36 +422,35 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`Lead activity added successful. Result:`, result);
             showMessage(result.message, 'success');
             console.log("Attempting to close visit modal and fetch data...");
-            closeModal(visitModal); // Close the activity modal
-            fetchCalendarEvents(); // Refresh calendar events (as activities are calendar events)
-            fetchExpenditureReport(); // Refresh expenditure report (if activity has an amount)
-            fetchLeads(); // Refresh leads to update follow-ups/stats if activity affects them
+            closeModal(visitModal);
+            fetchCalendarEvents();
+            fetchExpenditureReport();
+            fetchLeads();
         } catch (error) {
             console.error('Error adding lead activity:', error);
             showMessage('Failed to add lead activity.', 'error');
         } finally {
-            hideLoading(); // Hide loading spinner
+            hideLoading();
         }
     });
 
-    // Handles the submission of the Add/Edit General Expense form
     document.getElementById('addExpenseForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const formData = new FormData(this);
         const expenseData = Object.fromEntries(formData.entries());
-        const expenseId = document.getElementById('expenseId').value; // Hidden ID for update
+        const expenseId = document.getElementById('expenseId').value;
 
         let url = '/api/general_expenses';
-        let method = 'POST'; // Default to POST for new expense
+        let method = 'POST';
 
-        if (expenseId) { // If ID exists, it's an update
+        if (expenseId) {
             method = 'PUT';
             expenseData.id = expenseId;
         }
-        expenseData.amount = parseFloat(expenseData.amount || 0); // Ensure amount is float
+        expenseData.amount = parseFloat(expenseData.amount || 0);
 
         console.log(`Attempting to ${method} General Expense:`, expenseData);
-        showLoading(); // Show loading spinner
+        showLoading();
         try {
             const response = await fetch(url, {
                 method: method,
@@ -495,43 +470,40 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`General expense ${method} successful. Result:`, result);
             showMessage(result.message, 'success');
             console.log("Attempting to close general expense modal and fetch data...");
-            closeModal(generalExpenseModal); // Close the expense modal
-            fetchExpenditureReport(); // Refresh expenditure report
-            fetchCalendarEvents(); // Refresh calendar events (if general expenses are displayed there)
+            closeModal(generalExpenseModal);
+            fetchExpenditureReport();
+            fetchCalendarEvents();
         } catch (error) {
             console.error('Error saving general expense:', error);
             showMessage('Failed to save general expense.', 'error');
         } finally {
-            hideLoading(); // Hide loading spinner
+            hideLoading();
         }
     });
 
-    // Event listener for editing/deleting an expense from the Expenditure Report table
     document.getElementById('expenditureReportTableBody').addEventListener('click', async function(event) {
-        // Handle Edit button click
         if (event.target.closest('.edit-expense-btn')) {
             const expenseId = event.target.closest('.edit-expense-btn').dataset.id;
             console.log("Editing expense with ID:", expenseId);
-            showLoading(); // Show loading spinner
+            showLoading();
             try {
-                const response = await fetch(`/api/general_expenses?id=${expenseId}`); // Fetch specific expense by ID
+                const response = await fetch(`/api/general_expenses?id=${expenseId}`);
                 if (!response.ok) {
                     const errorText = await response.text();
                     console.error(`API Error fetching expense details:`, errorText);
                     throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
                 }
                 const expenses = await response.json();
-                const expense = expenses[0]; // Assuming API returns array with one expense
+                const expense = expenses[0];
                 console.log("Fetched expense details for editing:", expense);
 
                 if (expense) {
-                    // Populate the general expense modal form fields for editing
                     document.getElementById('expenseId').value = expense.id;
                     document.getElementById('generalExpenseDate').value = expense.date ? new Date(expense.date).toISOString().split('T')[0] : '';
                     document.getElementById('generalExpenseAmount').value = parseFloat(expense.amount || 0).toFixed(2);
                     document.getElementById('generalExpenseDescription').value = expense.description || '';
 
-                    showModal(generalExpenseModal, 'Edit General Expense'); // Show modal with "Edit" title
+                    showModal(generalExpenseModal, 'Edit General Expense');
                 } else {
                     showMessage('Expense not found.', 'error');
                 }
@@ -539,19 +511,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 console.error('Error fetching expense details:', error);
                 showMessage('Failed to load expense details.', 'error');
             } finally {
-                hideLoading(); // Hide loading spinner
+                hideLoading();
             }
         }
 
-        // Handle Delete button click
         if (event.target.closest('.delete-expense-btn')) {
             const expenseId = event.target.closest('.delete-expense-btn').dataset.id;
             if (confirm('Are you sure you want to delete this expense?')) {
                 console.log("Deleting expense with ID:", expenseId);
-                showLoading(); // Show loading spinner
+                showLoading();
                 try {
                     const response = await fetch(`/api/general_expenses?id=${expenseId}`, {
-                        method: 'DELETE' // Send DELETE request
+                        method: 'DELETE'
                     });
 
                     if (!response.ok) {
@@ -562,24 +533,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
                     const result = await response.json();
                     console.log(`Expense deletion successful. Result:`, result);
-                    showMessage(result.message, 'success'); // Show success message
-                    fetchExpenditureReport(); // Refresh expenditure report
-                    fetchCalendarEvents(); // Refresh calendar events (if general expenses are displayed there)
+                    showMessage(result.message, 'success');
+                    fetchExpenditureReport();
+                    fetchCalendarEvents();
                 } catch (error) {
                     console.error('Error deleting expense:', error);
-                    showMessage('Failed to delete expense.', 'error'); // Show error message
+                    showMessage('Failed to delete expense.', 'error');
                 } finally {
-                    hideLoading(); // Hide loading spinner
+                    hideLoading();
                 }
             }
         }
     });
 
-    // Fetches calendar events and renders them using FullCalendar
-    let calendar; // Global variable to hold the FullCalendar instance
+    let calendar;
     async function fetchCalendarEvents() {
         console.log("Executing fetchCalendarEvents()...");
-        showLoading(); // Show loading spinner
+        showLoading();
         try {
             const response = await fetch('/api/calendar_events');
             if (!response.ok) {
@@ -588,17 +558,14 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const events = await response.json();
-            console.log("Calendar events data received from API:", events); // Log received calendar data
+            console.log("Calendar events data received from API:", events);
 
-            // Map backend event data to FullCalendar event object format
             const calendarEvents = events.map(event => ({
-                // Construct title with type, description, lead name, and amount if present
                 title: `${event.type || 'N/A'}: ${event.description || ''} ${event.lead_name ? '(' + event.lead_name + ')' : ''} ${event.amount && event.amount > 0 ? ' - KSh' + parseFloat(event.amount).toFixed(2) : ''}`,
-                start: event.date || 'N/A', // Event date
-                allDay: true, // Events span the whole day
-                // Assign CSS class for color coding based on event type
+                start: event.date || 'N/A',
+                allDay: true,
                 className: `fc-event-${(event.type || '').toLowerCase().replace(/\s/g, '-')}`,
-                extendedProps: { // Store additional properties for tooltips or future use
+                extendedProps: {
                     type: event.type,
                     leadId: event.lead_id,
                     amount: event.amount,
@@ -608,19 +575,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }));
 
             if (calendar) {
-                calendar.setOption('events', calendarEvents); // Update existing calendar events
+                calendar.setOption('events', calendarEvents);
             } else {
                 const calendarEl = document.getElementById('calendar');
                 calendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'dayGridMonth', // Default view
-                    events: calendarEvents, // Events data
-                    headerToolbar: { // Customize header buttons
+                    initialView: 'dayGridMonth',
+                    events: calendarEvents,
+                    headerToolbar: {
                         left: 'prev,next today',
                         center: 'title',
                         right: 'dayGridMonth,dayGridWeek,dayGridDay'
                     },
                     eventDidMount: function(info) {
-                        // Add a tooltip functionality on event hover
                         const tooltip = document.getElementById('calendarTooltip');
                         info.el.addEventListener('mouseover', function() {
                             tooltip.innerHTML = `
@@ -628,42 +594,37 @@ document.addEventListener('DOMContentLoaded', function() {
                                 <span>Date: ${info.event.startStr}</span>
                                 ${info.event.extendedProps.description ? `<span>Description: ${info.event.extendedProps.description}</span>` : ''}
                             `;
-                            // Position tooltip relative to the event element
                             tooltip.style.left = `${info.el.getBoundingClientRect().left + window.scrollX}px`;
                             tooltip.style.top = `${info.el.getBoundingClientRect().top + window.scrollY - tooltip.offsetHeight - 10}px`;
-                            tooltip.classList.add('active'); // Show tooltip
+                            tooltip.classList.add('active');
                         });
                         info.el.addEventListener('mouseout', function() {
-                            tooltip.classList.remove('active'); // Hide tooltip
+                            tooltip.classList.remove('active');
                         });
                     },
                     eventClick: function(info) {
-                        // Basic click handler for calendar events
                         showMessage(`Event: ${info.event.title} on ${info.event.startStr}`, 'info');
                     }
                 });
-                calendar.render(); // Render the calendar for the first time
+                calendar.render();
             }
         } catch (error) {
             console.error('Error fetching calendar events:', error);
             showMessage('Failed to load calendar events.', 'error');
         } finally {
-            hideLoading(); // Hide loading spinner
+            hideLoading();
         }
     }
 
-    // Handles the submission of the Add Calendar Event form
     document.getElementById('addEventForm').addEventListener('submit', async function(event) {
         event.preventDefault();
         const formData = new FormData(this);
         const eventData = Object.fromEntries(formData.entries());
-        // Convert empty lead_id string to null for database
         eventData.lead_id = eventData.lead_id === '' ? null : eventData.lead_id;
-        // Ensure amount is float, defaulting to 0 if empty
         eventData.amount = eventData.amount === '' ? 0 : parseFloat(eventData.amount);
 
         console.log("Adding Calendar Event:", eventData);
-        showLoading(); // Show loading spinner
+        showLoading();
         try {
             const response = await fetch('/api/calendar_events', {
                 method: 'POST',
@@ -683,28 +644,27 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log(`Calendar event added successful. Result:`, result);
             showMessage(result.message, 'success');
             console.log("Attempting to close event modal and fetch data...");
-            this.reset(); // Reset form fields
-            closeModal(generalEventModal); // Close the event modal
-            fetchCalendarEvents(); // Refresh calendar events
-            fetchExpenditureReport(); // Refresh expenditure report (if event has an amount)
+            this.reset();
+            closeModal(generalEventModal);
+            fetchCalendarEvents();
+            fetchExpenditureReport();
         } catch (error) {
             console.error('Error adding calendar event:', error);
             showMessage('Failed to add calendar event.', 'error');
         } finally {
-            hideLoading(); // Hide loading spinner
+            hideLoading();
         }
     });
 
-    // Fetches expenditure report data and populates the table
     async function fetchExpenditureReport(startDate = '', endDate = '') {
         console.log("Executing fetchExpenditureReport()...");
-        showLoading(); // Show loading spinner
+        showLoading();
         try {
-            let url = `/api/expenditure_report`; // Corrected API endpoint
+            let url = `/api/expenditure_report`;
             const params = new URLSearchParams();
             if (startDate) params.append('start_date', startDate);
             if (endDate) params.append('end_date', endDate);
-            if (params.toString()) url += `?${params.toString()}`; // Append query params if any
+            if (params.toString()) url += `?${params.toString()}`;
 
             const response = await fetch(url);
             if (!response.ok) {
@@ -713,34 +673,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
             }
             const reportItems = await response.json();
-            console.log("Expenditure report data received from API:", reportItems); // Log received expenditure data
+            console.log("Expenditure report data received from API:", reportItems);
             const reportTableBody = document.getElementById('expenditureReportTableBody');
-            reportTableBody.innerHTML = ''; // IMPORTANT: Clear existing items to prevent duplication
+            reportTableBody.innerHTML = '';
 
             let totalExpenditure = 0;
 
-            // Populate the expenditure report table
             reportItems.forEach(item => {
-                console.log("Processing expenditure item:", item); // *** NEW LOG ***
+                console.log("Processing expenditure item:", item);
                 const row = document.createElement('tr');
                 let actionsHtml = '';
-                // Only show edit/delete buttons for 'General Expense' type
-                // and if it originated from the 'general_expenses' table (as per app.py)
-                // The source_table field is crucial here.
                 if (item.type_category === 'General Expense' && item.source_table === 'general_expenses') {
                     actionsHtml = `
                         <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" title="Edit Expense"><i class="fas fa-edit"></i></button>
                         <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" title="Delete Expense"><i class="fas fa-trash-alt"></i></button>
                     `;
                 } else {
-                    // For lead-related expenses from calendar_events, no direct edit/delete from this table
                     actionsHtml = 'N/A';
                 }
 
-                // Safely access properties with fallbacks
                 const leadName = item.lead_name || 'N/A';
                 const companyName = item.company || 'N/A';
-                const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A'; // Format date
+                const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A';
 
                 row.innerHTML = `
                     <td data-label="Date">${expenseDate}</td>
@@ -752,7 +706,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     <td data-label="Actions">${actionsHtml}</td>
                 `;
                 reportTableBody.appendChild(row);
-                totalExpenditure += parseFloat(item.amount || 0); // Accumulate total expenditure
+                totalExpenditure += parseFloat(item.amount || 0);
             });
 
             document.getElementById('totalExpenditureSummary').textContent = `Total Expenditure: KSh ${totalExpenditure.toFixed(2)}`;
@@ -760,40 +714,90 @@ document.addEventListener('DOMContentLoaded', function() {
             console.error('Error fetching expenditure report:', error);
             showMessage('Failed to load expenditure report.', 'error');
         } finally {
-            hideLoading(); // Hide loading spinner
+            hideLoading();
         }
     }
 
     // Event listener for filtering the expenditure report by date range
     document.getElementById('filterReportBtn').addEventListener('click', function() {
         const startDate = document.getElementById('reportStartDate').value;
-        const endDate = document.getElementById('reportEndDate'].value;
-        let url = `/api/export_expenditure_report`;
-        const params = new URLSearchParams();
-        if (startDate) params.append('start_date', startDate);
-        if (endDate) params.append('end_date', endDate);
-        if (params.toString()) url += `?${params.toString()}`;
+        const endDate = document.getElementById('reportEndDate').value; // FIX: Changed ']' to ')' here
+        fetchExpenditureReport(startDate, endDate); // Call the function to fetch and display the filtered report
+    });
 
-        const response = await fetch(url);
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API Error exporting expenditure report:`, errorText);
-            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+    // Event listener for clearing date filters on the expenditure report
+    document.getElementById('clearReportDatesBtn').addEventListener('click', function() {
+        document.getElementById('reportStartDate').value = '';
+        document.getElementById('reportEndDate').value = '';
+        fetchExpenditureReport(); // Fetch report without filters
+    });
+
+    document.getElementById('exportLeadsBtn').addEventListener('click', async function() {
+        console.log("Exporting leads...");
+        showLoading();
+        try {
+            const response = await fetch('/api/export_leads');
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`API Error exporting leads:`, errorText);
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+            }
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = 'leads_export.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            showMessage('Leads exported successfully!', 'success');
+        } catch (error) {
+            console.error('Error exporting leads:', error);
+            showMessage('Failed to export leads.', 'error');
+        } finally {
+            hideLoading();
         }
-        const blob = await response.blob();
-        const urlBlob = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = urlBlob;
-        a.download = 'expenditure_report_export.csv';
-        document.body.appendChild(a);
-        a.click();
-        window.URL.revokeObjectURL(urlBlob);
-        showMessage('Expenditure report exported successfully!', 'success');
-    } catch (error) {
-        console.error('Error exporting expenditure report:', error);
-        showMessage('Failed to export expenditure report.', 'error');
-    } finally {
-        hideLoading(); // Hide loading spinner
-    }
+    });
+
+    document.getElementById('exportExpenditureReportBtn').addEventListener('click', async function() {
+        console.log("Exporting expenditure report...");
+        showLoading();
+        try {
+            const startDate = document.getElementById('reportStartDate').value;
+            const endDate = document.getElementById('reportEndDate').value; // FIX: Changed ']' to ')' here
+            let url = `/api/export_expenditure_report`;
+            const params = new URLSearchParams();
+            if (startDate) params.append('start_date', startDate);
+            if (endDate) params.append('end_date', endDate);
+            if (params.toString()) url += `?${params.toString()}`;
+
+            const response = await fetch(url);
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`API Error exporting expenditure report:`, errorText);
+                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
+            }
+            const blob = await response.blob();
+            const urlBlob = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = urlBlob;
+            a.download = 'expenditure_report_export.csv';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(urlBlob);
+            showMessage('Expenditure report exported successfully!', 'success');
+        } catch (error) {
+            console.error('Error exporting expenditure report:', error);
+            showMessage('Failed to export expenditure report.', 'error');
+        } finally {
+            hideLoading();
+        }
+    });
+
+    // Initial data load when the page loads
+    fetchLeads();
+    fetchCalendarEvents();
+    fetchExpenditureReport();
 });
