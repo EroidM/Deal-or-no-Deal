@@ -186,8 +186,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Populates the lead select dropdowns used in activity and event forms
     function populateLeadSelect(leads = []) {
         console.log("Executing populateLeadSelect()...");
+        console.log("Leads received by populateLeadSelect:", leads); // *** NEW LOG ***
         const eventLeadSelect = document.getElementById('eventLeadId');
         eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>'; // Default option
+
+        if (leads.length === 0) {
+            console.log("No leads available to populate dropdown.");
+            return; // Exit if no leads to prevent errors
+        }
 
         leads.forEach(lead => {
             const option = document.createElement('option');
@@ -196,6 +202,7 @@ document.addEventListener('DOMContentLoaded', function() {
             option.textContent = `${lead.firstname || 'N/A'} ${lead.lastname || ''} (${lead.company || 'N/A'})`;
             eventLeadSelect.appendChild(option);
         });
+        console.log("Lead select dropdown populated."); // *** NEW LOG ***
     }
 
     // Updates the Leads by Stage doughnut chart using Chart.js
@@ -708,6 +715,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Populate the expenditure report table
             reportItems.forEach(item => {
+                console.log("Processing expenditure item:", item); // *** NEW LOG ***
                 const row = document.createElement('tr');
                 let actionsHtml = '';
                 // Only show edit/delete buttons for 'General Expense' type
