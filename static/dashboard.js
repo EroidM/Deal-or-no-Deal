@@ -140,7 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // Populate the leads table
             leads.forEach(lead => {
-                const row = document:createElement('tr');
+                const row = document.createElement('tr'); // *** FIX: Changed ':' to '.' here ***
                 // Use .get() for robust access to properties from RealDictRow, with 'N/A' fallback
                 const firstName = lead.firstname || 'N/A'; // Use 'firstname' as per backend logs
                 const lastName = lead.lastname || ''; // Use 'lastname' as per backend logs
@@ -767,86 +767,33 @@ document.addEventListener('DOMContentLoaded', function() {
     // Event listener for filtering the expenditure report by date range
     document.getElementById('filterReportBtn').addEventListener('click', function() {
         const startDate = document.getElementById('reportStartDate').value;
-        const endDate = document.getElementById('reportEndDate').value;
-        fetchExpenditureReport(startDate, endDate);
-    });
+        const endDate = document.getElementById('reportEndDate'].value;
+        let url = `/api/export_expenditure_report`;
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
 
-    // Event listener for clearing date filters on the expenditure report
-    document.getElementById('clearReportDatesBtn').addEventListener('click', function() {
-        document.getElementById('reportStartDate').value = '';
-        document.getElementById('reportEndDate').value = '';
-        fetchExpenditureReport(); // Fetch report without filters
-    });
-
-    // Function to export leads data to a CSV file
-    document.getElementById('exportLeadsBtn').addEventListener('click', async function() {
-        console.log("Exporting leads...");
-        showLoading(); // Show loading spinner
-        try {
-            const response = await fetch('/api/export_leads');
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`API Error exporting leads:`, errorText);
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-            const blob = await response.blob(); // Get response as a Blob
-            const url = window.URL.createObjectURL(blob); // Create a URL for the Blob
-            const a = document.createElement('a'); // Create a temporary anchor element
-            a.style.display = 'none';
-            a.href = url;
-            a.download = 'leads_export.csv'; // Set download filename
-            document.body.appendChild(a);
-            a.click(); // Programmatically click the link to trigger download
-            window.URL.revokeObjectURL(url); // Clean up the Blob URL
-            showMessage('Leads exported successfully!', 'success');
-        } catch (error) {
-            console.error('Error exporting leads:', error);
-            showMessage('Failed to export leads.', 'error');
-        } finally {
-            hideLoading(); // Hide loading spinner
+        const response = await fetch(url);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API Error exporting expenditure report:`, errorText);
+            throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
         }
-    });
-
-    // Function to export expenditure report data to a CSV file
-    document.getElementById('exportExpenditureReportBtn').addEventListener('click', async function() {
-        console.log("Exporting expenditure report...");
-        showLoading(); // Show loading spinner
-        try {
-            const startDate = document.getElementById('reportStartDate').value;
-            const endDate = document.getElementById('reportEndDate'].value;
-            let url = `/api/export_expenditure_report`;
-            const params = new URLSearchParams();
-            if (startDate) params.append('start_date', startDate);
-            if (endDate) params.append('end_date', endDate);
-            if (params.toString()) url += `?${params.toString()}`;
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error(`API Error exporting expenditure report:`, errorText);
-                throw new Error(`HTTP error! status: ${response.status} - ${errorText}`);
-            }
-            const blob = await response.blob();
-            const urlBlob = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = urlBlob;
-            a.download = 'expenditure_report_export.csv';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(urlBlob);
-            showMessage('Expenditure report exported successfully!', 'success');
-        } catch (error) {
-            console.error('Error exporting expenditure report:', error);
-            showMessage('Failed to export expenditure report.', 'error');
-        } finally {
-            hideLoading(); // Hide loading spinner
-        }
-    });
-
-    // Initial data load when the page loads
-    // These functions are called once to populate the dashboard sections
-    fetchLeads(); // Fetches leads, updates stats, populates dropdowns, and updates upcoming follow-ups
-    fetchCalendarEvents(); // Fetches and renders calendar events
-    fetchExpenditureReport(); // Fetches and renders expenditure report
+        const blob = await response.blob();
+        const urlBlob = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = urlBlob;
+        a.download = 'expenditure_report_export.csv';
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(urlBlob);
+        showMessage('Expenditure report exported successfully!', 'success');
+    } catch (error) {
+        console.error('Error exporting expenditure report:', error);
+        showMessage('Failed to export expenditure report.', 'error');
+    } finally {
+        hideLoading(); // Hide loading spinner
+    }
 });
