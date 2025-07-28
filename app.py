@@ -155,7 +155,11 @@ def handle_leads():
                 # Explicitly select all columns for consistency
                 cur.execute("SELECT id, firstName, lastName, title, company, email, phone, product, stage, dateOfContact, followUp, notes, created_at FROM leads ORDER BY created_at DESC;")
                 leads = cur.fetchall()
-            logging.debug(f"Fetched leads: {leads}")
+            
+            # --- NEW DEBUG LOGGING FOR LEADS ---
+            logging.debug(f"Raw leads data fetched from DB in handle_leads GET: {leads}")
+            # --- END NEW DEBUG LOGGING ---
+
             return jsonify(leads), 200
 
         elif request.method == 'PUT':
@@ -523,6 +527,7 @@ def get_expenditure_report():
         logging.debug(f"Fetched general expenses: {general_expenses}")
 
         # Fetch ALL calendar_events with amount > 0, using LEFT JOIN for leads
+        # This ensures visits with POSITIVE amounts are included
         query_calendar_expenses = """
             SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount,
                    l.id AS lead_id, l.firstName, l.lastName, l.company
