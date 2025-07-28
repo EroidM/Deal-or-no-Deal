@@ -188,7 +188,8 @@ document.addEventListener('DOMContentLoaded', function() {
         console.log("Executing populateLeadSelect()...");
         console.log("Leads received by populateLeadSelect:", leads); // *** NEW LOG ***
         const eventLeadSelect = document.getElementById('eventLeadId');
-        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>'; // Default option
+        // Clear existing options, add default "No Lead" option for calendar events
+        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>';
 
         if (leads.length === 0) {
             console.log("No leads available to populate dropdown.");
@@ -720,6 +721,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 let actionsHtml = '';
                 // Only show edit/delete buttons for 'General Expense' type
                 // and if it originated from the 'general_expenses' table (as per app.py)
+                // The source_table field is crucial here.
                 if (item.type_category === 'General Expense' && item.source_table === 'general_expenses') {
                     actionsHtml = `
                         <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" title="Edit Expense"><i class="fas fa-edit"></i></button>
