@@ -711,7 +711,6 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (sourceType === 'general_expenses') {
                         url = `/api/general_expenses?id=${itemId}`;
                     } else if (sourceType === 'calendar_events') {
-                        // Corrected: Ensure no extra parenthesis here
                         url = `/api/calendar_events?id=${itemId}`; 
                     } else {
                         throw new Error("Unknown source type for deletion.");
@@ -1081,7 +1080,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 targetTh.dataset.sortingEnabled = 'true'; // Mark as enabled
             }
             // Manually trigger click on the header to apply sorting
-            targetTh.click(); 
+            event.target.click(); 
         }
     });
 
@@ -1096,7 +1095,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 targetTh.dataset.sortingEnabled = 'true'; // Mark as enabled
             }
             // Manually trigger click on the header to apply sorting
-            targetTh.click();
+            event.target.click();
         }
     });
 });
