@@ -4,11 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales & Marketing Dashboard</title>
+    <!-- Favicon -->
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <!-- PWA Manifest -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 
+    <!-- CSS for Font Awesome - still using CDN as it's not a direct npm dependency we installed for this purpose -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
+    <!-- Local CSS for Flatpickr from node_modules -->
     <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.css') }}">
     
     <style>
@@ -607,6 +611,7 @@
     </header>
 
     <main class="main-content">
+        <!-- Dashboard Overview View -->
         <div id="overview-view" class="dashboard-view active">
             <div class="card">
                 <div class="card-header">Dashboard Overview</div>
@@ -638,6 +643,7 @@
                 </div>
             </div>
 
+            <!-- Leads by Stage Chart -->
             <div class="card">
                 <div class="card-header">Leads by Stage</div>
                 <div class="chart-container">
@@ -645,6 +651,7 @@
                 </div>
             </div>
 
+            <!-- Upcoming Follow-ups -->
             <div class="card">
                 <div class="card-header">Upcoming Follow-ups</div>
                 <div id="upcomingFollowUpsList">
@@ -653,6 +660,7 @@
             </div>
         </div>
 
+        <!-- Leads View -->
         <div id="leads-view" class="dashboard-view">
             <div class="card">
                 <div class="card-header">Recent Leads</div>
@@ -672,12 +680,14 @@
                             </tr>
                         </thead>
                         <tbody>
-                            </tbody>
+                            <!-- Leads will be rendered here by JavaScript -->
+                        </tbody>
                     </table>
                 </div>
             </div>
         </div>
 
+        <!-- Expenditure View -->
         <div id="expenditure-view" class="dashboard-view">
             <div class="card">
                 <div class="card-header">Expenditure Report</div>
@@ -700,12 +710,15 @@
                             </tr>
                         </thead>
                         <tbody>
-                            </tbody>
+                            <!-- Expenditure data will be rendered here by JavaScript -->
+                        </tbody>
                     </table>
                 </div>
+                <div id="totalExpenditureSummary" style="text-align: right; margin-top: 1rem; font-weight: bold; font-size: 1.1rem;">Total Expenditure: KSh 0.00</div>
             </div>
         </div>
 
+        <!-- Calendar View -->
         <div id="calendar-view" class="dashboard-view">
             <div class="card">
                 <div class="card-header">Calendar Events</div>
@@ -714,6 +727,7 @@
         </div>
     </main>
 
+    <!-- Bottom Navigation Bar for App-like experience -->
     <nav class="bottom-nav">
         <a href="#overview" class="nav-button active" data-view="overview-view">
             <i class="fas fa-home"></i>
@@ -733,6 +747,8 @@
         </a>
     </nav>
 
+    <!-- Modals -->
+    <!-- Add Lead Modal -->
     <div id="addLeadModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -786,6 +802,7 @@
         </div>
     </div>
 
+    <!-- Edit Lead Modal -->
     <div id="editLeadModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -840,6 +857,7 @@
         </div>
     </div>
 
+    <!-- Add Expenditure Modal -->
     <div id="addExpenditureModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -867,7 +885,8 @@
                      <div class="form-group">
                         <label for="expenditureLeadId">Related Lead:</label>
                         <select id="expenditureLeadId" name="lead_id">
-                            </select>
+                            <!-- Options populated by JS -->
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="expenditureCompany">Related Company:</label>
@@ -879,6 +898,7 @@
         </div>
     </div>
 
+    <!-- Edit Expenditure Modal -->
     <div id="editExpenditureModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -902,12 +922,13 @@
                     </div>
                     <div class="form-group">
                         <label for="editExpenditureAmount">Amount (KSh):</label>
-                        <input type="number" id="editExpenditureAmount" name="amount" step=\"0.01\" min=\"0\" required>
+                        <input type="number" id="editExpenditureAmount" name="amount" step="0.01" min="0" required>
                     </div>
                      <div class="form-group">
                         <label for="editExpenditureLeadId">Related Lead:</label>
                         <select id="editExpenditureLeadId" name="lead_id">
-                            </select>
+                            <!-- Options populated by JS -->
+                        </select>
                     </div>
                     <div class="form-group">
                         <label for="editExpenditureCompany">Related Company:</label>
@@ -919,6 +940,7 @@
         </div>
     </div>
 
+    <!-- Add Event Modal -->
     <div id="addEventModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -926,6 +948,7 @@
                 <span class="close-button" id="closeEventModal">&times;</span>
             </div>
             <form id="addEventForm">
+                <input type="hidden" id="eventId" name="id"> <!-- ADDED THIS LINE -->
                 <div class="form-section">
                     <div class="form-group">
                         <label for="eventTitle">Title:</label>
@@ -948,6 +971,10 @@
                         <label for="eventAmount">Amount (KSh):</label>
                         <input type="number" id="eventAmount" name="amount" step="0.01" min="0" value="0.00">
                     </div>
+                    <div class="form-group">
+                        <label for="eventCompany">Company (Optional):</label>
+                        <input type="text" id="eventCompany" name="company">
+                    </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Add Event</button>
             </form>
@@ -956,14 +983,19 @@
 
     <div id="calendarTooltip" class="calendar-tooltip"></div>
 
+    <!-- Local JavaScript for Chart.js from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='chart.js/dist/chart.umd.js') }}"></script>
+    <!-- Local JavaScript for FullCalendar from node_modules -->
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/core/index.global.min.js') }}'></script>
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/daygrid/index.global.min.js') }}'></script>
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/interaction/index.global.min.js') }}'></script>
+    <!-- Local JavaScript for Flatpickr from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.js') }}"></script>
 
+    <!-- Your custom dashboard.js should be the LAST script loaded -->
     <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 
+    <!-- Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
