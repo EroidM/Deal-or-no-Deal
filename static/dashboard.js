@@ -73,6 +73,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (hiddenIdInput) {
                     hiddenIdInput.value = '';
                 }
+                // Also reset the 'id' field for the addEventForm if it's being used for editing
+                const eventIdInput = form.querySelector('#eventId');
+                if (eventIdInput) {
+                    eventIdInput.value = '';
+                }
             }
         }
     }
@@ -141,6 +146,9 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     document.getElementById('addEventButton')?.addEventListener('click', () => {
         document.getElementById('addEventForm').reset(); // Clear form
+        // Clear the hidden eventId field when opening for a new event
+        const eventIdInput = document.getElementById('eventId');
+        if (eventIdInput) eventIdInput.value = '';
         populateLeadDropdowns('eventLeadId'); // Populate lead dropdown for new event
         openModal('addEventModal');
     });
@@ -182,7 +190,6 @@ document.addEventListener('DOMContentLoaded', function() {
             populateLeadDropdowns('expenditureLeadId'); // Populate for expenditure modal
             populateLeadDropdowns('eventLeadId'); // Populate for event modal
             populateLeadDropdowns('editExpenditureLeadId'); // Populate for edit expense modal
-            // Removed: populateLeadDropdowns('editEventLeadId'); // This ID doesn't exist in HTML
 
             leadsDataFetched = true; // Mark as fetched
         } catch (error) {
@@ -205,6 +212,9 @@ document.addEventListener('DOMContentLoaded', function() {
             }
             const events = await response.json();
             console.log("Dashboard.js: Calendar events data received:", events);
+            // Log the raw events data to inspect its structure
+            console.log("Dashboard.js: Raw calendar events for inspection:", JSON.stringify(events, null, 2));
+
             renderCalendar(events);
             calendarDataFetched = true; // Mark as fetched
         } catch (error) {
@@ -347,6 +357,44 @@ document.addEventListener('DOMContentLoaded', function() {
             calendarInstance.destroy(); // Destroy existing instance before re-rendering
         }
 
+        // Filter and map events to ensure they are well-formed for FullCalendar
+        const formattedEvents = events.filter(event => {
+            // Basic check: ensure event object itself exists and has core properties
+            if (!event || typeof event.id === 'undefined' || typeof event.title === 'undefined' || typeof event.start === 'undefined') {
+                console.warn('Skipping malformed event:', event);
+                return false;
+            }
+            // Ensure extendedProps exists
+            if (!event.extendedProps) {
+                event.extendedProps = {}; // Initialize if missing
+            }
+            // Ensure type is a string
+            if (typeof event.extendedProps.type === 'undefined' || event.extendedProps.type === null) {
+                event.extendedProps.type = 'Other';
+            }
+            // Ensure amount is a number
+            if (typeof event.extendedProps.amount === 'undefined' || event.extendedProps.amount === null) {
+                event.extendedProps.amount = 0.00;
+            } else {
+                event.extendedProps.amount = parseFloat(event.extendedProps.amount);
+            }
+            return true; // Keep the event if it passes checks
+        }).map(event => ({
+            id: event.id,
+            title: event.title,
+            start: event.start,
+            end: event.end,
+            extendedProps: {
+                type: event.extendedProps.type,
+                lead_id: event.extendedProps.lead_id,
+                lead_name: event.extendedProps.lead_name,
+                company: event.extendedProps.company,
+                amount: event.extendedProps.amount
+            },
+            // Ensure classNames is robust against null/undefined type
+            classNames: [`fc-event-${event.extendedProps.type.toLowerCase().replace(/\s/g, '-')}`]
+        }));
+
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
             plugins: [FullCalendar.dayGrid, FullCalendar.interaction],
             initialView: 'dayGridMonth',
@@ -360,25 +408,15 @@ document.addEventListener('DOMContentLoaded', function() {
                     text: 'Add Event',
                     click: function() {
                         document.getElementById('addEventForm').reset(); // Clear form
+                        // Clear the hidden eventId field when opening for a new event
+                        const eventIdInput = document.getElementById('eventId');
+                        if (eventIdInput) eventIdInput.value = '';
                         populateLeadDropdowns('eventLeadId'); // Populate lead dropdown
                         openModal('addEventModal');
                     }
                 }
             },
-            events: events.map(event => ({
-                id: event.id,
-                title: event.title, // FullCalendar uses title for display
-                start: event.start,
-                end: event.end, // Use end date if available
-                extendedProps: {
-                    type: event.extendedProps.type,
-                    lead_id: event.extendedProps.lead_id,
-                    lead_name: event.extendedProps.lead_name,
-                    company: event.extendedProps.company,
-                    amount: event.extendedProps.amount
-                },
-                classNames: [`fc-event-${event.extendedProps.type.toLowerCase().replace(/\s/g, '-')}`] // Add class for styling
-            })),
+            events: formattedEvents, // Use the now filtered and formatted events
             eventDidMount: function(info) {
                 // Add tooltip on hover
                 const tooltip = document.getElementById('calendarTooltip');
@@ -419,21 +457,23 @@ document.addEventListener('DOMContentLoaded', function() {
                 const eventStart = info.event.start;
                 const eventEnd = info.event.end;
 
+                // Populate edit modal fields
                 document.getElementById('eventId').value = eventId; // Hidden ID for update
                 document.getElementById('eventTitle').value = eventTitle;
-                // Flatpickr handles date/time, so set the value directly
+                // Flatpickr instances need to be updated
                 if (flatpickrInstances['eventStart']) {
                     flatpickrInstances['eventStart'].setDate(eventStart);
                 } else {
-                    document.getElementById('eventStart').value = eventStart ? eventStart.toISOString().slice(0, 16) : ''; // YYYY-MM-DDTHH:MM for datetime-local
+                    document.getElementById('eventStart').value = eventStart ? new Date(eventStart).toISOString().slice(0, 16) : '';
                 }
                 if (flatpickrInstances['eventEnd']) {
                     flatpickrInstances['eventEnd'].setDate(eventEnd);
                 } else {
-                    document.getElementById('eventEnd').value = eventEnd ? eventEnd.toISOString().slice(0, 16) : '';
+                    document.getElementById('eventEnd').value = eventEnd ? new Date(eventEnd).toISOString().slice(0, 16) : '';
                 }
                 
                 document.getElementById('eventAmount').value = eventData.amount || '0.00';
+                document.getElementById('eventCompany').value = eventData.company || ''; // Populate company field
                 
                 populateLeadDropdowns('eventLeadId', eventData.lead_id); // Populate and select lead
 
@@ -767,10 +807,7 @@ document.addEventListener('DOMContentLoaded', function() {
             end: formData.get('end_time') || null,
             lead_id: formData.get('lead_id') || null,
             amount: parseFloat(formData.get('amount')) || 0.00,
-            // Note: The calendar event form in HTML does not have a 'company' field.
-            // If you want to associate a company with a calendar event, you'd need to add a field to the form.
-            // For now, it will be null unless explicitly added to the form and sent.
-            company: null // Set explicitly to null as it's not in the current form
+            company: formData.get('company') || null // Now correctly gets company from form
         };
 
         const method = eventData.id ? 'PUT' : 'POST';
@@ -885,7 +922,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     let item;
                     if (sourceTable === 'general_expenses') {
-                        const response = await fetch(`/api/general_expenses?id=${itemId}`); // Fetch from specific endpoint
+                        // For general expenses, fetch from the specific endpoint
+                        const response = await fetch(`/api/general_expenses?id=${itemId}`); 
                         if (!response.ok) throw new Error('Failed to fetch general expense for editing');
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with general expense data
@@ -898,7 +936,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         document.getElementById('editExpenditureCompany').value = item.company || '';
                         openModal('editExpenditureModal');
                     } else if (sourceTable === 'calendar_events') {
-                        const response = await fetch(`/api/calendar_events?id=${itemId}`); // Fetch from specific endpoint
+                        // For calendar events (which can also be expenditures), fetch from calendar events endpoint
+                        const response = await fetch(`/api/calendar_events?id=${itemId}`); 
                         if (!response.ok) throw new Error('Failed to fetch calendar event for editing');
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with calendar event data
