@@ -286,14 +286,14 @@ document.addEventListener('DOMContentLoaded', function() {
             row.dataset.leadId = lead.id; // Store ID for actions
 
             row.innerHTML = `
-                <td data-label="Full Name">${lead.fullName || 'N/A'}</td>
-                <td data-label="Email">${lead.email || 'N/A'}</td>
-                <td data-label="Phone">${lead.phone || 'N/A'}</td>
-                <td data-label="Stage">${lead.stage || 'N/A'}</td>
-                <td data-label="Source">${lead.source || 'N/A'}</td>
-                <td data-label="Notes">${lead.notes || 'N/A'}</td>
-                <td data-label="Last Follow-up">${lead.lastFollowUp || 'N/A'}</td>
-                <td data-label="Next Follow-up">${lead.nextFollowUp || 'N/A'}</td>
+                <td data-label="Full Name">${lead.fullName || ''}</td>
+                <td data-label="Email">${lead.email || ''}</td>
+                <td data-label="Phone">${lead.phone || ''}</td>
+                <td data-label="Stage">${lead.stage || ''}</td>
+                <td data-label="Source">${lead.source || ''}</td>
+                <td data-label="Notes">${lead.notes || ''}</td>
+                <td data-label="Last Follow-up">${lead.lastFollowUp || ''}</td>
+                <td data-label="Next Follow-up">${lead.nextFollowUp || ''}</td>
                 <td data-label="Actions">
                     <button class="btn btn-sm btn-info edit-lead-btn" data-id="${lead.id}" title="Edit Lead"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-sm btn-danger delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash"></i></button>
@@ -328,12 +328,12 @@ document.addEventListener('DOMContentLoaded', function() {
             row.dataset.sourceTable = item.source_table; // Store source table for correct deletion
 
             row.innerHTML = `
-                <td data-label="Date">${item.date || 'N/A'}</td>
-                <td data-label="Type/Category">${item.type_category || 'N/A'}</td>
-                <td data-label="Description">${item.description || 'N/A'}</td>
+                <td data-label="Date">${item.date || ''}</td>
+                <td data-label="Type/Category">${item.type_category || ''}</td>
+                <td data-label="Description">${item.description || ''}</td>
                 <td data-label="Amount (KSh)">KSh ${item.amount ? item.amount.toFixed(2) : '0.00'}</td>
-                <td data-label="Lead Name">${item.lead_name || 'N/A'}</td>
-                <td data-label="Company">${item.company || 'N/A'}</td>
+                <td data-label="Lead Name">${item.lead_name || ''}</td>
+                <td data-label="Company">${item.company || ''}</td>
                 <td data-label="Actions">
                     <button class="btn btn-sm btn-info edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Expense"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-sm btn-danger delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Expense"><i class="fas fa-trash"></i></button>
@@ -442,10 +442,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (info.event.extendedProps.type) {
                         tooltipContent += `<span>Type: ${info.event.extendedProps.type}</span>`;
                     }
-                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== 'N/A') {
+                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== '') { // Changed from 'N/A' to ''
                         tooltipContent += `<span>Lead: ${info.event.extendedProps.lead_name}</span>`;
                     }
-                    if (info.event.extendedProps.company && info.event.extendedProps.company !== 'N/A') {
+                    if (info.event.extendedProps.company && info.event.extendedProps.company !== '') { // Changed from 'N/A' to ''
                         tooltipContent += `<span>Company: ${info.event.extendedProps.company}</span>`;
                     }
                     if (info.event.extendedProps.amount && info.event.extendedProps.amount > 0) {
