@@ -366,7 +366,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const formattedEvents = events.filter(event => {
             // Filter out events with the fallback date (2000-01-01)
             if (event.start === "2000-01-01T00:00:00") {
-                console.warn('Skipping event with fallback date (2000-01-01):', event);
+                // console.warn('Skipping event with fallback date (2000-01-01):', event); // Removed this warning
                 return false;
             }
             // Basic check: ensure event object itself exists and has core properties
