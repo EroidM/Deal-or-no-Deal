@@ -402,8 +402,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }));
 
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
-            // Corrected plugin references to use capitalized global names
-            plugins: [FullCalendar.DayGrid, FullCalendar.Interaction],
+            // Corrected plugin references to use capitalized global names and access 'default' property
+            plugins: [
+                FullCalendar.DayGrid ? FullCalendar.DayGrid.default || FullCalendar.DayGrid : null,
+                FullCalendar.Interaction ? FullCalendar.Interaction.default || FullCalendar.Interaction : null
+            ].filter(Boolean), // Filter out any nulls if plugins aren't loaded
             initialView: 'dayGridMonth',
             headerToolbar: {
                 left: 'prev,next today',
