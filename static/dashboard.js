@@ -1,4 +1,4 @@
-// dashboard.js - Rewritten for clarity, robustness, and error prevention
+// dashboard.js - Rewritten for app-like navigation and improved structure
 
 document.addEventListener('DOMContentLoaded', function() {
     console.log("Dashboard.js: DOM Content Loaded. Initializing dashboard components.");
@@ -8,6 +8,9 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentLeadsData = [];
     let currentExpenditureData = [];
     let calendarInstance; // To store the FullCalendar instance
+    let leadsDataFetched = false;
+    let expenditureDataFetched = false;
+    let calendarDataFetched = false;
 
     // --- Utility Functions: Loading Spinner & Messages ---
 
@@ -39,326 +42,420 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {'success'|'error'|'warning'} type - The type of message for styling.
      */
     function showMessage(message, type) {
-        const messageContainer = document.getElementById('messageContainer');
-        if (messageContainer) {
-            messageContainer.textContent = message;
-            messageContainer.className = `message-container ${type} active`;
+        const messageBox = document.getElementById('messageBox');
+        if (messageBox) {
+            messageBox.textContent = message;
+            messageBox.className = `message-box show ${type}`; // Reset classes and add new ones
             setTimeout(() => {
-                messageContainer.classList.remove('active');
+                messageBox.classList.remove('show');
             }, 3000); // Message disappears after 3 seconds
-        } else {
-            console.warn('Dashboard.js: Message container not found. Message:', message);
         }
     }
 
-    // --- Flatpickr Initialization ---
+    // --- Modal Management ---
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.add('show');
+        }
+    }
 
-    // Common options for all date pickers for consistent formatting
-    const commonFlatpickrOptions = {
-        dateFormat: "Y-m-d", // YYYY-MM-DD format
-        allowInput: true,    // Allow manual date input
-    };
-
-    // Initialize Flatpickr on all relevant date input fields
-    flatpickr("#dateOfContact", commonFlatpickrOptions);
-    flatpickr("#activityDate", commonFlatpickrOptions);
-    flatpickr("#eventDate", commonFlatpickrOptions);
-    flatpickr("#reportStartDate", commonFlatpickrOptions);
-    flatpickr("#reportEndDate", commonFlatpickrOptions);
-    flatpickr("#generalExpenseDate", commonFlatpickrOptions);
-    flatpickr("#followUp", commonFlatpickrOptions);
-
-    // --- Modal Handling ---
-
-    // Get references to all modal elements
-    const leadModal = document.getElementById('leadModal');
-    const visitModal = document.getElementById('visitModal');
-    const generalExpenseModal = document.getElementById('generalExpenseModal');
-    const generalEventModal = document.getElementById('generalEventModal');
-
-    /**
-     * Shows a specific modal.
-     * @param {HTMLElement} modalElement - The modal DOM element to show.
-     * @param {string} [title=''] - Optional title to set for the modal's H2.
-     */
-    function showModal(modalElement, title = '') {
-        console.log(`Dashboard.js: Showing modal: ${modalElement.id} with title: "${title}"`);
-        if (title) {
-            const modalTitleElement = modalElement.querySelector('h2');
-            if (modalTitleElement) {
-                modalTitleElement.textContent = title;
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) {
+            modal.classList.remove('show');
+            // Clear form fields when closing, if it's a form modal
+            const form = modal.querySelector('form');
+            if (form) {
+                form.reset();
+                // Reset hidden IDs for edit forms
+                const hiddenIdInput = form.querySelector('input[type="hidden"][name$="_id"]');
+                if (hiddenIdInput) {
+                    hiddenIdInput.value = '';
+                }
             }
         }
-        modalElement.classList.add('active');
     }
 
-    /**
-     * Closes a specific modal and resets its form.
-     * @param {HTMLElement} modalElement - The modal DOM element to close.
-     */
-    function closeModal(modalElement) {
-        console.log(`Dashboard.js: Closing modal: ${modalElement.id}`);
-        modalElement.classList.remove('active');
-        const form = modalElement.querySelector('form');
-        if (form) {
-            form.reset(); // Reset form fields on close
-        }
-    }
-
-    // Event listeners for opening modals via buttons
-    document.getElementById('addLeadModalBtn')?.addEventListener('click', function() {
-        showModal(leadModal, 'Add New Lead');
-        document.getElementById('addLeadForm')?.reset();
-        document.getElementById('leadId').value = ''; // Clear hidden ID for new entry
+    // Attach close button listeners to all modals
+    document.querySelectorAll('.modal .close-button').forEach(button => {
+        button.addEventListener('click', function() {
+            closeModal(this.closest('.modal').id);
+        });
     });
 
-    document.getElementById('addExpenseModalBtn')?.addEventListener('click', function() {
-        showModal(generalExpenseModal, 'Add General Expense');
-        document.getElementById('addExpenseForm')?.reset();
-        document.getElementById('expenseId').value = ''; // Clear hidden ID for new entry
-        document.getElementById('generalExpenseAmount').value = '0.00'; // Default amount
-    });
-
-    document.getElementById('addEventModalBtn')?.addEventListener('click', function() {
-        showModal(generalEventModal, 'Add Calendar Event');
-        document.getElementById('addEventForm')?.reset();
-        document.getElementById('eventAmount').value = '0.00'; // Default amount
-        document.getElementById('eventId').value = ''; // Clear hidden ID for new entry
-        populateLeadSelect(allLeads); // Ensure lead dropdown is populated
-    });
-
-    // Event listeners for closing modals via close buttons
-    document.getElementById('closeLeadModalBtn')?.addEventListener('click', () => closeModal(leadModal));
-    document.getElementById('closeVisitModalBtn')?.addEventListener('click', () => closeModal(visitModal));
-    document.getElementById('closeGeneralExpenseModalBtn')?.addEventListener('click', () => closeModal(generalExpenseModal));
-    document.getElementById('closeGeneralEventModalBtn')?.addEventListener('click', () => closeModal(generalEventModal));
-
-    // Close modal when clicking outside the modal content area
-    window.addEventListener('click', function(event) {
-        if (event.target === leadModal) closeModal(leadModal);
-        if (event.target === visitModal) closeModal(visitModal);
-        if (event.target === generalExpenseModal) closeModal(generalExpenseModal);
-        if (event.target === generalEventModal) closeModal(generalEventModal);
-    });
-
-    // --- Table Sorting Functionality ---
-
-    /**
-     * Enables client-side sorting for a given table.
-     * @param {string} tableId - The ID of the table to make sortable.
-     * @param {Array<Object>} dataArray - The array of data backing the table.
-     * @param {function(Array<Object>): void} renderFunction - The function to call to re-render the table with sorted data.
-     */
-    function enableTableSorting(tableId, dataArray, renderFunction) {
-        const table = document.getElementById(tableId);
-        if (!table) {
-            console.warn(`Dashboard.js: Table with ID "${tableId}" not found for sorting.`);
-            return;
-        }
-        const headers = table.querySelectorAll('th[data-sort-by]');
-
-        headers.forEach(header => {
-            // Check if the event listener has already been added to prevent duplicates
-            if (!header.dataset.sortingListenerAdded) {
-                header.addEventListener('click', function() {
-                    const sortBy = this.dataset.sortBy;
-                    let sortOrder = this.dataset.sortOrder || 'asc'; // Default to ascending
-
-                    // Remove existing sort indicators from other headers
-                    headers.forEach(h => {
-                        if (h !== this) {
-                            h.classList.remove('asc', 'desc');
-                            h.dataset.sortOrder = ''; // Clear sort order for others
-                        }
-                    });
-
-                    // Toggle sort order for the clicked header
-                    if (sortOrder === 'asc') {
-                        sortOrder = 'desc';
-                        this.classList.remove('asc');
-                        this.classList.add('desc');
-                    } else {
-                        sortOrder = 'asc';
-                        this.classList.remove('desc');
-                        this.classList.add('asc');
-                    }
-                    this.dataset.sortOrder = sortOrder; // Update data attribute
-
-                    // Sort the dataArray in place
-                    dataArray.sort((a, b) => {
-                        let valA = a[sortBy];
-                        let valB = b[sortBy];
-
-                        // Handle null/undefined values by treating them as empty strings for comparison
-                        valA = (valA === null || valA === undefined) ? '' : valA;
-                        valB = (valB === null || valB === undefined) ? '' : valB;
-
-                        // Numerical sorting
-                        if (typeof valA === 'number' && typeof valB === 'number') {
-                            return sortOrder === 'asc' ? valA - valB : valB - valA;
-                        }
-                        // Date sorting (assuming YYYY-MM-DD format or parsable date strings)
-                        if (sortBy.includes('date') || sortBy.includes('Date') || sortBy.includes('followUp')) {
-                            const dateA = new Date(valA);
-                            const dateB = new Date(valB);
-                            // Handle invalid dates (e.g., 'N/A') by pushing them to the end
-                            if (isNaN(dateA.getTime()) && isNaN(dateB.getTime())) return 0;
-                            if (isNaN(dateA.getTime())) return sortOrder === 'asc' ? 1 : -1;
-                            if (isNaN(dateB.getTime())) return sortOrder === 'asc' ? -1 : 1;
-                            return sortOrder === 'asc' ? dateA.getTime() - dateB.getTime() : dateB.getTime() - dateA.getTime();
-                        }
-                        // String sorting (case-insensitive)
-                        if (typeof valA === 'string' && typeof valB === 'string') {
-                            return sortOrder === 'asc' ? valA.localeCompare(valB) : valB.localeCompare(valA);
-                        }
-                        // Fallback for other types (e.g., boolean, objects - might need specific handling if complex)
-                        return 0;
-                    });
-
-                    // Re-render the table with the newly sorted data
-                    renderFunction(dataArray);
-                });
-                header.dataset.sortingListenerAdded = 'true'; // Mark listener as added
+    // Close modal when clicking outside the content
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.addEventListener('click', function(event) {
+            if (event.target === modal) {
+                closeModal(modal.id);
             }
         });
+    });
+
+    // --- Navigation Logic ---
+    function showView(viewId) {
+        console.log(`Dashboard.js: Switching to view: ${viewId}`);
+        document.querySelectorAll('.dashboard-view').forEach(view => {
+            view.classList.remove('active');
+        });
+        document.getElementById(viewId).classList.add('active');
+
+        // Update active state of bottom navigation buttons
+        document.querySelectorAll('.nav-button').forEach(button => {
+            if (button.dataset.view === viewId) {
+                button.classList.add('active');
+            } else {
+                button.classList.remove('active');
+            }
+        });
+
+        // Fetch data for the activated view if not already fetched
+        if (viewId === 'leads-view' && !leadsDataFetched) {
+            fetchLeads();
+        } else if (viewId === 'expenditure-view' && !expenditureDataFetched) {
+            fetchExpenditureReport();
+        } else if (viewId === 'calendar-view' && !calendarDataFetched) {
+            fetchCalendarEvents();
+        }
     }
 
-    // --- Data Fetching & Rendering Functions ---
+    // Attach event listeners to bottom navigation buttons
+    document.querySelectorAll('.nav-button').forEach(button => {
+        button.addEventListener('click', function(event) {
+            event.preventDefault(); // Prevent default link behavior
+            const viewId = this.dataset.view;
+            showView(viewId);
+        });
+    });
+
+    // Attach event listeners to header buttons to open modals
+    document.getElementById('addLeadButton')?.addEventListener('click', () => {
+        document.getElementById('addLeadForm').reset(); // Clear form for new entry
+        openModal('addLeadModal');
+    });
+    document.getElementById('addExpenditureButton')?.addEventListener('click', () => {
+        document.getElementById('addExpenditureForm').reset(); // Clear form
+        populateLeadDropdowns('expenditureLeadId'); // Populate lead dropdown for new expense
+        openModal('addExpenditureModal');
+    });
+    document.getElementById('addEventButton')?.addEventListener('click', () => {
+        document.getElementById('addEventForm').reset(); // Clear form
+        populateLeadDropdowns('eventLeadId'); // Populate lead dropdown for new event
+        openModal('addEventModal');
+    });
+
+
+    // --- Data Fetching Functions ---
 
     /**
-     * Fetches leads data from the API and updates the UI.
+     * Fetches leads data from the API and updates the dashboard.
      */
     async function fetchLeads() {
-        console.log("Dashboard.js: Fetching leads...");
         showLoading();
         try {
             const response = await fetch('/api/leads');
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
-            const leads = await response.json();
-            console.log("Dashboard.js: Leads data received:", leads);
-
-            allLeads = leads; // Store all leads globally
-            currentLeadsData = [...leads]; // Create a mutable copy for sorting
-
+            const data = await response.json();
+            console.log("Dashboard.js: Leads data received:", data);
+            
+            // Map the new lead structure to what the frontend expects
+            allLeads = data.map(lead => ({
+                id: lead.id,
+                fullName: lead.full_name || `${lead.firstName || ''} ${lead.lastName || ''}`.trim(), // Use full_name if available, otherwise construct
+                email: lead.email,
+                phone: lead.phone,
+                stage: lead.stage,
+                source: lead.source,
+                notes: lead.notes,
+                lastFollowUp: lead.last_follow_up, // New field
+                nextFollowUp: lead.next_follow_up, // New field
+                dateOfContact: lead.dateOfContact // Keep for compatibility if needed elsewhere
+            }));
+            currentLeadsData = [...allLeads]; // Initialize current data for sorting/filtering
+            
             renderLeadsTable(currentLeadsData);
-            updateLeadStats(leads);
-            populateLeadSelect(leads);
-            updateUpcomingFollowups(leads);
+            updateLeadStatistics(allLeads);
+            updateLeadsByStageChart(allLeads);
+            updateUpcomingFollowUps(allLeads);
+            populateLeadDropdowns('expenditureLeadId'); // Populate for expenditure modal
+            populateLeadDropdowns('eventLeadId'); // Populate for event modal
+            populateLeadDropdowns('editExpenditureLeadId'); // Populate for edit expense modal
+            populateLeadDropdowns('editEventLeadId'); // Populate for edit event modal
+
+            leadsDataFetched = true; // Mark as fetched
         } catch (error) {
-            console.error('Dashboard.js: Error fetching leads:', error);
-            showMessage('Failed to load leads.', 'error');
+            console.error("Dashboard.js: Error fetching leads:", error);
+            showMessage(`Error fetching leads: ${error.message}`, 'error');
         } finally {
             hideLoading();
         }
     }
 
     /**
-     * Renders the leads table with the given data.
-     * @param {Array<Object>} leadsToRender - The array of lead objects to display.
+     * Fetches calendar events from the API.
      */
-    function renderLeadsTable(leadsToRender) {
-        const leadsListBody = document.getElementById('recentLeadsTable')?.querySelector('tbody');
-        if (!leadsListBody) {
-            console.warn("Dashboard.js: Leads table body not found.");
+    async function fetchCalendarEvents() {
+        showLoading();
+        try {
+            const response = await fetch('/api/calendar_events');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const events = await response.json();
+            console.log("Dashboard.js: Calendar events data received:", events);
+            renderCalendar(events);
+            calendarDataFetched = true; // Mark as fetched
+        } catch (error) {
+            console.error("Dashboard.js: Error fetching calendar events:", error);
+            showMessage(`Error fetching calendar events: ${error.message}`, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    /**
+     * Fetches expenditure report data from the API.
+     * @param {string} startDate - Optional start date for filtering (YYYY-MM-DD).
+     * @param {string} endDate - Optional end date for filtering (YYYY-MM-DD).
+     */
+    async function fetchExpenditureReport(startDate = null, endDate = null) {
+        showLoading();
+        let url = '/api/expenditure_report';
+        const params = new URLSearchParams();
+        if (startDate) params.append('start_date', startDate);
+        if (endDate) params.append('end_date', endDate);
+        if (params.toString()) url += `?${params.toString()}`;
+
+        console.log(`Dashboard.js: Fetching expenditure report (Start: ${startDate || 'N/A'}, End: ${endDate || 'N/A'})...`);
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            console.log("Dashboard.js: Expenditure report data received:", data);
+            currentExpenditureData = data; // Store for client-side operations
+            renderExpenditureReportTable(data);
+            calculateTotalExpenditure(data);
+            expenditureDataFetched = true; // Mark as fetched
+        } catch (error) {
+            console.error("Dashboard.js: Error fetching expenditure report:", error);
+            showMessage(`Error fetching expenditure report: ${error.message}`, 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+    // --- Rendering Functions ---
+
+    /**
+     * Renders the recent leads table.
+     * @param {Array} leads - Array of lead objects.
+     */
+    function renderLeadsTable(leads) {
+        const tableBody = document.querySelector('#recentLeadsTable tbody');
+        if (!tableBody) {
+            console.error("Dashboard.js: Leads table body not found.");
             return;
         }
-        leadsListBody.innerHTML = ''; // Clear existing rows
+        tableBody.innerHTML = ''; // Clear existing rows
 
-        if (leadsToRender.length === 0) {
-            leadsListBody.innerHTML = '<tr><td colspan="6" class="text-center py-4">No leads found.</td></tr>';
+        if (leads.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align: center;">No leads found.</td></tr>';
+            console.log("Dashboard.js: No leads to render.");
             return;
         }
 
-        leadsToRender.forEach(lead => {
-            const row = document.createElement('tr');
-            const firstName = lead.firstname || '';
-            const lastName = lead.lastname || '';
-            const fullName = `${firstName} ${lastName}`.trim();
-            const displayName = fullName || 'N/A';
-
-            const dateOfContact = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : 'N/A';
-            const followUp = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : 'N/A';
+        leads.forEach(lead => {
+            const row = tableBody.insertRow();
+            row.dataset.leadId = lead.id; // Store ID for actions
 
             row.innerHTML = `
-                <td data-label="Name">${displayName}</td>
-                <td data-label="Company">${lead.company || 'N/A'}</td>
+                <td data-label="Full Name">${lead.fullName || 'N/A'}</td>
+                <td data-label="Email">${lead.email || 'N/A'}</td>
+                <td data-label="Phone">${lead.phone || 'N/A'}</td>
                 <td data-label="Stage">${lead.stage || 'N/A'}</td>
-                <td data-label="Contact Date">${dateOfContact}</td>
-                <td data-label="Follow-up Date">${followUp}</td>
+                <td data-label="Source">${lead.source || 'N/A'}</td>
+                <td data-label="Notes">${lead.notes || 'N/A'}</td>
+                <td data-label="Last Follow-up">${lead.lastFollowUp || 'N/A'}</td>
+                <td data-label="Next Follow-up">${lead.nextFollowUp || 'N/A'}</td>
                 <td data-label="Actions">
-                    <button class="text-indigo-600 hover:text-indigo-900 view-lead-btn" data-id="${lead.id}" title="View/Edit Lead"><i class="fas fa-eye"></i></button>
-                    <button class="text-red-600 hover:text-red-900 delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash-alt"></i></button>
+                    <button class="btn btn-sm btn-info edit-lead-btn" data-id="${lead.id}" title="Edit Lead"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-danger delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash"></i></button>
                 </td>
             `;
-            leadsListBody.appendChild(row);
         });
         console.log("Dashboard.js: Leads table rendered.");
+        attachLeadActionListeners();
+    }
+
+    /**
+     * Renders the expenditure report table.
+     * @param {Array} reportData - Array of expenditure report items.
+     */
+    function renderExpenditureReportTable(reportData) {
+        const tableBody = document.querySelector('#expenditureReportTable tbody');
+        if (!tableBody) {
+            console.error("Dashboard.js: Expenditure report table body not found.");
+            return;
+        }
+        tableBody.innerHTML = ''; // Clear existing rows
+
+        if (reportData.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="7" class="text-muted" style="text-align: center;">No expenditure records found for the selected period.</td></tr>';
+            console.log("Dashboard.js: No expenditure records to render.");
+            return;
+        }
+
+        reportData.forEach(item => {
+            const row = tableBody.insertRow();
+            row.dataset.id = item.id; // Store ID for actions
+            row.dataset.sourceTable = item.source_table; // Store source table for correct deletion
+
+            row.innerHTML = `
+                <td data-label="Date">${item.date || 'N/A'}</td>
+                <td data-label="Type/Category">${item.type_category || 'N/A'}</td>
+                <td data-label="Description">${item.description || 'N/A'}</td>
+                <td data-label="Amount (KSh)">KSh ${item.amount ? item.amount.toFixed(2) : '0.00'}</td>
+                <td data-label="Lead Name">${item.lead_name || 'N/A'}</td>
+                <td data-label="Company">${item.company || 'N/A'}</td>
+                <td data-label="Actions">
+                    <button class="btn btn-sm btn-info edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Expense"><i class="fas fa-edit"></i></button>
+                    <button class="btn btn-sm btn-danger delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Expense"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+        });
+        console.log("Dashboard.js: Expenditure report table rendered.");
+        attachExpenditureActionListeners();
+    }
+
+    /**
+     * Renders the FullCalendar instance with events.
+     * @param {Array} events - Array of calendar event objects.
+     */
+    function renderCalendar(events) {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) {
+            console.error("Dashboard.js: Calendar element not found.");
+            return;
+        }
+
+        if (calendarInstance) {
+            calendarInstance.destroy(); // Destroy existing instance before re-rendering
+        }
+
+        calendarInstance = new FullCalendar.Calendar(calendarEl, {
+            plugins: [FullCalendar.dayGrid, FullCalendar.interaction],
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'addEventButton' // Custom button for adding events
+            },
+            customButtons: {
+                addEventButton: {
+                    text: 'Add Event',
+                    click: function() {
+                        document.getElementById('addEventForm').reset(); // Clear form
+                        populateLeadDropdowns('eventLeadId'); // Populate lead dropdown
+                        openModal('addEventModal');
+                    }
+                }
+            },
+            events: events.map(event => ({
+                id: event.id,
+                title: event.description || event.type, // Use description as title, fallback to type
+                start: event.date,
+                extendedProps: {
+                    type: event.type,
+                    lead_id: event.lead_id,
+                    lead_name: event.lead_name,
+                    company: event.company,
+                    amount: event.amount
+                },
+                classNames: [`fc-event-${event.type.toLowerCase().replace(/\s/g, '-')}`] // Add class for styling
+            })),
+            eventDidMount: function(info) {
+                // Add tooltip on hover
+                const tooltip = document.getElementById('calendarTooltip');
+                info.el.addEventListener('mouseover', function() {
+                    let tooltipContent = `<strong>${info.event.title}</strong>`;
+                    if (info.event.extendedProps.type) {
+                        tooltipContent += `<span>Type: ${info.event.extendedProps.type}</span>`;
+                    }
+                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== 'N/A') {
+                        tooltipContent += `<span>Lead: ${info.event.extendedProps.lead_name}</span>`;
+                    }
+                    if (info.event.extendedProps.company && info.event.extendedProps.company !== 'N/A') {
+                        tooltipContent += `<span>Company: ${info.event.extendedProps.company}</span>`;
+                    }
+                    if (info.event.extendedProps.amount && info.event.extendedProps.amount > 0) {
+                        tooltipContent += `<span>Amount: KSh ${info.event.extendedProps.amount.toFixed(2)}</span>`;
+                    }
+                    tooltip.innerHTML = tooltipContent;
+                    tooltip.style.opacity = 1;
+                    tooltip.style.transform = 'translateY(0)';
+                });
+
+                info.el.addEventListener('mousemove', function(e) {
+                    tooltip.style.left = (e.pageX + 10) + 'px';
+                    tooltip.style.top = (e.pageY + 10) + 'px';
+                });
+
+                info.el.addEventListener('mouseout', function() {
+                    tooltip.style.opacity = 0;
+                    tooltip.style.transform = 'translateY(10px)';
+                });
+            },
+            eventClick: function(info) {
+                // Open event modal for editing
+                const eventId = info.event.id;
+                const eventData = info.event.extendedProps;
+                const eventTitle = info.event.title;
+                const eventStart = info.event.start;
+                const eventEnd = info.event.end;
+
+                document.getElementById('eventId').value = eventId; // Hidden ID for update
+                document.getElementById('eventTitle').value = eventTitle;
+                document.getElementById('eventDate').value = eventStart ? eventStart.toISOString().split('T')[0] : ''; // Only date part
+                document.getElementById('eventType').value = eventData.type || '';
+                document.getElementById('eventDescription').value = info.event.title; // FullCalendar uses title for description
+                document.getElementById('eventAmount').value = eventData.amount || '0.00';
+                
+                populateLeadDropdowns('eventLeadId', eventData.lead_id); // Populate and select lead
+
+                openModal('generalEventModal');
+            }
+        });
+        calendarInstance.render();
+        console.log("Dashboard.js: FullCalendar initialized and rendered.");
     }
 
     /**
      * Updates the lead statistics cards.
-     * @param {Array<Object>} leads - The array of lead objects.
+     * @param {Array} leads - Array of lead objects.
      */
-    function updateLeadStats(leads) {
-        console.log("Dashboard.js: Updating lead statistics.");
-        const totalLeads = leads.length;
-        const newLeads = leads.filter(lead => lead.stage === 'New').length;
-        const qualifiedLeads = leads.filter(lead => lead.stage === 'Qualified').length;
-        const closedWonLeads = leads.filter(lead => lead.stage === 'Closed Won').length;
-        const closedLostLeads = leads.filter(lead => lead.stage === 'Closed Lost').length;
-
-        document.getElementById('totalLeadsCount').textContent = totalLeads;
-        document.getElementById('newLeadsCount').textContent = newLeads;
-        document.getElementById('qualifiedLeadsCount').textContent = qualifiedLeads;
-        document.getElementById('closedWonLeadsCount').textContent = closedWonLeads;
-        document.getElementById('closedLostLeadsCount').textContent = closedLostLeads;
-
-        updateLeadsByStageChart(leads);
+    function updateLeadStatistics(leads) {
+        document.getElementById('totalLeadsCount').textContent = leads.length;
+        document.getElementById('prospectingLeadsCount').textContent = leads.filter(l => l.stage === 'Prospecting').length;
+        document.getElementById('negotiationLeadsCount').textContent = leads.filter(l => l.stage === 'Negotiation').length;
+        document.getElementById('closedWonLeadsCount').textContent = leads.filter(l => l.stage === 'Closed Won').length;
+        document.getElementById('closedLostLeadsCount').textContent = leads.filter(l => l.stage === 'Closed Lost').length;
+        document.getElementById('totalFollowupsCount').textContent = leads.filter(l => l.nextFollowUp && new Date(l.nextFollowUp) >= new Date()).length;
+        console.log("Dashboard.js: Lead statistics updated.");
     }
 
     /**
-     * Populates the lead selection dropdowns (e.g., for events/activities).
-     * @param {Array<Object>} leads - The array of lead objects.
+     * Updates the Leads by Stage Chart.
+     * @param {Array} leads - Array of lead objects.
      */
-    function populateLeadSelect(leads) {
-        console.log("Dashboard.js: Populating lead select dropdowns.");
-        const eventLeadSelect = document.getElementById('eventLeadId');
-        if (!eventLeadSelect) {
-            console.warn("Dashboard.js: eventLeadId select element not found.");
-            return;
-        }
-        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>'; // Default option
-
-        leads.forEach(lead => {
-            const option = document.createElement('option');
-            option.value = lead.id;
-            const leadDisplayName = `${lead.firstname || ''} ${lead.lastname || ''}`.trim();
-            const companyDisplayName = lead.company || '';
-
-            if (leadDisplayName && companyDisplayName) {
-                option.textContent = `${leadDisplayName} (${companyDisplayName})`;
-            } else if (leadDisplayName) {
-                option.textContent = leadDisplayName;
-            } else if (companyDisplayName) {
-                option.textContent = companyDisplayName;
-            } else {
-                option.textContent = `Lead ID: ${lead.id}`; // Fallback
-            }
-            eventLeadSelect.appendChild(option);
-        });
-        console.log("Dashboard.js: Lead select dropdown populated.");
-    }
-
-    let leadsByStageChart; // Chart.js instance
-    /**
-     * Updates or creates the Leads by Stage Doughnut Chart.
-     * @param {Array<Object>} leads - The array of lead objects.
-     */
+    let leadsByStageChartInstance = null;
     function updateLeadsByStageChart(leads) {
-        console.log("Dashboard.js: Updating Leads by Stage Chart.");
+        const ctx = document.getElementById('leadsByStageChart').getContext('2d');
         const stageCounts = leads.reduce((acc, lead) => {
             acc[lead.stage] = (acc[lead.stage] || 0) + 1;
             return acc;
@@ -367,24 +464,18 @@ document.addEventListener('DOMContentLoaded', function() {
         const labels = Object.keys(stageCounts);
         const data = Object.values(stageCounts);
 
-        const ctx = document.getElementById('leadsByStageChart')?.getContext('2d');
-        if (!ctx) {
-            console.warn("Dashboard.js: Leads by Stage Chart canvas context not found.");
-            return;
+        if (leadsByStageChartInstance) {
+            leadsByStageChartInstance.destroy(); // Destroy existing chart instance
         }
 
-        if (leadsByStageChart) {
-            leadsByStageChart.destroy(); // Destroy existing chart instance
-        }
-
-        leadsByStageChart = new Chart(ctx, {
+        leadsByStageChartInstance = new Chart(ctx, {
             type: 'doughnut',
             data: {
                 labels: labels,
                 datasets: [{
                     data: data,
                     backgroundColor: [
-                        '#007bff', '#28a745', '#ffc107', '#dc3545', '#6c757d', '#17a2b8' // Example colors
+                        '#4CAF50', '#2196F3', '#FFCA28', '#EF5350', '#9E9E9E', '#795548' // Custom colors
                     ],
                     hoverOffset: 4
                 }]
@@ -395,6 +486,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 plugins: {
                     legend: {
                         position: 'right',
+                        labels: {
+                            font: {
+                                size: 12,
+                                family: 'Segoe UI'
+                            }
+                        }
                     },
                     title: {
                         display: false,
@@ -407,746 +504,544 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     /**
-     * Updates the list of upcoming follow-ups.
-     * @param {Array<Object>} leads - The array of lead objects.
+     * Updates the upcoming follow-ups list.
+     * @param {Array} leads - Array of lead objects.
      */
-    function updateUpcomingFollowups(leads) {
-        console.log("Dashboard.js: Updating upcoming follow-ups list.");
-        const upcomingList = document.getElementById('upcomingFollowupsList');
-        if (!upcomingList) {
-            console.warn("Dashboard.js: Upcoming follow-ups list element not found.");
+    function updateUpcomingFollowUps(leads) {
+        const listContainer = document.getElementById('upcomingFollowUpsList');
+        if (!listContainer) {
+            console.error("Dashboard.js: Upcoming follow-ups list container not found.");
             return;
         }
-        upcomingList.innerHTML = ''; // Clear existing items
+        listContainer.innerHTML = ''; // Clear existing items
 
         const today = new Date();
         today.setHours(0, 0, 0, 0); // Normalize to start of day
 
-        const sortedFollowups = leads
-            .filter(lead => lead.followup && new Date(lead.followup) >= today)
-            .sort((a, b) => new Date(a.followup).getTime() - new Date(b.followup).getTime());
+        const upcoming = leads.filter(lead => {
+            if (!lead.nextFollowUp) return false;
+            const followUpDate = new Date(lead.nextFollowUp);
+            followUpDate.setHours(0, 0, 0, 0);
+            return followUpDate >= today;
+        }).sort((a, b) => new Date(a.nextFollowUp) - new Date(b.nextFollowUp)); // Sort by date
 
-        if (sortedFollowups.length === 0) {
-            const listItem = document.createElement('li');
-            listItem.textContent = 'No upcoming follow-ups.';
-            upcomingList.appendChild(listItem);
+        if (upcoming.length === 0) {
+            listContainer.innerHTML = '<p class="text-muted" style="text-align: center;">No upcoming follow-ups.</p>';
+            console.log("Dashboard.js: No upcoming follow-ups.");
             return;
         }
 
-        sortedFollowups.forEach(lead => {
-            const listItem = document.createElement('li');
-            const leadDisplayName = `${lead.firstname || ''} ${lead.lastname || ''}`.trim();
-            const companyDisplayName = lead.company || '';
-            let displayString = '';
-
-            if (leadDisplayName && companyDisplayName) {
-                displayString = `${leadDisplayName} (${companyDisplayName})`;
-            } else if (leadDisplayName) {
-                displayString = leadDisplayName;
-            } else if (companyDisplayName) {
-                displayString = companyDisplayName;
-            } else {
-                displayString = `Lead ID: ${lead.id}`;
-            }
-
-            listItem.innerHTML = `
-                <span class="lead-name">${displayString}</span>
-                <span class="followup-details">Follow-up on: ${new Date(lead.followup).toISOString().split('T')[0]} (Stage: ${lead.stage || 'N/A'})</span>
+        const ul = document.createElement('ul');
+        ul.className = 'upcoming-followups-list';
+        upcoming.forEach(lead => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span class="lead-name">${lead.fullName}</span>
+                <span class="followup-details">Follow-up: ${lead.nextFollowUp}</span>
+                <span class="followup-details">Stage: ${lead.stage}</span>
             `;
-            upcomingList.appendChild(listItem);
+            ul.appendChild(li);
         });
+        listContainer.appendChild(ul);
         console.log("Dashboard.js: Upcoming follow-ups list updated.");
     }
 
     /**
-     * Fetches calendar events from the API and updates the FullCalendar instance.
+     * Calculates and displays total expenditure.
+     * @param {Array} reportData - Array of expenditure report items.
      */
-    async function fetchCalendarEvents() {
-        console.log("Dashboard.js: Fetching calendar events...");
-        showLoading();
-        try {
-            const response = await fetch('/api/calendar_events');
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-            }
-            const events = await response.json();
-            console.log("Dashboard.js: Calendar events data received:", events);
-
-            const calendarEvents = events.map(event => {
-                // Construct lead info string safely
-                let leadInfo = '';
-                if (event.lead_name) {
-                    leadInfo = `(${event.lead_name}`;
-                    if (event.company) {
-                        leadInfo += `, ${event.company}`;
-                    }
-                    leadInfo += ')';
-                }
-                
-                // Construct amount info string safely
-                let amountInfo = '';
-                if (event.amount && parseFloat(event.amount) > 0) {
-                    amountInfo = ` - KSh${parseFloat(event.amount).toFixed(2)}`;
-                }
-
-                return {
-                    // Use template literals for clear string construction
-                    title: `${event.type || 'N/A'}: ${event.description || ''} ${leadInfo}${amountInfo}`.trim(),
-                    start: event.date || 'N/A',
-                    allDay: true,
-                    // Sanitize class name for CSS
-                    className: `fc-event-${(event.type || '').toLowerCase().replace(/\s/g, '-')}`,
-                    extendedProps: {
-                        type: event.type,
-                        leadId: event.lead_id,
-                        amount: event.amount,
-                        description: event.description,
-                        id: event.id,
-                        leadName: event.lead_name,
-                        company: event.company
-                    }
-                };
-            });
-
-            const calendarEl = document.getElementById('calendar');
-            if (!calendarEl) {
-                console.warn("Dashboard.js: FullCalendar element not found.");
-                return;
-            }
-
-            if (calendarInstance) {
-                // If calendar already exists, just update its events
-                calendarInstance.setOption('events', calendarEvents);
-                console.log("Dashboard.js: FullCalendar events updated.");
-            } else {
-                // Initialize FullCalendar for the first time
-                calendarInstance = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'dayGridMonth',
-                    events: calendarEvents,
-                    headerToolbar: {
-                        left: 'prev,next today',
-                        center: 'title',
-                        right: 'dayGridMonth,dayGridWeek,dayGridDay'
-                    },
-                    eventDidMount: function(info) {
-                        const tooltip = document.getElementById('calendarTooltip');
-                        if (!tooltip) {
-                            console.warn("Dashboard.js: Calendar tooltip element not found.");
-                            return;
-                        }
-
-                        info.el.addEventListener('mouseover', function() {
-                            const eventProps = info.event.extendedProps;
-                            let tooltipHtml = `
-                                <strong>${info.event.title}</strong>
-                                <span>Date: ${info.event.startStr}</span>
-                            `;
-                            if (eventProps.description) {
-                                tooltipHtml += `<span>Description: ${eventProps.description}</span>`;
-                            }
-                            if (eventProps.leadName) {
-                                tooltipHtml += `<span>Lead: ${eventProps.leadName}</span>`;
-                            }
-                            if (eventProps.company) {
-                                tooltipHtml += `<span>Company: ${eventProps.company}</span>`;
-                            }
-                            if (eventProps.amount && parseFloat(eventProps.amount) > 0) {
-                                tooltipHtml += `<span>Amount: KSh ${parseFloat(eventProps.amount).toFixed(2)}</span>`;
-                            }
-
-                            tooltip.innerHTML = tooltipHtml;
-                            // Position tooltip dynamically
-                            const rect = info.el.getBoundingClientRect();
-                            tooltip.style.left = `${rect.left + window.scrollX}px`;
-                            tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 10}px`;
-                            tooltip.classList.add('active');
-                        });
-                        info.el.addEventListener('mouseout', function() {
-                            tooltip.classList.remove('active');
-                        });
-                    },
-                    eventClick: function(info) {
-                        // When an event is clicked, open the generalEventModal for editing
-                        const eventProps = info.event.extendedProps;
-                        document.getElementById('eventId').value = eventProps.id || '';
-                        document.getElementById('eventDate').value = info.event.startStr || '';
-                        document.getElementById('eventType').value = eventProps.type || '';
-                        document.getElementById('eventDescription').value = eventProps.description || '';
-                        document.getElementById('eventAmount').value = parseFloat(eventProps.amount || 0).toFixed(2);
-                        populateLeadSelect(allLeads); // Ensure leads are loaded for the dropdown
-                        document.getElementById('eventLeadId').value = eventProps.leadId || ''; // Select the linked lead
-
-                        showModal(generalEventModal, 'Edit Calendar Event');
-                    }
-                });
-                calendarInstance.render();
-                console.log("Dashboard.js: FullCalendar initialized and rendered.");
-            }
-        } catch (error) {
-            console.error('Dashboard.js: Error fetching calendar events:', error);
-            showMessage('Failed to load calendar events.', 'error');
-        } finally {
-            hideLoading();
+    function calculateTotalExpenditure(reportData) {
+        const totalElement = document.getElementById('totalExpenditureSummary');
+        if (!totalElement) {
+            console.error("Dashboard.js: Total expenditure summary element not found.");
+            return;
         }
+        const total = reportData.reduce((sum, item) => sum + item.amount, 0);
+        totalElement.textContent = `Total Expenditure: KSh ${total.toFixed(2)}`;
     }
 
     /**
-     * Fetches expenditure report data and updates the UI.
-     * @param {string} [startDate=''] - Optional start date for filtering.
-     * @param {string} [endDate=''] - Optional end date for filtering.
+     * Populates lead dropdowns in modals.
+     * @param {string} dropdownId - The ID of the select element.
+     * @param {number} [selectedLeadId=null] - Optional ID of the lead to pre-select.
      */
-    async function fetchExpenditureReport(startDate = '', endDate = '') {
-        console.log(`Dashboard.js: Fetching expenditure report (Start: ${startDate || 'N/A'}, End: ${endDate || 'N/A'})...`);
-        showLoading();
-        try {
-            let url = `/api/expenditure_report`;
-            const params = new URLSearchParams();
-            if (startDate) params.append('start_date', startDate);
-            if (endDate) params.append('end_date', endDate);
-            if (params.toString()) url += `?${params.toString()}`;
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-            }
-            const reportItems = await response.json();
-            console.log("Dashboard.js: Expenditure report data received:", reportItems);
-            
-            currentExpenditureData = [...reportItems]; // Store a mutable copy for sorting
-            renderExpenditureReportTable(currentExpenditureData);
-
-        } catch (error) {
-            console.error('Dashboard.js: Error fetching expenditure report:', error);
-            showMessage('Failed to load expenditure report.', 'error');
-        } finally {
-            hideLoading();
-        }
-    }
-
-    /**
-     * Renders the expenditure report table with the given data.
-     * @param {Array<Object>} reportItemsToRender - The array of report items to display.
-     */
-    function renderExpenditureReportTable(reportItemsToRender) {
-        const reportTableBody = document.getElementById('expenditureReportTableBody');
-        if (!reportTableBody) {
-            console.warn("Dashboard.js: Expenditure report table body not found.");
+    function populateLeadDropdowns(dropdownId, selectedLeadId = null) {
+        const dropdown = document.getElementById(dropdownId);
+        if (!dropdown) {
+            console.warn(`Dashboard.js: Lead dropdown with ID ${dropdownId} not found.`);
             return;
         }
-        reportTableBody.innerHTML = ''; // Clear existing rows
+        dropdown.innerHTML = '<option value="">-- Select Lead (Optional) --</option>'; // Default option
 
-        let totalExpenditure = 0;
-
-        if (reportItemsToRender.length === 0) {
-            reportTableBody.innerHTML = '<tr><td colspan="7" class="text-center py-4">No expenditure items found for this period.</td></tr>';
-            document.getElementById('totalExpenditureSummary').textContent = `Total Expenditure: KSh 0.00`;
-            return;
-        }
-
-        reportItemsToRender.forEach(item => {
-            const row = document.createElement('tr');
-            let actionsHtml = `
-                <button class="text-indigo-600 hover:text-indigo-900 edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Item"><i class="fas fa-edit"></i></button>
-                <button class="text-red-600 hover:text-red-900 delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Item"><i class="fas fa-trash-alt"></i></button>
-            `;
-            // Hide action buttons if item has no ID (e.g., aggregated data that isn't editable)
-            if (item.id === undefined || item.id === null) { 
-                actionsHtml = 'N/A';
+        allLeads.forEach(lead => {
+            const option = document.createElement('option');
+            option.value = lead.id;
+            option.textContent = `${lead.fullName} (${lead.company || 'No Company'})`;
+            if (selectedLeadId && lead.id === selectedLeadId) {
+                option.selected = true;
             }
-
-            const leadNameDisplay = item.lead_name || 'N/A';
-            const companyNameDisplay = item.company || 'N/A';
-            const expenseDate = item.date ? new Date(item.date).toISOString().split('T')[0] : 'N/A';
-            const amount = parseFloat(item.amount || 0);
-
-            row.innerHTML = `
-                <td data-label="Date">${expenseDate}</td>
-                <td data-label="Category">${item.type_category || 'N/A'}</td>
-                <td data-label="Description">${item.description || 'N/A'}</td>
-                <td data-label="Amount (KSh)">${amount.toFixed(2)}</td>
-                <td data-label="Lead Name">${leadNameDisplay}</td>
-                <td data-label="Company">${companyNameDisplay}</td>
-                <td data-label="Actions">${actionsHtml}</td>
-            `;
-            reportTableBody.appendChild(row);
-            totalExpenditure += amount;
+            dropdown.appendChild(option);
         });
-
-        document.getElementById('totalExpenditureSummary').textContent = `Total Expenditure: KSh ${totalExpenditure.toFixed(2)}`;
-        console.log("Dashboard.js: Expenditure report table rendered.");
+        console.log(`Dashboard.js: Lead dropdown ${dropdownId} populated.`);
     }
 
     // --- Form Submission Handlers ---
 
+    // Add Lead Form
     document.getElementById('addLeadForm')?.addEventListener('submit', async function(event) {
         event.preventDefault();
-        console.log("Dashboard.js: Add/Edit Lead form submitted.");
-        const formData = new FormData(this);
-        const leadData = Object.fromEntries(formData.entries());
-        const leadId = document.getElementById('leadId').value;
-
-        // Basic client-side validation
-        if (!leadData.firstName?.trim()) { showMessage('First Name is required.', 'error'); return; }
-        if (!leadData.company?.trim()) { showMessage('Company is required.', 'error'); return; }
-        if (!leadData.dateOfContact?.trim()) { showMessage('Date of Contact is required.', 'error'); return; }
-
-        let url = '/api/leads';
-        let method = 'POST';
-
-        if (leadId) { // If leadId exists, it's an update
-            method = 'PUT';
-            leadData.id = leadId;
-        }
-
         showLoading();
+
+        const formData = new FormData(this);
+        const leadData = {
+            full_name: formData.get('full_name'),
+            email: formData.get('email'),
+            phone: formData.get('phone'),
+            stage: formData.get('stage'),
+            source: formData.get('source'),
+            notes: formData.get('notes'),
+            last_follow_up: formData.get('last_follow_up') || null,
+            next_follow_up: formData.get('next_follow_up') || null
+        };
+
         try {
-            const response = await fetch(url, {
-                method: method,
+            const response = await fetch('/api/leads', {
+                method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(leadData)
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-            }
-
             const result = await response.json();
-            showMessage(result.message, 'success');
-            closeModal(leadModal);
-            fetchLeads(); // Re-fetch all leads to update UI
+            if (response.ok) {
+                showMessage(result.message, 'success');
+                closeModal('addLeadModal');
+                fetchLeads(); // Refresh leads data
+            } else {
+                showMessage(`Error: ${result.message}`, 'error');
+            }
         } catch (error) {
-            console.error('Dashboard.js: Error saving lead:', error);
-            showMessage('Failed to save lead.', 'error');
+            console.error("Dashboard.js: Error adding lead:", error);
+            showMessage(`Network error: ${error.message}`, 'error');
         } finally {
             hideLoading();
         }
     });
 
-    document.getElementById('addActivityForm')?.addEventListener('submit', async function(event) {
+    // Edit Lead Form
+    document.getElementById('editLeadForm')?.addEventListener('submit', async function(event) {
         event.preventDefault();
-        console.log("Dashboard.js: Add Lead Activity form submitted.");
-        const formData = new FormData(this);
-        const activityData = Object.fromEntries(formData.entries());
-        // Ensure lead_id is null if empty string
-        activityData.lead_id = activityData.lead_id === '' ? null : activityData.lead_id;
-        activityData.expenditure = parseFloat(activityData.expenditure || 0);
-
-        // Basic client-side validation
-        if (!activityData.activityType?.trim()) { showMessage('Activity Type is required.', 'error'); return; }
-        if (!activityData.activityDate?.trim()) { showMessage('Activity Date is required.', 'error'); return; }
-
         showLoading();
+
+        const leadId = document.getElementById('editLeadId').value;
+        const formData = new FormData(this);
+        const leadData = {
+            id: leadId,
+            full_name: formData.get('full_name'),
+            email: formData.get('email'),
+            phone: formData.get('phone'),
+            stage: formData.get('stage'),
+            source: formData.get('source'),
+            notes: formData.get('notes'),
+            last_follow_up: formData.get('last_follow_up') || null,
+            next_follow_up: formData.get('next_follow_up') || null
+        };
+
         try {
-            const response = await fetch('/api/lead_activities', {
+            const response = await fetch('/api/leads', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(leadData)
+            });
+            const result = await response.json();
+            if (response.ok) {
+                showMessage(result.message, 'success');
+                closeModal('editLeadModal');
+                fetchLeads(); // Refresh leads data
+            } else {
+                showMessage(`Error: ${result.message}`, 'error');
+            }
+        } catch (error) {
+            console.error("Dashboard.js: Error updating lead:", error);
+            showMessage(`Network error: ${error.message}`, 'error');
+        } finally {
+            hideLoading();
+        }
+    });
+
+    // Add Expenditure Form
+    document.getElementById('addExpenditureForm')?.addEventListener('submit', async function(event) {
+        event.preventDefault();
+        showLoading();
+
+        const formData = new FormData(this);
+        const expenditureData = {
+            date: formData.get('date'),
+            type_category: formData.get('type_category'),
+            description: formData.get('description'),
+            amount: parseFloat(formData.get('amount')),
+            lead_id: formData.get('lead_id') || null,
+            company: formData.get('company') || null
+        };
+
+        try {
+            const response = await fetch('/api/expenditure', { // Using a new endpoint for combined expenditure
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(activityData)
+                body: JSON.stringify(expenditureData)
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-            }
-
             const result = await response.json();
-            showMessage(result.message, 'success');
-            closeModal(visitModal);
-            fetchCalendarEvents(); // Activities can be calendar events
-            fetchExpenditureReport(); // Activities can have expenditure
-            fetchLeads(); // To refresh lead-related stats/followups
+            if (response.ok) {
+                showMessage(result.message, 'success');
+                closeModal('addExpenditureModal');
+                fetchExpenditureReport(); // Refresh report
+            } else {
+                showMessage(`Error: ${result.message}`, 'error');
+            }
         } catch (error) {
-            console.error('Dashboard.js: Error adding lead activity:', error);
-            showMessage('Failed to add lead activity.', 'error');
+            console.error("Dashboard.js: Error adding expenditure:", error);
+            showMessage(`Network error: ${error.message}`, 'error');
         } finally {
             hideLoading();
         }
     });
 
-    document.getElementById('addExpenseForm')?.addEventListener('submit', async function(event) {
+    // Edit Expenditure Form
+    document.getElementById('editExpenditureForm')?.addEventListener('submit', async function(event) {
         event.preventDefault();
-        console.log("Dashboard.js: Add/Edit General Expense form submitted.");
-        const formData = new FormData(this);
-        const expenseData = Object.fromEntries(formData.entries());
-        const expenseId = document.getElementById('expenseId').value;
-
-        let url = '/api/general_expenses';
-        let method = 'POST';
-
-        if (expenseId) { // If expenseId exists, it's an update
-            method = 'PUT';
-            expenseData.id = expenseId;
-        }
-        expenseData.amount = parseFloat(expenseData.amount || 0);
-
-        // Basic client-side validation
-        if (!expenseData.category?.trim()) { showMessage('Category is required.', 'error'); return; }
-        if (!expenseData.generalExpenseDate?.trim()) { showMessage('Date is required.', 'error'); return; }
-        if (isNaN(expenseData.amount) || expenseData.amount < 0) { showMessage('Amount must be a non-negative number.', 'error'); return; }
-
-
         showLoading();
+
+        const expenditureId = document.getElementById('editExpenditureId').value;
+        const formData = new FormData(this);
+        const expenditureData = {
+            id: expenditureId,
+            date: formData.get('date'),
+            type_category: formData.get('type_category'),
+            description: formData.get('description'),
+            amount: parseFloat(formData.get('amount')),
+            lead_id: formData.get('lead_id') || null,
+            company: formData.get('company') || null
+        };
+
         try {
-            const response = await fetch(url, {
-                method: method,
+            const response = await fetch('/api/expenditure', { // Using a new endpoint for combined expenditure
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(expenseData)
+                body: JSON.stringify(expenditureData)
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-            }
-
             const result = await response.json();
-            showMessage(result.message, 'success');
-            closeModal(generalExpenseModal);
-            fetchExpenditureReport(); // Refresh report
-            fetchCalendarEvents(); // In case it affects total expenditure
+            if (response.ok) {
+                showMessage(result.message, 'success');
+                closeModal('editExpenditureModal');
+                fetchExpenditureReport(); // Refresh report
+            } else {
+                showMessage(`Error: ${result.message}`, 'error');
+            }
         } catch (error) {
-            console.error('Dashboard.js: Error saving general expense:', error);
-            showMessage('Failed to save general expense.', 'error');
+            console.error("Dashboard.js: Error updating expenditure:", error);
+            showMessage(`Network error: ${error.message}`, 'error');
         } finally {
             hideLoading();
         }
     });
 
+    // Add Event Form (for Calendar)
     document.getElementById('addEventForm')?.addEventListener('submit', async function(event) {
         event.preventDefault();
-        console.log("Dashboard.js: Add/Edit Calendar Event form submitted.");
-        const formData = new FormData(this);
-        const eventData = Object.fromEntries(formData.entries());
-        const eventId = document.getElementById('eventId').value;
-
-        let url = '/api/calendar_events';
-        let method = 'POST';
-
-        if (eventId) { // If eventId exists, it's an update
-            method = 'PUT';
-            eventData.id = eventId;
-        }
-
-        // Ensure lead_id is null if empty string, and amount is parsed as float
-        eventData.lead_id = eventData.lead_id === '' ? null : eventData.lead_id;
-        eventData.amount = parseFloat(eventData.amount || 0);
-
-        // Basic client-side validation
-        if (!eventData.eventType?.trim()) { showMessage('Event Type is required.', 'error'); return; }
-        if (!eventData.eventDate?.trim()) { showMessage('Event Date is required.', 'error'); return; }
-        if (isNaN(eventData.amount) || eventData.amount < 0) { showMessage('Amount must be a non-negative number.', 'error'); return; }
-
         showLoading();
+
+        const formData = new FormData(this);
+        const eventData = {
+            id: formData.get('id') || null, // For updating existing event
+            title: formData.get('title'),
+            start: formData.get('start_time'),
+            end: formData.get('end_time') || null,
+            lead_id: formData.get('lead_id') || null,
+            amount: parseFloat(formData.get('amount')) || 0.00
+        };
+
+        const method = eventData.id ? 'PUT' : 'POST';
+        const url = eventData.id ? `/api/calendar_events` : '/api/calendar_events'; // ID passed in body for PUT
+
         try {
             const response = await fetch(url, {
                 method: method,
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(eventData)
             });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-            }
-
             const result = await response.json();
-            showMessage(result.message, 'success');
-            this.reset(); // Reset form after successful submission
-            closeModal(generalEventModal);
-            fetchCalendarEvents(); // Refresh calendar
-            fetchExpenditureReport(); // Refresh expenditure if amount was involved
-            fetchLeads(); // To update follow-ups/stats if lead was linked
+            if (response.ok) {
+                showMessage(result.message, 'success');
+                closeModal('addEventModal'); // Use the correct modal ID
+                fetchCalendarEvents(); // Refresh calendar events
+                fetchExpenditureReport(); // Refresh expenditure if event had amount
+            } else {
+                showMessage(`Error: ${result.message}`, 'error');
+            }
         } catch (error) {
-            console.error('Dashboard.js: Error saving calendar event:', error);
-            showMessage('Failed to save calendar event.', 'error');
+            console.error("Dashboard.js: Error adding/updating event:", error);
+            showMessage(`Network error: ${error.message}`, 'error');
         } finally {
             hideLoading();
         }
     });
 
-    // --- Table Action Handlers (View/Edit/Delete) ---
 
-    // Event delegation for Leads table actions
-    document.getElementById('recentLeadsTable')?.addEventListener('click', async function(event) {
-        const targetBtn = event.target.closest('.view-lead-btn, .delete-lead-btn');
-        if (!targetBtn) return; // Not a relevant button click
+    // --- Action Listeners for Tables ---
 
-        const leadId = targetBtn.dataset.id;
-
-        if (targetBtn.classList.contains('view-lead-btn')) {
-            console.log(`Dashboard.js: Viewing/Editing lead with ID: ${leadId}`);
-            showLoading();
-            try {
-                const response = await fetch(`/api/leads?id=${leadId}`);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-                }
-                const leads = await response.json();
-                const lead = leads[0]; // API returns array, take first item
-
-                if (lead) {
-                    // Populate the lead modal form for editing
-                    document.getElementById('leadId').value = lead.id || '';
-                    document.getElementById('firstName').value = lead.firstname || '';
-                    document.getElementById('lastName').value = lead.lastname || '';
-                    document.getElementById('title').value = lead.title || '';
-                    document.getElementById('company').value = lead.company || '';
-                    document.getElementById('email').value = lead.email || '';
-                    document.getElementById('phone').value = lead.phone || '';
-                    document.getElementById('product').value = lead.product || '';
-                    document.getElementById('stage').value = lead.stage || '';
-                    document.getElementById('dateOfContact').value = lead.dateofcontact ? new Date(lead.dateofcontact).toISOString().split('T')[0] : '';
-                    document.getElementById('followUp').value = lead.followup ? new Date(lead.followup).toISOString().split('T')[0] : '';
-                    document.getElementById('notes').value = lead.notes || '';
-
-                    showModal(leadModal, 'Edit Lead');
-                } else {
-                    showMessage('Lead not found.', 'error');
-                }
-            } catch (error) {
-                console.error('Dashboard.js: Error fetching lead details:', error);
-                showMessage('Failed to load lead details.', 'error');
-            } finally {
-                hideLoading();
-            }
-        } else if (targetBtn.classList.contains('delete-lead-btn')) {
-            // Confirmation for deletion (simple double-click, consider a dedicated modal for production)
-            showMessage('Are you sure you want to delete this lead? This will also remove associated calendar events and activities. Click again to confirm.', 'warning');
-            
-            let confirmDeleteTimeout;
-            const confirmBtn = targetBtn; // Reference the clicked button
-            confirmBtn.dataset.confirmClick = (parseInt(confirmBtn.dataset.confirmClick || '0') || 0) + 1;
-
-            if (confirmBtn.dataset.confirmClick === '2') {
-                clearTimeout(confirmDeleteTimeout); // Clear any pending single-click reset
-                console.log(`Dashboard.js: Deleting lead with ID: ${leadId}`);
+    /**
+     * Attaches event listeners for edit and delete buttons on the leads table.
+     */
+    function attachLeadActionListeners() {
+        document.querySelectorAll('.edit-lead-btn').forEach(button => {
+            button.onclick = async function() {
+                const leadId = this.dataset.id;
                 showLoading();
                 try {
-                    const response = await fetch(`/api/leads?id=${leadId}`, { method: 'DELETE' });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-                    }
-
-                    const result = await response.json();
-                    showMessage(result.message, 'success');
-                    fetchLeads(); // Refresh all related data
-                    fetchCalendarEvents();
-                    fetchExpenditureReport();
-                } catch (error) {
-                    console.error('Dashboard.js: Error deleting lead:', error);
-                    showMessage('Failed to delete lead.', 'error');
-                } finally {
-                    hideLoading();
-                    confirmBtn.dataset.confirmClick = '0'; // Reset confirm state
-                }
-            } else {
-                // Set a timeout to reset the click count if not confirmed
-                confirmDeleteTimeout = setTimeout(() => {
-                    confirmBtn.dataset.confirmClick = '0';
-                    showMessage('', ''); // Clear message
-                }, 3000);
-            }
-        }
-    });
-
-    // Event delegation for Expenditure Report table actions (Edit/Delete)
-    document.getElementById('expenditureReportTableBody')?.addEventListener('click', async function(event) {
-        const targetBtn = event.target.closest('.edit-expense-btn, .delete-expense-btn');
-        if (!targetBtn) return;
-
-        const itemId = targetBtn.dataset.id;
-        const sourceType = targetBtn.dataset.source;
-
-        if (targetBtn.classList.contains('edit-expense-btn')) {
-            console.log(`Dashboard.js: Editing item with ID: ${itemId} from source: ${sourceType}`);
-            showLoading();
-            try {
-                let url;
-                if (sourceType === 'general_expenses') {
-                    url = `/api/general_expenses?id=${itemId}`;
-                } else if (sourceType === 'calendar_events') {
-                    url = `/api/calendar_events?id=${itemId}`;
-                } else {
-                    throw new Error("Unknown source type for editing.");
-                }
-
-                const response = await fetch(url);
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-                }
-                const items = await response.json();
-                const item = items[0]; // API returns array, take first item
-
-                if (item) {
-                    if (sourceType === 'general_expenses') {
-                        document.getElementById('expenseId').value = item.id || '';
-                        document.getElementById('generalExpenseDate').value = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
-                        document.getElementById('generalExpenseAmount').value = parseFloat(item.amount || 0).toFixed(2);
-                        document.getElementById('generalExpenseDescription').value = item.description || '';
-                        document.getElementById('generalExpenseCategory').value = item.category || ''; // Ensure category is set
-                        showModal(generalExpenseModal, 'Edit General Expense');
-                    } else if (sourceType === 'calendar_events') {
-                        document.getElementById('eventId').value = item.id || '';
-                        document.getElementById('eventDate').value = item.date ? new Date(item.date).toISOString().split('T')[0] : '';
-                        document.getElementById('eventType').value = item.type || '';
-                        document.getElementById('eventDescription').value = item.description || '';
-                        document.getElementById('eventAmount').value = parseFloat(item.amount || 0).toFixed(2);
-                        await populateLeadSelect(allLeads); // Ensure leads are loaded
-                        document.getElementById('eventLeadId').value = item.lead_id || '';
-                        showModal(generalEventModal, 'Edit Calendar Event');
-                    }
-                } else {
-                    showMessage('Item not found.', 'error');
-                }
-            } catch (error) {
-                console.error('Dashboard.js: Error fetching item details:', error);
-                showMessage('Failed to load item details.', 'error');
-            } finally {
-                hideLoading();
-            }
-        } else if (targetBtn.classList.contains('delete-expense-btn')) {
-            // Confirmation for deletion
-            showMessage('Are you sure you want to delete this item? Click again to confirm.', 'warning');
-            
-            let confirmDeleteTimeout;
-            const confirmBtn = targetBtn;
-            confirmBtn.dataset.confirmClick = (parseInt(confirmBtn.dataset.confirmClick || '0') || 0) + 1;
-
-            if (confirmBtn.dataset.confirmClick === '2') {
-                clearTimeout(confirmDeleteTimeout);
-                console.log(`Dashboard.js: Deleting item with ID: ${itemId} from source: ${sourceType}`);
-                showLoading();
-                try {
-                    let url;
-                    if (sourceType === 'general_expenses') {
-                        url = `/api/general_expenses?id=${itemId}`;
-                    } else if (sourceType === 'calendar_events') {
-                        url = `/api/calendar_events?id=${itemId}`;
+                    const response = await fetch(`/api/leads?id=${leadId}`);
+                    if (!response.ok) throw new Error('Failed to fetch lead for editing');
+                    const lead = (await response.json())[0]; // API returns array, get first item
+                    
+                    // Populate edit modal fields
+                    document.getElementById('editLeadId').value = lead.id;
+                    document.getElementById('editLeadFullName').value = lead.full_name || '';
+                    document.getElementById('editLeadEmail').value = lead.email || '';
+                    document.getElementById('editLeadPhone').value = lead.phone || '';
+                    document.getElementById('editLeadStage').value = lead.stage || '';
+                    document.getElementById('editLeadSource').value = lead.source || '';
+                    document.getElementById('editLeadNotes').value = lead.notes || '';
+                    
+                    // Flatpickr instances need to be updated
+                    if (flatpickrInstances['editLeadLastFollowUp']) {
+                        flatpickrInstances['editLeadLastFollowUp'].setDate(lead.last_follow_up);
                     } else {
-                        throw new Error("Unknown source type for deletion.");
+                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up || '';
+                    }
+                    if (flatpickrInstances['editLeadNextFollowUp']) {
+                        flatpickrInstances['editLeadNextFollowUp'].setDate(lead.next_follow_up);
+                    } else {
+                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up || '';
                     }
 
-                    const response = await fetch(url, { method: 'DELETE' });
-
-                    if (!response.ok) {
-                        const errorText = await response.text();
-                        throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-                    }
-
-                    const result = await response.json();
-                    showMessage(result.message, 'success');
-                    fetchExpenditureReport(); // Refresh relevant data
-                    fetchCalendarEvents();
-                    fetchLeads();
+                    openModal('editLeadModal');
                 } catch (error) {
-                    console.error('Dashboard.js: Error deleting item:', error);
-                    showMessage('Failed to delete item.', 'error');
+                    console.error("Dashboard.js: Error fetching lead for edit:", error);
+                    showMessage(`Error fetching lead: ${error.message}`, 'error');
                 } finally {
                     hideLoading();
-                    confirmBtn.dataset.confirmClick = '0';
                 }
-            } else {
-                confirmDeleteTimeout = setTimeout(() => {
-                    confirmBtn.dataset.confirmClick = '0';
-                    showMessage('', '');
-                }, 3000);
-            }
+            };
+        });
+
+        document.querySelectorAll('.delete-lead-btn').forEach(button => {
+            button.onclick = async function() {
+                const leadId = this.dataset.id;
+                if (confirm('Are you sure you want to delete this lead?')) { // Using confirm for simplicity
+                    showLoading();
+                    try {
+                        const response = await fetch(`/api/leads?id=${leadId}`, { method: 'DELETE' });
+                        const result = await response.json();
+                        if (response.ok) {
+                            showMessage(result.message, 'success');
+                            fetchLeads(); // Refresh leads
+                            fetchCalendarEvents(); // Refresh calendar as events might be linked
+                            fetchExpenditureReport(); // Refresh expenditure as expenses might be linked
+                        } else {
+                            showMessage(`Error: ${result.message}`, 'error');
+                        }
+                    } catch (error) {
+                        console.error("Dashboard.js: Error deleting lead:", error);
+                        showMessage(`Network error: ${error.message}`, 'error');
+                    } finally {
+                        hideLoading();
+                    }
+                }
+            };
+        });
+    }
+
+    /**
+     * Attaches event listeners for edit and delete buttons on the expenditure table.
+     */
+    function attachExpenditureActionListeners() {
+        document.querySelectorAll('.edit-expense-btn').forEach(button => {
+            button.onclick = async function() {
+                const itemId = this.dataset.id;
+                const sourceTable = this.dataset.source; // 'general_expenses' or 'calendar_events'
+                showLoading();
+                try {
+                    let item;
+                    if (sourceTable === 'general_expenses') {
+                        const response = await fetch(`/api/general_expenses?id=${itemId}`);
+                        if (!response.ok) throw new Error('Failed to fetch general expense for editing');
+                        item = (await response.json())[0];
+                        // Populate general expense modal
+                        document.getElementById('editExpenditureId').value = item.id;
+                        document.getElementById('editExpenditureDate').value = item.date || '';
+                        document.getElementById('editExpenditureType').value = item.type_category || ''; // For general, this is fixed
+                        document.getElementById('editExpenditureDescription').value = item.description || '';
+                        document.getElementById('editExpenditureAmount').value = item.amount || '0.00';
+                        document.getElementById('editExpenditureLeadId').value = ''; // No lead for general expense
+                        document.getElementById('editExpenditureCompany').value = ''; // No company for general expense
+                        openModal('editExpenditureModal'); // Use the correct modal for general expenses
+                    } else if (sourceTable === 'calendar_events') {
+                        const response = await fetch(`/api/calendar_events?id=${itemId}`);
+                        if (!response.ok) throw new Error('Failed to fetch calendar event for editing');
+                        item = (await response.json())[0];
+                        // Populate expenditure modal with calendar event data
+                        document.getElementById('editExpenditureId').value = item.id;
+                        document.getElementById('editExpenditureDate').value = item.date || '';
+                        document.getElementById('editExpenditureType').value = item.type || ''; // Type from calendar event
+                        document.getElementById('editExpenditureDescription').value = item.description || '';
+                        document.getElementById('editExpenditureAmount').value = item.amount || '0.00';
+                        populateLeadDropdowns('editExpenditureLeadId', item.lead_id);
+                        document.getElementById('editExpenditureCompany').value = item.company || '';
+                        openModal('editExpenditureModal');
+                    }
+                } catch (error) {
+                    console.error("Dashboard.js: Error fetching item for edit:", error);
+                    showMessage(`Error fetching item: ${error.message}`, 'error');
+                } finally {
+                    hideLoading();
+                }
+            };
+        });
+
+        document.querySelectorAll('.delete-expense-btn').forEach(button => {
+            button.onclick = async function() {
+                const itemId = this.dataset.id;
+                const sourceTable = this.dataset.source;
+                if (confirm('Are you sure you want to delete this expenditure record?')) {
+                    showLoading();
+                    try {
+                        let response;
+                        if (sourceTable === 'general_expenses') {
+                            response = await fetch(`/api/general_expenses?id=${itemId}`, { method: 'DELETE' });
+                        } else if (sourceTable === 'calendar_events') {
+                            // For calendar events, we delete the event itself
+                            response = await fetch(`/api/calendar_events?id=${itemId}`, { method: 'DELETE' });
+                        } else {
+                            throw new Error('Unknown source table for deletion');
+                        }
+
+                        const result = await response.json();
+                        if (response.ok) {
+                            showMessage(result.message, 'success');
+                            fetchExpenditureReport(); // Refresh report
+                            if (sourceTable === 'calendar_events') {
+                                fetchCalendarEvents(); // Also refresh calendar if an event was deleted
+                            }
+                        } else {
+                            showMessage(`Error: ${result.message}`, 'error');
+                        }
+                    } catch (error) {
+                        console.error("Dashboard.js: Error deleting expenditure:", error);
+                        showMessage(`Network error: ${error.message}`, 'error');
+                    } finally {
+                        hideLoading();
+                    }
+                }
+            };
+        });
+    }
+
+
+    // --- Sorting Functionality for Tables ---
+    let sortDirections = {}; // Stores current sort direction for each table
+
+    function enableTableSorting(tableId, dataArray, renderFunction) {
+        const table = document.getElementById(tableId);
+        if (!table) {
+            console.warn(`Table with ID ${tableId} not found for sorting setup.`);
+            return;
         }
-    });
+        const headers = table.querySelectorAll('th[data-sort-by]');
 
-    // --- Report Filtering & Export ---
+        headers.forEach(header => {
+            header.addEventListener('click', function() {
+                const sortBy = this.dataset.sortBy;
+                let direction = sortDirections[tableId] && sortDirections[tableId].column === sortBy ?
+                                (sortDirections[tableId].direction === 'asc' ? 'desc' : 'asc') : 'asc';
 
-    document.getElementById('filterReportBtn')?.addEventListener('click', function() {
-        console.log("Dashboard.js: Filter Report button clicked.");
-        const startDate = document.getElementById('reportStartDate').value;
-        const endDate = document.getElementById('reportEndDate').value;
-        fetchExpenditureReport(startDate, endDate);
-    });
+                // Remove existing sort classes
+                headers.forEach(h => {
+                    h.classList.remove('asc', 'desc');
+                });
 
-    document.getElementById('clearReportDatesBtn')?.addEventListener('click', function() {
-        console.log("Dashboard.js: Clear Report Dates button clicked.");
-        document.getElementById('reportStartDate').value = '';
-        document.getElementById('reportEndDate').value = '';
-        fetchExpenditureReport(); // Fetch report without filters
-    });
+                // Add current sort class
+                this.classList.add(direction);
 
-    document.getElementById('exportLeadsBtn')?.addEventListener('click', async function() {
-        console.log("Dashboard.js: Export Leads button clicked.");
-        showLoading();
-        try {
-            const response = await fetch('/api/export_leads');
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
+                // Sort the data array
+                const sortedData = [...dataArray].sort((a, b) => {
+                    const valA = a[sortBy];
+                    const valB = b[sortBy];
+
+                    // Handle null/undefined values
+                    if (valA === null || valA === undefined) return direction === 'asc' ? 1 : -1;
+                    if (valB === null || valB === undefined) return direction === 'asc' ? -1 : 1;
+
+                    // Numeric comparison
+                    if (typeof valA === 'number' && typeof valB === 'number') {
+                        return direction === 'asc' ? valA - valB : valB - valA;
+                    }
+                    // Date comparison
+                    if (sortBy.toLowerCase().includes('date') || sortBy.toLowerCase().includes('followup')) {
+                        const dateA = new Date(valA);
+                        const dateB = new Date(valB);
+                        return direction === 'asc' ? dateA - dateB : dateB - dateA;
+                    }
+                    // String comparison (case-insensitive)
+                    return direction === 'asc' ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
+                });
+
+                sortDirections[tableId] = { column: sortBy, direction: direction };
+                renderFunction(sortedData);
+            });
+        });
+    }
+
+    // --- Flatpickr Initialization ---
+    const flatpickrInstances = {};
+
+    function initializeFlatpickr(selector, options = {}) {
+        const elements = document.querySelectorAll(selector);
+        elements.forEach(el => {
+            const instance = flatpickr(el, {
+                dateFormat: "Y-m-d",
+                allowInput: true,
+                ...options
+            });
+            flatpickrInstances[el.id] = instance; // Store instance by ID
+        });
+    }
+
+    // Initialize Flatpickr for date inputs in modals
+    initializeFlatpickr('#addLeadForm .flatpickr-input');
+    initializeFlatpickr('#editLeadForm .flatpickr-input');
+    initializeFlatpickr('#addExpenditureForm .flatpickr-input');
+    initializeFlatpickr('#editExpenditureForm .flatpickr-input');
+    initializeFlatpickr('#addEventForm .flatpickr-input', { enableTime: true, dateFormat: "Y-m-d H:i" }); // For calendar events
+
+    // Initialize Flatpickr for expenditure date range filter
+    initializeFlatpickr('#expenditureDateRange', {
+        mode: "range",
+        onChange: function(selectedDates, dateStr, instance) {
+            if (selectedDates.length === 2) {
+                const startDate = selectedDates[0].toISOString().split('T')[0];
+                const endDate = selectedDates[1].toISOString().split('T')[0];
+                fetchExpenditureReport(startDate, endDate);
+            } else if (selectedDates.length === 0) {
+                // If the range is cleared, fetch all
+                fetchExpenditureReport();
             }
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = url;
-            a.download = 'leads_export.csv';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url); // Clean up the URL object
-            showMessage('Leads exported successfully!', 'success');
-        } catch (error) {
-            console.error('Dashboard.js: Error exporting leads:', error);
-            showMessage('Failed to export leads.', 'error');
-        } finally {
-            hideLoading();
-        }
-    });
-
-    document.getElementById('exportExpenditureReportBtn')?.addEventListener('click', async function() {
-        console.log("Dashboard.js: Export Expenditure Report button clicked.");
-        showLoading();
-        try {
-            const startDate = document.getElementById('reportStartDate').value;
-            const endDate = document.getElementById('reportEndDate').value;
-            let url = `/api/export_expenditure_report`;
-            const params = new URLSearchParams();
-            if (startDate) params.append('start_date', startDate);
-            if (endDate) params.append('end_date', endDate);
-            if (params.toString()) url += `?${params.toString()}`;
-
-            const response = await fetch(url);
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`HTTP error! Status: ${response.status} - ${errorText}`);
-            }
-            const blob = await response.blob();
-            const urlBlob = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.style.display = 'none';
-            a.href = urlBlob;
-            a.download = 'expenditure_report_export.csv';
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(urlBlob); // Clean up the URL object
-            showMessage('Expenditure report exported successfully!', 'success');
-        } catch (error) {
-            console.error('Dashboard.js: Error exporting expenditure report:', error);
-            showMessage('Failed to export expenditure report.', 'error');
-        } finally {
-            hideLoading();
         }
     });
 
     // --- Initial Data Load & Event Listener Setup ---
 
-    // Initial data load when the page loads
-    // These functions will also trigger the initial rendering of tables and charts.
-    fetchLeads();
-    fetchCalendarEvents();
-    fetchExpenditureReport();
+    // Initial data load for the default view (Overview)
+    // Other views will fetch data when they become active.
+    fetchLeads(); // Leads data is needed for overview stats and dropdowns
 
-    // Set up sorting listeners on table headers after initial load
-    // Using event delegation on the table itself, then checking if the click was on a sortable header.
+    // Set up sorting listeners on table headers
     document.getElementById('recentLeadsTable')?.addEventListener('click', function(event) {
         const targetTh = event.target.closest('th[data-sort-by]');
         if (targetTh) {
@@ -1165,6 +1060,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Ensure all elements are correctly referenced before adding listeners
-    // The '?.` (optional chaining) operator is used for safety in case an element isn't found.
+    // Initial view display
+    showView('overview-view');
 });

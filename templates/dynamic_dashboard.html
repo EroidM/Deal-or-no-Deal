@@ -4,34 +4,37 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales & Marketing Dashboard</title>
-    
-    <!-- PWA Manifest Link -->
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
-    <!-- Theme color for browser UI when installed as PWA -->
-    <meta name="theme-color" content="#007bff">
 
-    <!-- CSS for Font Awesome - still using CDN as it's not a direct npm dependency we installed for this purpose -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-    <!-- Local CSS for Flatpickr from node_modules -->
     <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.css') }}">
-    <!-- FullCalendar CSS is injected by its JS, so no direct link tags needed here -->
-        <style>
-        /* Modern, Space-centric Styling */
+    
+    <style>
+        /* Modern, App-centric Styling */
         :root {
-            --primary-color: #007bff;
-            --secondary-color: #6c757d;
-            --success-color: #28a745;
-            --danger-color: #dc3545;
-            --info-color: #17a2b8;
-            --warning-color: #ffc107;
-            --background-light: #f4f7f6;
+            --primary-color: #4CAF50; /* A fresh green */
+            --primary-dark: #388E3C;
+            --primary-light: #81C784;
+            --secondary-color: #2196F3; /* A vibrant blue */
+            --success-color: #66BB6A; /* Lighter green for success */
+            --danger-color: #EF5350; /* Softer red for danger */
+            --warning-color: #FFCA28; /* Golden yellow for warning */
+            --info-color: #42A5F5; /* Lighter blue for info */
+
+            --background-light: #f0f2f5; /* Off-white, light grey background */
             --card-background: #ffffff;
-            --text-dark: #343a40;
-            --border-color: #e0e6ed;
-            --shadow-light: rgba(0, 0, 0, 0.08);
-            --shadow-medium: rgba(0, 0, 0, 0.15);
+            --text-dark: #333;
+            --text-muted: #6c757d;
+            --border-color: #e0e0e0;
+            --shadow-light: rgba(0, 0, 0, 0.08); /* Subtle shadow */
+            --shadow-medium: rgba(0, 0, 0, 0.15); /* More pronounced shadow */
+
             --font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            --border-radius-sm: 8px;
+            --border-radius-md: 12px;
+            --transition-speed: 0.3s;
         }
 
         body {
@@ -41,243 +44,389 @@
             background-color: var(--background-light);
             color: var(--text-dark);
             line-height: 1.6;
-        }
-
-        .container {
+            -webkit-font-smoothing: antialiased;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
+        /* --- Header / Top Bar --- */
         .header {
-            background-color: var(--text-dark);
-            color: white;
-            padding: 1.2rem 2.5rem;
+            background-color: var(--primary-color);
+            color: #fff;
+            padding: 1rem 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px var(--shadow-medium);
-            z-index: 10;
+            box-shadow: 0 2px 4px var(--shadow-medium);
+            z-index: 1000;
         }
 
         .header h1 {
             margin: 0;
-            font-size: 2rem;
+            font-size: 1.5rem;
             font-weight: 600;
         }
 
-        /* Header actions removed as buttons are moved to cards */
-        .header-actions {
-            display: none; /* Hide the header actions div now */
+        .header .header-buttons {
+            display: flex;
+            gap: 10px;
         }
 
+        .header .header-buttons button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: transform var(--transition-speed) ease;
+        }
+
+        .header .header-buttons button:hover {
+            transform: scale(1.1);
+        }
+
+        /* --- Main Content Area --- */
         .main-content {
             flex-grow: 1;
-            padding: 2.5rem;
-            display: grid;
-            grid-template-columns: 2fr 1fr; /* Main content area with two columns */
-            gap: 2.5rem;
-            align-items: start;
+            padding: 1.5rem;
+            display: flex;
+            flex-direction: column; /* Allows sections to stack */
+            gap: 1.5rem; /* Space between sections */
         }
 
-        .dashboard-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 2.5rem;
-            margin-bottom: 2.5rem;
+        .dashboard-view {
+            display: none; /* Hidden by default */
+            animation: fadeIn 0.5s ease-out;
         }
 
+        .dashboard-view.active {
+            display: block; /* Show active view */
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Card Styling --- */
         .card {
             background-color: var(--card-background);
-            border-radius: 12px;
-            box-shadow: 0 4px 15px var(--shadow-light);
-            padding: 2rem;
-            transition: transform 0.2s ease-in-out;
-            position: relative; /* For button positioning */
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 4px 12px var(--shadow-light);
+            padding: 1.5rem;
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
         }
 
         .card:hover {
             transform: translateY(-5px);
+            box-shadow: 0 8px 20px var(--shadow-medium);
         }
 
-        .card h2 {
-            margin-top: 0;
-            color: var(--text-dark);
-            font-size: 1.6rem;
+        .card-header {
+            font-size: 1.2rem;
             font-weight: 600;
+            margin-bottom: 1rem;
+            color: var(--primary-dark);
             border-bottom: 1px solid var(--border-color);
-            padding-bottom: 1rem;
-            margin-bottom: 1.5rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        /* Style for card title buttons */
-        .card h2 .btn {
-            padding: 0.5rem 1rem;
-            font-size: 0.85rem;
-            margin-left: 10px;
-            white-space: nowrap; /* Prevent button text from wrapping */
+            padding-bottom: 0.5rem;
         }
 
-        /* Specific styling for icon-only buttons in card headers */
-        .card h2 .btn-icon {
-            padding: 0.6rem; /* Adjust padding for square icon buttons */
-            width: 40px; /* Fixed width for consistent sizing */
-            height: 40px; /* Fixed height for consistent sizing */
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            border-radius: 50%; /* Make them circular */
-            margin-left: 8px; /* Space between icons */
-        }
-        .card h2 .btn-icon i {
-            font-size: 1.1rem; /* Adjust icon size */
-        }
-
-        /* For the specific button group in Recent Leads */
-        .card h2 .button-group-header {
-            display: flex;
-            gap: 8px; /* Space between buttons */
-            margin-left: auto; /* Push to the right */
-        }
-
-
+        /* --- Stats Grid --- */
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 1.5rem;
-            margin-top: 1.5rem;
+            margin-bottom: 1.5rem;
         }
 
-        .stat-item {
-            background-color: var(--background-light);
+        .stat-card {
+            background-color: var(--card-background);
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 4px 10px var(--shadow-light);
             padding: 1.2rem;
-            border-radius: 8px;
             text-align: center;
-            border: 1px solid var(--border-color);
-            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
         }
 
-        .stat-item h3 {
-            margin: 0;
-            font-size: 1.1rem;
+        .stat-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 15px var(--shadow-medium);
+        }
+
+        .stat-card h3 {
+            margin-top: 0;
             color: var(--text-muted);
-            font-weight: 500;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
-        .stat-item p {
-            margin: 0.6rem 0 0;
+        .stat-card p {
             font-size: 2rem;
             font-weight: bold;
-            color: var(--primary-color);
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+        }
+        
+        .stat-card p.text-success { color: var(--success-color); }
+        .stat-card p.text-danger { color: var(--danger-color); }
+        .stat-card p.text-warning { color: var(--warning-color); }
+        .stat-card p.text-info { color: var(--info-color); }
+
+        /* --- Form Styling --- */
+        .form-section {
+            display: grid;
+            gap: 1.5rem;
+            grid-template-columns: 1fr; /* Stack on mobile */
         }
 
-        .chart-container {
-            height: 300px; /* Standard height for charts */
-            display: flex;
-            justify-content: center;
-            align-items: center;
+        @media (min-width: 768px) {
+            .form-section {
+                grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); /* 2 columns on larger screens */
+            }
         }
 
-        .table-container {
-            overflow-x: auto;
-            margin-top: 1.5rem;
-            border-radius: 8px;
-            border: 1px solid var(--border-color);
+        .form-group {
+            margin-bottom: 1rem;
         }
 
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            font-size: 0.95rem;
-            /* white-space: nowrap; REMOVED for mobile responsiveness */
-        }
-
-        table th, table td {
-            padding: 1rem 1.2rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        table th {
-            background-color: #f8fafd;
+        .form-group label {
+            display: block;
+            margin-bottom: 0.5rem;
             font-weight: 600;
             color: var(--text-dark);
-            cursor: pointer;
-            position: sticky;
-            top: 0;
-            z-index: 1;
         }
 
-        table th.asc::after {
-            content: ' \25B2'; /* Up arrow */
-            font-size: 0.7em;
-            vertical-align: super;
+        .form-group input[type="text"],
+        .form-group input[type="email"],
+        .form-group input[type="tel"],
+        .form-group input[type="number"],
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            font-size: 1rem;
+            box-sizing: border-box; /* Include padding in width */
+            transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
         }
 
-        table th.desc::after {
-            content: ' \25BC'; /* Down arrow */
-            font-size: 0.7em;
-            vertical-align: super;
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.2); /* Primary color with transparency */
         }
 
-        table tbody tr:last-child td {
-            border-bottom: none;
-        }
-
-        table tbody tr:hover {
-            background-color: #f0f4f7;
-        }
-
-        .btn-group {
-            display: flex;
-            gap: 8px;
-            flex-wrap: wrap;
-        }
-
+        /* --- Buttons --- */
         .btn {
-            padding: 0.6rem 1rem;
-            font-size: 0.9rem;
-            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.8rem 1.5rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: var(--border-radius-sm);
             cursor: pointer;
-            transition: background-color 0.2s ease, transform 0.1s ease;
-            font-weight: 500;
+            transition: background-color var(--transition-speed) ease, transform 0.1s ease, box-shadow var(--transition-speed) ease;
+            text-decoration: none;
+            border: none;
         }
 
         .btn-primary {
             background-color: var(--primary-color);
             color: white;
-            border: none;
-        }
-        .btn-primary:hover {
-            background-color: #0056b3;
-            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
+        }
+        
         .btn-secondary {
             background-color: var(--secondary-color);
             color: white;
-            border: none;
         }
+
         .btn-secondary:hover {
-            background-color: #5a6268;
-            transform: translateY(-1px);
+            background-color: #1976D2; /* A darker shade of secondary blue */
         }
 
         .btn-danger {
             background-color: var(--danger-color);
             color: white;
-            border: none;
-        }
-        .btn-danger:hover {
-            background-color: #bd2130;
-            transform: translateY(-1px);
         }
 
-        /* Modal Styles */
+        .btn-danger:hover {
+            background-color: #D32F2F; /* A darker shade of red */
+        }
+
+        /* --- Table Styling (Enhanced Responsive) --- */
+        .data-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .data-table th, .data-table td {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            text-align: left;
+        }
+
+        .data-table th {
+            background-color: var(--background-light);
+            color: var(--text-dark);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.85rem;
+            letter-spacing: 0.5px;
+        }
+
+        .data-table tbody tr:hover {
+            background-color: #f8f8f8;
+        }
+
+        /* Responsive Table */
+        @media screen and (max-width: 767px) {
+            .data-table {
+                border: 0;
+            }
+
+            .data-table thead {
+                display: none; /* Hide table headers */
+            }
+
+            .data-table tr {
+                display: block;
+                margin-bottom: 1.5rem;
+                border: 1px solid var(--border-color);
+                border-radius: var(--border-radius-md);
+                box-shadow: 0 2px 8px var(--shadow-light);
+            }
+
+            .data-table td {
+                display: block;
+                text-align: right;
+                padding-left: 50%; /* Make room for the data-label */
+                position: relative;
+            }
+
+            .data-table td::before {
+                content: attr(data-label);
+                position: absolute;
+                left: 0;
+                width: 50%;
+                padding-left: 1rem;
+                font-weight: 600;
+                text-align: left;
+                color: var(--primary-dark); /* Highlight the label */
+                white-space: nowrap; /* Prevent label wrapping */
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
+            /* Actions column adjustments */
+            .data-table td[data-label="Actions"] {
+                text-align: center; /* Center buttons */
+                display: flex; /* Use flexbox for buttons */
+                justify-content: center;
+                gap: 5px; /* Space between buttons */
+                padding-left: 1rem; /* Adjust padding for centered content */
+            }
+
+            .data-table td[data-label="Actions"]::before {
+                display: none; /* Hide label for actions */
+            }
+        }
+
+        /* --- Chart Container --- */
+        .chart-container {
+            position: relative;
+            height: 300px; /* Fixed height for consistency */
+            margin-bottom: 1.5rem;
+        }
+
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 400px;
+            }
+        }
+
+        /* --- Loading Overlay --- */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 2000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            border: 4px solid var(--border-color);
+            border-top: 4px solid var(--primary-color);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* --- Message Box --- */
+        .message-box {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 1rem 1.5rem;
+            border-radius: var(--border-radius-sm);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            color: white;
+            font-weight: 500;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+            z-index: 2000;
+            min-width: 250px;
+            text-align: center;
+        }
+
+        .message-box.show {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .message-box.success { background-color: var(--success-color); }
+        .message-box.error { background-color: var(--danger-color); }
+        .message-box.warning { background-color: var(--warning-color); color: var(--text-dark);}
+
+        /* --- Modal Styling --- */
         .modal {
-            display: none;
+            display: none; /* Hidden by default */
             position: fixed;
             z-index: 1000;
             left: 0;
@@ -285,47 +434,56 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0,0,0,0.6);
-            display: flex; /* Changed to flex for centering */
+            background-color: rgba(0, 0, 0, 0.4);
             justify-content: center;
             align-items: center;
             padding: 20px;
+            box-sizing: border-box;
             opacity: 0;
-            transition: opacity 0.3s ease;
-            pointer-events: none; /* Allows clicks through when hidden */
+            transition: opacity var(--transition-speed) ease;
         }
 
-        .modal.active {
+        .modal.show {
+            display: flex;
             opacity: 1;
-            pointer-events: auto;
         }
 
         .modal-content {
             background-color: var(--card-background);
             margin: auto;
-            padding: 30px;
-            border-radius: 12px;
-            box-shadow: 0 8px 30px var(--shadow-medium);
-            width: 90%;
-            max-width: 750px; /* Increased max-width for two columns */
+            padding: 25px 30px;
+            border-radius: var(--border-radius-md);
+            box-shadow: 0 8px 25px var(--shadow-medium);
             position: relative;
-            max-height: 90vh;
-            overflow-y: auto;
-            transform: translateY(20px);
-            transition: transform 0.3s ease;
+            max-width: 90%;
+            width: 500px; /* Max width for consistency */
+            transform: translateY(-20px);
+            transition: transform var(--transition-speed) ease;
+        }
+        
+        .modal.show .modal-content {
+            transform: translateY(0);
         }
 
-        .modal.active .modal-content {
-            transform: translateY(0);
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .modal-header h2 {
+            margin: 0;
+            font-size: 1.4rem;
+            color: var(--primary-dark);
         }
 
         .close-button {
             color: var(--text-muted);
-            position: absolute;
-            top: 15px;
-            right: 20px;
-            font-size: 32px;
-            font-weight: normal;
+            font-size: 2rem;
+            font-weight: bold;
             cursor: pointer;
             transition: color 0.2s ease;
         }
@@ -336,777 +494,453 @@
             text-decoration: none;
         }
 
-        .modal-content h2 {
-            color: var(--text-dark);
-            margin-top: 0;
-            margin-bottom: 25px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 15px;
-            font-size: 1.8rem;
-            font-weight: 600;
-        }
-
-        /* NEW: Form grid for two columns */
-        .form-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* Two equal columns */
-            gap: 15px 30px; /* Row gap, Column gap */
-        }
-
-        /* Ensure textareas and full-width elements span both columns */
-        .form-grid .form-group.full-width {
-            grid-column: span 2;
-        }
-
-        .form-group {
-            margin-bottom: 0; /* Managed by form-grid gap */
-        }
-
-        .form-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 600;
-            color: var(--text-dark);
-            font-size: 0.95rem;
-        }
-
-        .form-group input[type="text"],
-        .form-group input[type="email"],
-        .form-group input[type="tel"],
-        .form-group input[type="date"],
-        .form-group input[type="number"],
-        .form-group select,
-        .form-group textarea {
-            width: calc(100% - 24px); /* Account for padding and border */
-            padding: 12px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 1rem;
-            color: var(--text-dark);
-            background-color: #fdfdfd;
-            transition: border-color 0.2s ease, box-shadow 0.2s ease;
-        }
-
-        .form-group input:focus,
-        .form-group select:focus,
-        .form-group textarea:focus {
-            border-color: var(--primary-color);
-            box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
-            outline: none;
-        }
-
-        .modal-content button[type="submit"] {
-            background-color: var(--primary-color);
-            color: white;
-            border: none;
-            padding: 14px 25px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 1.1rem;
-            width: 100%;
-            margin-top: 25px;
-            font-weight: 600;
-            transition: background-color 0.2s ease, transform 0.2s ease;
-        }
-
-        .modal-content button[type="submit"]:hover {
-            background-color: #0056b3;
-            transform: translateY(-2px);
-        }
-
-        /* Message Box Styles */
-        .message-container {
-            display: none;
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 25px;
-            border-radius: 8px;
-            font-weight: bold;
-            color: white;
-            text-align: center;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            z-index: 1001;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .message-container.active {
-            opacity: 1;
-        }
-
-        .message-container.success {
-            background-color: var(--success-color);
-        }
-
-        .message-container.error {
-            background-color: var(--danger-color);
-        }
-
-        .message-container.info {
-            background-color: var(--info-color);
-        }
-
-        /* Loading Overlay Styles */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000; /* Ensure it's on top of everything */
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
-        }
-
-        .loading-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .spinner {
-            border: 8px solid #f3f3f3; /* Light grey */
-            border-top: 8px solid var(--primary-color); /* Primary color */
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 2s linear infinite;
-            margin-bottom: 15px;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        .loading-overlay p {
-            color: var(--text-dark);
-            font-size: 1.2rem;
-            font-weight: bold;
-        }
-
-        /* FullCalendar Specific Styles - Aesthetic Enhancements */
-        .fc-toolbar-title {
-            color: var(--text-dark);
-            font-weight: 700;
-        }
-        .fc-button {
+        /* FullCalendar overrides */
+        .fc .fc-button {
             background-color: var(--primary-color) !important;
-            border-color: var(--primary-color) !important;
+            border-color: var(--primary-dark) !important;
             color: white !important;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: none !important;
+            border-radius: var(--border-radius-sm) !important;
+            padding: 0.5em 1em !important;
+            font-weight: 500 !important;
         }
-        .fc-button:hover {
-            background-color: #0056b3 !important;
-            border-color: #0056b3 !important;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+
+        .fc .fc-button:hover {
+            background-color: var(--primary-dark) !important;
         }
-        .fc-daygrid-day-number {
+
+        .fc .fc-toolbar-title {
+            color: var(--text-dark);
+            font-size: 1.4em !important;
+        }
+
+        .fc .fc-daygrid-event {
+            background-color: var(--secondary-color) !important;
+            border-color: var(--secondary-color) !important;
+            border-radius: 4px !important;
+            font-size: 0.85em !important;
+            padding: 2px 4px !important;
+        }
+
+        .fc .fc-event-title {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .fc .fc-daygrid-day-number {
             color: var(--text-muted);
-        }
-        .fc-day-other .fc-daygrid-day-number {
-            color: #c0c7d2; /* Faded numbers for days outside the current month */
-        }
-        
-        /* Custom Event Colors based on Type */
-        /* Group 1: Positive Lead Interaction */
-        .fc-event-visit {
-            background-color: #28a745 !important; /* Success Green */
-            border-color: #28a745 !important;
-            color: white !important;
-        }
-        .fc-event-meeting {
-            background-color: #6610f2 !important; /* Purple */
-            border-color: #6610f2 !important;
-            color: white !important;
-        }
-        .fc-event-call { /* New */
-            background-color: #17a2b8 !important; /* Info Blue */
-            border-color: #17a2b8 !important;
-            color: white !important;
-        }
-        .fc-event-email { /* New */
-            background-color: #5bc0de !important; /* Lighter Info Blue */
-            border-color: #5bc0de !important;
-            color: white !important;
-        }
-        .fc-event-follow-up { /* Keep existing follow-up color, similar to info */
-            background-color: #17a2b8 !important; 
-            border-color: #17a2b8 !important;
-            color: white !important;
+            font-size: 0.9em;
         }
 
-        /* Group 2: New Outreach/Warning */
-        .fc-event-cold-visit {
-            background-color: #fd7e14 !important; /* Orange */
-            border-color: #fd7e14 !important;
-            color: white !important;
-        }
-
-        /* Group 3: Financial */
-        .fc-event-general-expense {
-            background-color: #dc3545 !important; /* Danger Red */
-            border-color: #dc3545 !important;
-            color: white !important;
-        }
-
-        /* Group 4: Internal/Other */
-        .fc-event-office-day-note {
-            background-color: #6c757d !important; /* Secondary Gray */
-            border-color: #6c757d !important;
-            color: white !important;
-        }
-        .fc-event-other {
-            background-color: #20c997 !important; /* Teal */
-            border-color: #20c997 !important;
-            color: white !important;
-        }
-
-        /* Calendar Day Cell Styling for "Gray Days" */
-        .fc-daygrid-day {
-            background-color: #fcfcfc; /* Very light background for all days */
-            border: 1px solid var(--border-color); /* Subtle border */
-        }
-        /* Optional: Highlight days with events slightly more if needed, or let event colors dominate */
-        .fc-daygrid-day-frame.fc-day-today {
-            background-color: #e6f7ff; /* Light blue for today */
-        }
-
-
-        /* Calendar Tooltip Styling */
+        /* Calendar Tooltip */
         .calendar-tooltip {
             position: absolute;
-            background-color: rgba(0, 0, 0, 0.85);
+            background-color: var(--text-dark);
             color: white;
-            padding: 10px 15px;
-            border-radius: 6px;
-            font-size: 0.9rem;
-            pointer-events: none; /* Allows mouse events to pass through to calendar */
-            z-index: 100; /* Above calendar but below modals */
+            padding: 8px 12px;
+            border-radius: var(--border-radius-sm);
+            font-size: 0.9em;
+            pointer-events: none; /* Allows clicks to pass through */
             opacity: 0;
-            transition: opacity 0.2s ease-in-out;
-            max-width: 250px;
-            box-shadow: 0 4px 12px var(--shadow-medium);
+            transition: opacity 0.2s ease, transform 0.2s ease;
+            transform: translateY(10px);
+            z-index: 1000;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* New PWA specific styling for bottom navigation */
+        .bottom-nav {
+            display: flex;
+            justify-content: space-around;
+            background-color: var(--card-background);
+            padding: 0.5rem 0;
+            box-shadow: 0 -2px 8px var(--shadow-light);
+            position: sticky;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            z-index: 1000;
         }
 
-        .calendar-tooltip strong {
-            display: block;
-            margin-bottom: 5px;
-            font-size: 1rem;
-        }
-        .calendar-tooltip span {
-            display: block;
-            font-size: 0.85rem;
-            color: #ccc;
-        }
-
-        /* Upcoming Follow-ups List Styling */
-        .upcoming-followups-list {
-            list-style: none;
-            padding: 0;
-            margin-top: 1.5rem;
-        }
-
-        .upcoming-followups-list li {
-            background-color: var(--background-light);
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            padding: 12px 18px;
-            margin-bottom: 12px;
+        .nav-button {
+            flex: 1;
+            text-align: center;
+            padding: 0.75rem 0.5rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-decoration: none;
             display: flex;
             flex-direction: column;
-            font-size: 0.95rem;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            align-items: center;
+            transition: color var(--transition-speed) ease;
         }
 
-        .upcoming-followups-list .lead-name {
-            font-weight: 600;
+        .nav-button i {
+            font-size: 1.4rem;
+            margin-bottom: 0.3rem;
+        }
+
+        .nav-button.active {
             color: var(--primary-color);
-            font-size: 1rem;
-            margin-bottom: 5px;
         }
 
-        .upcoming-followups-list .followup-details {
-            color: var(--text-muted);
-            font-size: 0.85rem;
-        }
-
-        .input-group {
-            display: flex;
-            gap: 15px;
-            margin-bottom: 20px;
-            align-items: flex-end; /* Align buttons/inputs at the bottom */
-            flex-wrap: wrap; /* Allow wrapping on smaller screens */
-        }
-
-        .input-group .form-group {
-            flex-grow: 1;
-            margin-bottom: 0; /* Remove default margin as input-group manages spacing */
-        }
-
-        .input-group button {
-            padding: 12px 20px;
-            height: 46px; /* Match height of input fields */
-            flex-shrink: 0; /* Prevent buttons from shrinking */
-        }
-
-        /* Expenditure Report specific styling */
-        #expenditureReportTable th {
-            white-space: nowrap; /* Keep headers on one line */
-        }
-
-        #totalExpenditureSummary {
-            font-size: 1.3rem;
-            font-weight: bold;
-            margin-top: 1.5rem;
-            text-align: right;
-            color: var(--text-dark);
-            padding-right: 1.2rem;
-        }
-
-        /* Responsive Adjustments */
-        @media (max-width: 1200px) {
-            .main-content {
-                grid-template-columns: 1fr; /* Stack columns on smaller wide screens */
-                padding: 1.5rem;
-            }
-            .header {
-                padding: 1rem 1.5rem;
-            }
-        }
-
-        @media (max-width: 768px) {
-            .header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .header h1 {
-                font-size: 1.6rem;
-                margin-bottom: 10px;
-            }
-            .header-actions {
-                width: 100%;
-                display: flex;
-                flex-wrap: wrap;
-                justify-content: center;
-                margin-top: 10px;
-            }
-            .header-actions .btn {
-                margin: 5px;
-            }
-            .main-content {
-                padding: 1rem;
-                gap: 1.5rem;
-            }
-            .dashboard-grid {
-                gap: 1.5rem;
-            }
-            .card {
-                padding: 1.5rem;
-            }
-            .card h2 {
-                font-size: 1.4rem;
-                margin-bottom: 1rem;
-            }
-            .modal-content {
-                width: 95%;
-                padding: 20px;
-            }
-            /* Adjust form grid for small screens to stack columns */
-            .modal-content .form-grid {
-                grid-template-columns: 1fr; /* Single column on small screens */
-                gap: 15px;
-            }
-            .form-grid .form-group.full-width {
-                grid-column: span 1; /* Reset span for single column */
-            }
-            .form-group input, .form-group select, .form-group textarea {
-                width: calc(100% - 20px);
-                padding: 10px;
-            }
-            .input-group {
-                flex-direction: column;
-                gap: 10px;
-            }
-            .input-group button {
-                width: 100%;
-                height: auto;
-            }
-
-            /* Responsive Table Styling for smaller screens */
-            .table-container {
-                border-radius: 0; /* Remove rounded corners for full width */
-                border-left: none;
-                border-right: none;
-            }
-            table {
-                border: 0; /* Remove table borders */
-            }
-            table thead {
-                display: none; /* Hide table headers on small screens */
-            }
-            table, table tbody, table tr, table td {
-                display: block; /* Make table elements behave like block elements */
-                width: 100%; /* Take full width */
-            }
-            table tr {
-                margin-bottom: 15px;
-                border: 1px solid var(--border-color);
-                border-radius: 8px;
-                padding: 10px;
-                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-            }
-            table td {
-                text-align: right; /* Align content to the right */
-                padding-left: 50%; /* Make space for the label */
-                position: relative;
-                border: none; /* Remove cell borders */
-            }
-            table td::before {
-                content: attr(data-label); /* Use data-label for the pseudo-element content */
-                position: absolute;
-                left: 10px;
-                width: calc(50% - 20px); /* Adjust width for label */
-                padding-right: 10px;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                font-weight: 600;
-                color: var(--text-dark);
-                text-align: left;
-            }
-            table td:last-child {
-                border-bottom: 0; /* No bottom border for the last cell in a row */
-            }
-        }
-
-        @media (max-width: 480px) {
-            .header-actions {
-                flex-direction: column;
-                align-items: stretch;
-            }
-            .header-actions .btn {
-                margin: 5px 0;
-            }
-            .stats-grid {
-                grid-template-columns: 1fr;
-            }
-            table th, table td {
-                padding: 0.8rem;
-                font-size: 0.85rem;
-            }
+        .nav-button:hover {
+            color: var(--primary-dark);
         }
     </style>
 </head>
 <body>
     <div id="loadingOverlay" class="loading-overlay">
         <div class="spinner"></div>
-        <p>Loading...</p>
     </div>
-    <div id="messageContainer" class="message-container"></div>
-    <div class="container">
-        <header class="header">
-            <h1>Sales & Marketing Dashboard</h1>
-            <!-- Header actions removed and moved to specific cards -->
-            <div class="header-actions">
-                <!-- Buttons moved to cards below -->
+    <div id="messageBox" class="message-box"></div>
+
+    <header class="header">
+        <h1>Sales & Marketing</h1>
+        <div class="header-buttons">
+            <button id="addLeadButton"><i class="fas fa-user-plus"></i></button>
+            <button id="addExpenditureButton"><i class="fas fa-dollar-sign"></i></button>
+            <button id="addEventButton"><i class="fas fa-calendar-plus"></i></button>
+        </div>
+    </header>
+
+    <main class="main-content">
+        <div id="overview-view" class="dashboard-view active">
+            <div class="card">
+                <div class="card-header">Dashboard Overview</div>
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <h3>Total Leads</h3>
+                        <p id="totalLeadsCount" class="text-primary">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Leads in Prospecting</h3>
+                        <p id="prospectingLeadsCount" class="text-info">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Leads in Negotiation</h3>
+                        <p id="negotiationLeadsCount" class="text-warning">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Leads Closed Won</h3>
+                        <p id="closedWonLeadsCount" class="text-success">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Leads Closed Lost</h3>
+                        <p id="closedLostLeadsCount" class="text-danger">0</p>
+                    </div>
+                    <div class="stat-card">
+                        <h3>Total Follow-ups Due</h3>
+                        <p id="totalFollowupsCount" class="text-secondary">0</p>
+                    </div>
+                </div>
             </div>
-        </header>
 
-        <main class="main-content">
-            <section class="left-column">
-                <div class="dashboard-grid">
-                    <div class="card">
-                        <h2>Leads Statistics</h2>
-                        <div class="stats-grid">
-                            <div class="stat-item">
-                                <h3>Total Leads</h3>
-                                <p id="totalLeadsCount">0</p>
-                            </div>
-                            <div class="stat-item">
-                                <h3>New Leads</h3>
-                                <p id="newLeadsCount">0</p>
-                            </div>
-                            <div class="stat-item">
-                                <h3>Qualified Leads</h3>
-                                <p id="qualifiedLeadsCount">0</p>
-                            </div>
-                            <div class="stat-item">
-                                <h3>Closed Won</h3>
-                                <p id="closedWonLeadsCount">0</p>
-                            </div>
-                            <div class="stat-item">
-                                <h3>Closed Lost</h3>
-                                <p id="closedLostLeadsCount">0</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="card">
-                        <h2>Leads by Stage</h2>
-                        <div class="chart-container">
-                            <canvas id="leadsByStageChart"></canvas>
-                        </div>
-                    </div>
+            <div class="card">
+                <div class="card-header">Leads by Stage</div>
+                <div class="chart-container">
+                    <canvas id="leadsByStageChart"></canvas>
                 </div>
+            </div>
 
-                <div class="card">
-                    <h2>
-    			Recent Leads
-                <div class="button-group-header">
-        			<button class="btn btn-primary btn-icon" id="addLeadModalBtn" title="Add New Lead"><i class="fas fa-plus"></i></button>
-        			<button id="exportLeadsBtn" class="btn btn-secondary btn-icon" title="Export Leads"><i class="fas fa-download"></i></button>
+            <div class="card">
+                <div class="card-header">Upcoming Follow-ups</div>
+                <div id="upcomingFollowUpsList">
+                    <p class="text-muted">No upcoming follow-ups.</p>
                 </div>
-		    </h2>
-                    <div class="input-group">
-                        <div class="form-group">
-                            <label for="leadSearchInput">Search Leads:</label>
-                            <input type="text" id="leadSearchInput" placeholder="Search by name, company, stage...">
-                        </div>
-                    </div>
-                    <div class="table-container">
-                        <table id="recentLeadsTable">
-                            <thead>
-                                <tr>
-                                    <th data-sort-by="firstName" class="sortable">Name</th>
-                                    <th data-sort-by="company" class="sortable">Company</th>
-                                    <th data-sort-by="stage" class="sortable">Stage</th>
-                                    <th data-sort-by="dateOfContact" class="sortable">Contact Date</th>
-                                    <th data-sort-by="followUp" class="sortable">Follow-up Date</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Leads will be populated here by JavaScript -->
+            </div>
+        </div>
+
+        <div id="leads-view" class="dashboard-view">
+            <div class="card">
+                <div class="card-header">Recent Leads</div>
+                <div class="table-responsive">
+                    <table id="recentLeadsTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-sort-by="fullName">Full Name <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="email">Email <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="phone">Phone <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="stage">Stage <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="source">Source <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="notes">Notes <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="lastFollowUp">Last Follow-up <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="nextFollowUp">Next Follow-up <i class="fas fa-sort"></i></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                             </tbody>
-                        </table>
-                    </div>
+                    </table>
                 </div>
+            </div>
+        </div>
 
-                <div class="card">
-                    <h2>
-                        Expenditure Report
-                        <button class="btn btn-secondary btn-icon" id="addExpenseModalBtn" title="Add Expense"><i class="fas fa-dollar-sign"></i></button>
-                    </h2>
-                    <div class="input-group">
-                        <div class="form-group">
-                            <label for="reportStartDate">Start Date:</label>
-                            <input type="date" id="reportStartDate">
-                        </div>
-                        <div class="form-group">
-                            <label for="reportEndDate">End Date:</label>
-                            <input type="date" id="reportEndDate">
-                        </div>
-                        <button class="btn btn-secondary btn-icon" id="filterReportBtn" title="Filter Report"><i class="fas fa-filter"></i></button>
-                        <button class="btn btn-secondary btn-icon" id="clearReportDatesBtn" title="Clear Dates"><i class="fas fa-times"></i></button> <!-- NEW BUTTON -->
-                        <button class="btn btn-primary btn-icon" id="exportExpenditureReportBtn" title="Export CSV"><i class="fas fa-file-csv"></i></button>
-                    </div>
-                    <div class="table-container">
-                        <table id="expenditureReportTable">
-                            <thead>
-                                <tr>
-                                    <th data-label="Date">Date</th>
-                                    <th data-label="Category">Category</th>
-                                    <th data-label="Description">Description</th>
-                                    <th data-label="Amount (KSh)">Amount (KSh)</th>
-                                    <th data-label="Lead Name">Lead Name</th>
-                                    <th data-label="Company">Company</th>
-                                    <th>Actions</th> <!-- Added for expense actions -->
-                                </tr>
-                            </thead>
-                            <tbody id="expenditureReportTableBody"> <!-- Changed ID for clarity -->
-                                <!-- Expenditure report items will be populated here by JavaScript -->
+        <div id="expenditure-view" class="dashboard-view">
+            <div class="card">
+                <div class="card-header">Expenditure Report</div>
+                 <div class="form-group">
+                    <label for="expenditureDateRange">Filter by Date Range:</label>
+                    <input type="text" id="expenditureDateRange" placeholder="Select date range">
+                </div>
+                <button id="exportExpenditureCsv" class="btn btn-secondary" style="margin-bottom: 1rem;"><i class="fas fa-download"></i> Export CSV</button>
+                <div class="table-responsive">
+                    <table id="expenditureReportTable" class="data-table">
+                        <thead>
+                            <tr>
+                                <th data-sort-by="date">Date <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="type_category">Type/Category <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="description">Description <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="amount">Amount (KSh) <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="lead_name">Lead Name <i class="fas fa-sort"></i></th>
+                                <th data-sort-by="company">Company <i class="fas fa-sort"></i></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
                             </tbody>
-                        </table>
-                    </div>
-                    <div id="totalExpenditureSummary">Total Expenditure: KSh 0.00</div>
+                    </table>
                 </div>
-            </section>
+            </div>
+        </div>
 
-            <section class="right-column">
-                <div class="card">
-                    <h2>Upcoming Follow-ups</h2>
-                    <ul id="upcomingFollowupsList" class="upcoming-followups-list">
-                        </ul>
-                </div>
+        <div id="calendar-view" class="dashboard-view">
+            <div class="card">
+                <div class="card-header">Calendar Events</div>
+                <div id="calendar" style="margin-top: 1rem;"></div>
+            </div>
+        </div>
+    </main>
 
-                <div class="card">
-                    <h2>
-                        Planning Calendar
-                        <button class="btn btn-primary btn-icon" id="addEventModalBtn" title="Add Event"><i class="fas fa-calendar-plus"></i></button>
-                    </h2>
-                    <div id="calendar"></div>
-                </div>
-            </section>
-        </main>
-    </div>
+    <nav class="bottom-nav">
+        <a href="#overview" class="nav-button active" data-view="overview-view">
+            <i class="fas fa-home"></i>
+            <span>Home</span>
+        </a>
+        <a href="#leads" class="nav-button" data-view="leads-view">
+            <i class="fas fa-users"></i>
+            <span>Leads</span>
+        </a>
+        <a href="#expenditure" class="nav-button" data-view="expenditure-view">
+            <i class="fas fa-chart-line"></i>
+            <span>Expenditure</span>
+        </a>
+        <a href="#calendar" class="nav-button" data-view="calendar-view">
+            <i class="fas fa-calendar-alt"></i>
+            <span>Calendar</span>
+        </a>
+    </nav>
 
-    <div id="leadModal" class="modal">
+    <div id="addLeadModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" id="closeLeadModalBtn">&times;</span>
-            <h2 id="leadModalTitle">Add New Lead</h2>
+            <div class="modal-header">
+                <h2>Add New Lead</h2>
+                <span class="close-button" id="closeLeadModal">&times;</span>
+            </div>
             <form id="addLeadForm">
-                <input type="hidden" id="leadId">
-                <div class="form-grid">
+                <div class="form-section">
                     <div class="form-group">
-                        <label for="firstName">First Name:</label>
-                        <input type="text" id="firstName" name="firstName" required>
+                        <label for="leadFullName">Full Name:</label>
+                        <input type="text" id="leadFullName" name="full_name" required>
                     </div>
                     <div class="form-group">
-                        <label for="lastName">Last Name:</label>
-                        <input type="text" id="lastName" name="lastName">
+                        <label for="leadEmail">Email:</label>
+                        <input type="email" id="leadEmail" name="email">
                     </div>
                     <div class="form-group">
-                        <label for="title">Title:</label>
-                        <input type="text" id="title" name="title">
+                        <label for="leadPhone">Phone:</label>
+                        <input type="tel" id="leadPhone" name="phone">
                     </div>
                     <div class="form-group">
-                        <label for="company">Company:</label>
-                        <input type="text" id="company" name="company" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="email">Email:</label>
-                        <input type="email" id="email" name="email">
-                    </div>
-                    <div class="form-group">
-                        <label for="phone">Phone:</label>
-                        <input type="tel" id="phone" name="phone">
-                    </div>
-                    <div class="form-group">
-                        <label for="product">Product of Interest:</label>
-                        <input type="text" id="product" name="product">
-                    </div>
-                    <div class="form-group">
-                        <label for="stage">Stage:</label>
-                        <select id="stage" name="stage" required>
+                        <label for="leadStage">Stage:</label>
+                        <select id="leadStage" name="stage" required>
                             <option value="New">New</option>
-                            <option value="Qualified">Qualified</option>
-                            <option value="Proposal">Proposal</option>
+                            <option value="Contacted">Contacted</option>
+                            <option value="Prospecting">Prospecting</option>
                             <option value="Negotiation">Negotiation</option>
                             <option value="Closed Won">Closed Won</option>
                             <option value="Closed Lost">Closed Lost</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="dateOfContact">Date of Contact:</label>
-                        <input type="date" id="dateOfContact" name="dateOfContact" required>
+                        <label for="leadSource">Source:</label>
+                        <input type="text" id="leadSource" name="source">
                     </div>
                     <div class="form-group">
-                        <label for="followUp">Follow-up Date (Optional):</label>
-                        <input type="date" id="followUp" name="followUp">
+                        <label for="leadNotes">Notes:</label>
+                        <textarea id="leadNotes" name="notes" rows="3"></textarea>
                     </div>
-                    <div class="form-group full-width">
-                        <label for="notes">Notes:</label>
-                        <textarea id="notes" name="notes" rows="3"></textarea>
+                    <div class="form-group">
+                        <label for="leadLastFollowUp">Last Follow-up:</label>
+                        <input type="text" id="leadLastFollowUp" name="last_follow_up" class="flatpickr-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="leadNextFollowUp">Next Follow-up:</label>
+                        <input type="text" id="leadNextFollowUp" name="next_follow_up" class="flatpickr-input">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Save Lead</button>
+                <button type="submit" class="btn btn-primary">Add Lead</button>
             </form>
         </div>
     </div>
 
-    <div id="visitModal" class="modal">
+    <div id="editLeadModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" id="closeVisitModalBtn">&times;</span>
-            <h2>Add New Visit</h2>
-            <form id="addActivityForm">
-                <input type="hidden" id="activityLeadId" name="lead_id">
-                <div class="form-grid">
+            <div class="modal-header">
+                <h2>Edit Lead</h2>
+                <span class="close-button" id="closeEditLeadModal">&times;</span>
+            </div>
+            <form id="editLeadForm">
+                <input type="hidden" id="editLeadId" name="lead_id">
+                <div class="form-section">
                     <div class="form-group">
-                        <label for="activityDate">Activity Date:</label>
-                        <input type="date" id="activityDate" name="activity_date" required>
+                        <label for="editLeadFullName">Full Name:</label>
+                        <input type="text" id="editLeadFullName" name="full_name" required>
                     </div>
                     <div class="form-group">
-                        <label for="activityType">Activity Type:</label>
-                        <select id="activityType" name="activity_type" required>
-                            <option value="call">Call</option>
-                            <option value="email">Email</option>
-                            <option value="visit">Visit</option>
-                            <option value="meeting">Meeting</option>
-                            <option value="general_expense">General Expense</option>
+                        <label for="editLeadEmail">Email:</label>
+                        <input type="email" id="editLeadEmail" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="editLeadPhone">Phone:</label>
+                        <input type="tel" id="editLeadPhone" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="editLeadStage">Stage:</label>
+                        <select id="editLeadStage" name="stage" required>
+                            <option value="New">New</option>
+                            <option value="Contacted">Contacted</option>
+                            <option value="Prospecting">Prospecting</option>
+                            <option value="Negotiation">Negotiation</option>
+                            <option value="Closed Won">Closed Won</option>
+                            <option value="Closed Lost">Closed Lost</option>
                         </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editLeadSource">Source:</label>
+                        <input type="text" id="editLeadSource" name="source">
+                    </div>
+                    <div class="form-group">
+                        <label for="editLeadNotes">Notes:</label>
+                        <textarea id="editLeadNotes" name="notes" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editLeadLastFollowUp">Last Follow-up:</label>
+                        <input type="text" id="editLeadLastFollowUp" name="last_follow_up" class="flatpickr-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="editLeadNextFollowUp">Next Follow-up:</label>
+                        <input type="text" id="editLeadNextFollowUp" name="next_follow_up" class="flatpickr-input">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Update Lead</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="addExpenditureModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Add New Expenditure</h2>
+                <span class="close-button" id="closeExpenditureModal">&times;</span>
+            </div>
+            <form id="addExpenditureForm">
+                <div class="form-section">
+                    <div class="form-group">
+                        <label for="expenditureDate">Date:</label>
+                        <input type="text" id="expenditureDate" name="date" class="flatpickr-input" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenditureType">Type/Category:</label>
+                        <input type="text" id="expenditureType" name="type_category" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenditureDescription">Description:</label>
+                        <textarea id="expenditureDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="expenditureAmount">Amount (KSh):</label>
+                        <input type="number" id="expenditureAmount" name="amount" step="0.01" min="0" required>
                     </div>
                      <div class="form-group">
-                        <label for="activityExpenditure">Expenditure (KSh):</label>
-                        <input type="number" id="activityExpenditure" name="expenditure" step="0.01" min="0" value="0.00">
+                        <label for="expenditureLeadId">Related Lead:</label>
+                        <select id="expenditureLeadId" name="lead_id">
+                            </select>
                     </div>
                     <div class="form-group">
-                        <label for="activityLocationName">Location Name (Optional):</label>
-                        <input type="text" id="activityLocationName" name="location_name">
-                    </div>
-                    <div class="form-group full-width">
-                        <label for="activityDescription">Description:</label>
-                        <textarea id="activityDescription" name="description" rows="3"></textarea>
+                        <label for="expenditureCompany">Related Company:</label>
+                        <input type="text" id="expenditureCompany" name="company">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Add Activity</button>
+                <button type="submit" class="btn btn-primary">Add Expenditure</button>
             </form>
         </div>
     </div>
 
-    <div id="generalExpenseModal" class="modal">
+    <div id="editExpenditureModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" id="closeGeneralExpenseModalBtn">&times;</span>
-            <h2>Add General Expense</h2>
-            <form id="addExpenseForm">
-                <input type="hidden" id="expenseId" name="id"> <!-- Hidden input for expense ID -->
-                <div class="form-grid">
+            <div class="modal-header">
+                <h2>Edit Expenditure</h2>
+                <span class="close-button" id="closeEditExpenditureModal">&times;</span>
+            </div>
+            <form id="editExpenditureForm">
+                <input type="hidden" id="editExpenditureId" name="expenditure_id">
+                <div class="form-section">
                     <div class="form-group">
-                        <label for="generalExpenseDate">Date:</label>
-                        <input type="date" id="generalExpenseDate" name="date" required>
+                        <label for="editExpenditureDate">Date:</label>
+                        <input type="text" id="editExpenditureDate" name="date" class="flatpickr-input" required>
                     </div>
                     <div class="form-group">
-                        <label for="generalExpenseAmount">Amount (KSh):</label>
-                        <input type="number" id="generalExpenseAmount" name="amount" step="0.01" min="0" required>
+                        <label for="editExpenditureType">Type/Category:</label>
+                        <input type="text" id="editExpenditureType" name="type_category" required>
                     </div>
-                    <div class="form-group full-width">
-                        <label for="generalExpenseDescription">Description:</label>
-                        <input type="text" id="generalExpenseDescription" name="description" required>
+                    <div class="form-group">
+                        <label for="editExpenditureDescription">Description:</label>
+                        <textarea id="editExpenditureDescription" name="description" rows="3"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="editExpenditureAmount">Amount (KSh):</label>
+                        <input type="number" id="editExpenditureAmount" name="amount" step=\"0.01\" min=\"0\" required>
+                    </div>
+                     <div class="form-group">
+                        <label for="editExpenditureLeadId">Related Lead:</label>
+                        <select id="editExpenditureLeadId" name="lead_id">
+                            </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="editExpenditureCompany">Related Company:</label>
+                        <input type="text" id="editExpenditureCompany" name="company">
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Save Expense</button>
+                <button type="submit" class="btn btn-primary">Update Expenditure</button>
             </form>
         </div>
     </div>
 
-    <div id="generalEventModal" class="modal">
+    <div id="addEventModal" class="modal">
         <div class="modal-content">
-            <span class="close-button" id="closeGeneralEventModalBtn">&times;</span>
-            <h2>Add Calendar Event</h2>
+            <div class="modal-header">
+                <h2>Add New Calendar Event</h2>
+                <span class="close-button" id="closeEventModal">&times;</span>
+            </div>
             <form id="addEventForm">
-                <input type="hidden" id="eventId" name="id"> <!-- ADDED THIS LINE -->
-                <div class="form-grid">
+                <div class="form-section">
                     <div class="form-group">
-                        <label for="eventDate">Date:</label>
-                        <input type="date" id="eventDate" name="date" required>
+                        <label for="eventTitle">Title:</label>
+                        <input type="text" id="eventTitle" name="title" required>
                     </div>
                     <div class="form-group">
-                        <label for="eventType">Event Type:</label>
-                        <select id="eventType" name="type" required>
-                            <option value="">-- Select Event Type --</option>
-                            <option value="Meeting">Meeting</option>
-                            <option value="Visit">Visit</option>
-                            <option value="Call">Call</option>
-                            <option value="Email">Email</option>
-                            <option value="Cold Visit">Cold Visit</option>
-                            <option value="Office Day Note">Office Day Note</option>
-                            <option value="General Expense">General Expense</option>
-                            <option value="Other">Other</option>
-                        </select>
+                        <label for="eventStart">Start Date/Time:</label>
+                        <input type="text" id="eventStart" name="start_time" class="flatpickr-input" required>
                     </div>
-                    <div class="form-group full-width">
-                        <label for="eventDescription">Description:</label>
-                        <textarea id="eventDescription" name="description" rows="3" required></textarea>
+                    <div class="form-group">
+                        <label for="eventEnd">End Date/Time (Optional):</label>
+                        <input type="text" id="eventEnd" name="end_time" class="flatpickr-input">
                     </div>
-                    <div class="form-group full-width">
-                        <label for="eventLeadId">Link to Lead (Optional):</label>
+                     <div class="form-group">
+                        <label for="eventLeadId">Related Lead:</label>
                         <select id="eventLeadId" name="lead_id">
                         </select>
                     </div>
@@ -1122,28 +956,23 @@
 
     <div id="calendarTooltip" class="calendar-tooltip"></div>
 
-    <!-- Local JavaScript for Chart.js from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='chart.js/dist/chart.umd.js') }}"></script>
-    <!-- Local JavaScript for FullCalendar from node_modules -->
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/core/index.global.min.js') }}'></script>
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/daygrid/index.global.min.js') }}'></script>
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/interaction/index.global.min.js') }}'></script>
-    <!-- Local JavaScript for Flatpickr from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.js') }}"></script>
 
-    <!-- Your custom dashboard.js should be the LAST script loaded -->
     <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 
-    <!-- PWA Service Worker Registration -->
     <script>
         if ('serviceWorker' in navigator) {
-            window.addEventListener('load', function() {
-                navigator.serviceWorker.register('/static/service-worker.js')
-                    .then(function(registration) {
-                        console.log('Service Worker registered with scope: ', registration.scope);
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('{{ url_for('static', filename='service-worker.js') }}')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
                     })
-                    .catch(function(error) {
-                        console.log('Service Worker registration failed: ', error);
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
                     });
             });
         }
