@@ -170,14 +170,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Map the new lead structure to what the frontend expects
             allLeads = data.map(lead => ({
                 id: lead.id,
-                fullName: lead.full_name || 'N/A',
-                email: lead.email || 'N/A',
-                phone: lead.phone || 'N/A',
-                stage: lead.stage || 'N/A',
-                source: lead.source || 'N/A',
-                notes: lead.notes || 'N/A',
-                lastFollowUp: lead.last_follow_up || 'N/A',
-                nextFollowUp: lead.next_follow_up || 'N/A',
+                fullName: lead.full_name ?? 'N/A', // Changed to ?? 'N/A'
+                email: lead.email ?? 'N/A', // Changed to ?? 'N/A'
+                phone: lead.phone ?? 'N/A', // Changed to ?? 'N/A'
+                stage: lead.stage ?? 'N/A', // Changed to ?? 'N/A'
+                source: lead.source ?? 'N/A', // Changed to ?? 'N/A'
+                notes: lead.notes ?? 'N/A', // Changed to ?? 'N/A'
+                lastFollowUp: lead.last_follow_up ?? 'N/A', // Changed to ?? 'N/A'
+                nextFollowUp: lead.next_follow_up ?? 'N/A', // Changed to ?? 'N/A'
             }));
             currentLeadsData = [...allLeads]; // Initialize current data for sorting/filtering
             
@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (endDate) params.append('end_date', endDate);
         if (params.toString()) url += `?${params.toString()}`;
 
-        console.log(`Dashboard.js: Fetching expenditure report (Start: ${startDate || 'N/A'}, End: ${endDate || 'N/A'})...`);
+        console.log(`Dashboard.js: Fetching expenditure report (Start: ${startDate ?? 'N/A'}, End: ${endDate ?? 'N/A'})...`); // Changed to ?? 'N/A'
 
         try {
             const response = await fetch(url);
@@ -283,14 +283,14 @@ document.addEventListener('DOMContentLoaded', function() {
             row.dataset.leadId = lead.id; // Store ID for actions
 
             row.innerHTML = `
-                <td data-label="Full Name">${lead.fullName || 'N/A'}</td>
-                <td data-label="Email">${lead.email || 'N/A'}</td>
-                <td data-label="Phone">${lead.phone || 'N/A'}</td>
-                <td data-label="Stage">${lead.stage || 'N/A'}</td>
-                <td data-label="Source">${lead.source || 'N/A'}</td>
-                <td data-label="Notes">${lead.notes || 'N/A'}</td>
-                <td data-label="Last Follow-up">${lead.lastFollowUp || 'N/A'}</td>
-                <td data-label="Next Follow-up">${lead.nextFollowUp || 'N/A'}</td>
+                <td data-label="Full Name">${lead.fullName ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Email">${lead.email ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Phone">${lead.phone ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Stage">${lead.stage ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Source">${lead.source ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Notes">${lead.notes ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Last Follow-up">${lead.lastFollowUp ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Next Follow-up">${lead.nextFollowUp ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
                 <td data-label="Actions">
                     <button class="btn btn-sm btn-info edit-lead-btn" data-id="${lead.id}" title="Edit Lead"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-sm btn-danger delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash"></i></button>
@@ -325,12 +325,12 @@ document.addEventListener('DOMContentLoaded', function() {
             row.dataset.sourceTable = item.source_table; // Store source table for correct deletion
 
             row.innerHTML = `
-                <td data-label="Date">${item.date || 'N/A'}</td>
-                <td data-label="Type/Category">${item.type_category || 'N/A'}</td>
-                <td data-label="Description">${item.description || 'N/A'}</td>
+                <td data-label="Date">${item.date ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Type/Category">${item.type_category ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Description">${item.description ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
                 <td data-label="Amount (KSh)">KSh ${item.amount ? item.amount.toFixed(2) : '0.00'}</td>
-                <td data-label="Lead Name">${item.lead_name || 'N/A'}</td>
-                <td data-label="Company">${item.company || 'N/A'}</td>
+                <td data-label="Lead Name">${item.lead_name ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
+                <td data-label="Company">${item.company ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
                 <td data-label="Actions">
                     <button class="btn btn-sm btn-info edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Expense"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-sm btn-danger delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Expense"><i class="fas fa-trash"></i></button>
@@ -392,7 +392,7 @@ document.addEventListener('DOMContentLoaded', function() {
         }).map(event => ({
             id: event.id,
             // Provide a fallback for the title if it's empty or null
-            title: event.title || event.extendedProps.type || 'No Title', 
+            title: event.title ?? event.extendedProps.type ?? 'No Title', // Changed to ??
             start: event.start,
             end: event.end,
             extendedProps: {
@@ -499,8 +499,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     document.getElementById('eventEnd').value = eventEnd ? new Date(eventEnd).toISOString().slice(0, 16) : '';
                 }
                 
-                document.getElementById('eventAmount').value = eventData.amount || '0.00';
-                document.getElementById('eventCompany').value = eventData.company || 'N/A';
+                document.getElementById('eventAmount').value = eventData.amount ?? '0.00'; // Changed to ??
+                document.getElementById('eventCompany').value = eventData.company ?? 'N/A'; // Changed to ?? 'N/A'
                 
                 populateLeadDropdowns('eventLeadId', eventData.lead_id); // Populate and select lead
 
@@ -533,7 +533,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateLeadsByStageChart(leads) {
         const ctx = document.getElementById('leadsByStageChart').getContext('2d');
         const stageCounts = leads.reduce((acc, lead) => {
-            acc[lead.stage] = (acc[lead.stage] || 0) + 1;
+            acc[lead.stage] = (acc[lead.stage] ?? 0) + 1; // Changed to ??
             return acc;
         }, {});
 
@@ -683,8 +683,8 @@ document.addEventListener('DOMContentLoaded', function() {
             stage: formData.get('stage'),
             source: formData.get('source'),
             notes: formData.get('notes'),
-            last_follow_up: formData.get('last_follow_up') || null,
-            next_follow_up: formData.get('next_follow_up') || null
+            last_follow_up: formData.get('last_follow_up') ?? null, // Changed to ??
+            next_follow_up: formData.get('next_follow_up') ?? null // Changed to ??
         };
 
         try {
@@ -724,8 +724,8 @@ document.addEventListener('DOMContentLoaded', function() {
             stage: formData.get('stage'),
             source: formData.get('source'),
             notes: formData.get('notes'),
-            last_follow_up: formData.get('last_follow_up') || null,
-            next_follow_up: formData.get('next_follow_up') || null
+            last_follow_up: formData.get('last_follow_up') ?? null, // Changed to ??
+            next_follow_up: formData.get('next_follow_up') ?? null // Changed to ??
         };
 
         try {
@@ -761,8 +761,8 @@ document.addEventListener('DOMContentLoaded', function() {
             type_category: formData.get('type_category'),
             description: formData.get('description'),
             amount: parseFloat(formData.get('amount')),
-            lead_id: formData.get('lead_id') || null,
-            company: formData.get('company') || null // Ensure company is sent
+            lead_id: formData.get('lead_id') ?? null, // Changed to ??
+            company: formData.get('company') ?? null // Changed to ??
         };
 
         try {
@@ -801,8 +801,8 @@ document.addEventListener('DOMContentLoaded', function() {
             type_category: formData.get('type_category'),
             description: formData.get('description'),
             amount: parseFloat(formData.get('amount')),
-            lead_id: formData.get('lead_id') || null,
-            company: formData.get('company') || null // Ensure company is sent
+            lead_id: formData.get('lead_id') ?? null, // Changed to ??
+            company: formData.get('company') ?? null // Changed to ??
         };
 
         try {
@@ -835,13 +835,13 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const formData = new FormData(this);
         const eventData = {
-            id: formData.get('id') || null, // For updating existing event
+            id: formData.get('id') ?? null, // Changed to ??
             title: formData.get('title'),
             start: formData.get('start_time'),
-            end: formData.get('end_time') || null,
-            lead_id: formData.get('lead_id') || null,
-            amount: parseFloat(formData.get('amount')) || 0.00,
-            company: formData.get('company') || null // Now correctly gets company from form
+            end: formData.get('end_time') ?? null, // Changed to ??
+            lead_id: formData.get('lead_id') ?? null, // Changed to ??
+            amount: parseFloat(formData.get('amount')) ?? 0.00, // Changed to ??
+            company: formData.get('company') ?? null // Changed to ??
         };
 
         const method = eventData.id ? 'PUT' : 'POST';
@@ -888,23 +888,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Populate edit modal fields
                     document.getElementById('editLeadId').value = lead.id;
-                    document.getElementById('editLeadFullName').value = lead.full_name || 'N/A';
-                    document.getElementById('editLeadEmail').value = lead.email || 'N/A';
-                    document.getElementById('editLeadPhone').value = lead.phone || 'N/A';
-                    document.getElementById('editLeadStage').value = lead.stage || 'N/A';
-                    document.getElementById('editLeadSource').value = lead.source || 'N/A';
-                    document.getElementById('editLeadNotes').value = lead.notes || 'N/A';
+                    document.getElementById('editLeadFullName').value = lead.full_name ?? 'N/A'; // Changed to ?? 'N/A'
+                    document.getElementById('editLeadEmail').value = lead.email ?? 'N/A'; // Changed to ?? 'N/A'
+                    document.getElementById('editLeadPhone').value = lead.phone ?? 'N/A'; // Changed to ?? 'N/A'
+                    document.getElementById('editLeadStage').value = lead.stage ?? 'N/A'; // Changed to ?? 'N/A'
+                    document.getElementById('editLeadSource').value = lead.source ?? 'N/A'; // Changed to ?? 'N/A'
+                    document.getElementById('editLeadNotes').value = lead.notes ?? 'N/A'; // Changed to ?? 'N/A'
                     
                     // Flatpickr instances need to be updated
                     if (flatpickrInstances['editLeadLastFollowUp']) {
                         flatpickrInstances['editLeadLastFollowUp'].setDate(lead.last_follow_up);
                     } else {
-                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up || 'N/A';
+                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up ?? 'N/A'; // Changed to ?? 'N/A'
                     }
                     if (flatpickrInstances['editLeadNextFollowUp']) {
                         flatpickrInstances['editLeadNextFollowUp'].setDate(lead.next_follow_up);
                     } else {
-                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up || 'N/A';
+                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up ?? 'N/A'; // Changed to ?? 'N/A'
                     }
 
                     openModal('editLeadModal');
@@ -962,12 +962,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with general expense data
                         document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.date || 'N/A';
-                        document.getElementById('editExpenditureType').value = item.type_category || 'General Expense';
-                        document.getElementById('editExpenditureDescription').value = item.description || 'N/A';
-                        document.getElementById('editExpenditureAmount').value = item.amount || '0.00';
+                        document.getElementById('editExpenditureDate').value = item.date ?? 'N/A'; // Changed to ?? 'N/A'
+                        document.getElementById('editExpenditureType').value = item.type_category ?? 'General Expense'; // Changed to ??
+                        document.getElementById('editExpenditureDescription').value = item.description ?? 'N/A'; // Changed to ?? 'N/A'
+                        document.getElementById('editExpenditureAmount').value = item.amount ?? '0.00'; // Changed to ??
                         populateLeadDropdowns('editExpenditureLeadId', item.lead_id); // Populate and select lead
-                        document.getElementById('editExpenditureCompany').value = item.company || 'N/A';
+                        document.getElementById('editExpenditureCompany').value = item.company ?? 'N/A'; // Changed to ?? 'N/A'
                         openModal('editExpenditureModal');
                     } else if (sourceTable === 'calendar_events') {
                         // For calendar events (which can also be expenditures), fetch from calendar events endpoint
@@ -976,12 +976,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with calendar event data
                         document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : 'N/A';
-                        document.getElementById('editExpenditureType').value = item.extendedProps.type || 'N/A';
-                        document.getElementById('editExpenditureDescription').value = item.title || 'N/A'; // FullCalendar title is description
-                        document.getElementById('editExpenditureAmount').value = item.extendedProps.amount || '0.00';
+                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : 'N/A'; // Retained || 'N/A' for split check
+                        document.getElementById('editExpenditureType').value = item.extendedProps.type ?? 'N/A'; // Changed to ?? 'N/A'
+                        document.getElementById('editExpenditureDescription').value = item.title ?? 'N/A'; // Changed to ?? 'N/A'
+                        document.getElementById('editExpenditureAmount').value = item.extendedProps.amount ?? '0.00'; // Changed to ??
                         populateLeadDropdowns('editExpenditureLeadId', item.extendedProps.lead_id);
-                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company || 'N/A';
+                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company ?? 'N/A'; // Changed to ?? 'N/A'
                         openModal('editExpenditureModal');
                     }
                 } catch (error) {
