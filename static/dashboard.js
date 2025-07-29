@@ -359,8 +359,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // --- DEBUGGING: Log FullCalendar components ---
         console.log("DEBUG: FullCalendar core object:", typeof FullCalendar, FullCalendar);
-        console.log("DEBUG: FullCalendar.dayGrid plugin object:", typeof FullCalendar.dayGrid, FullCalendar.dayGrid);
-        console.log("DEBUG: FullCalendar.interaction plugin object:", typeof FullCalendar.interaction, FullCalendar.interaction);
+        console.log("DEBUG: FullCalendar.DayGrid plugin object (expected):", typeof FullCalendar.DayGrid, FullCalendar.DayGrid);
+        console.log("DEBUG: FullCalendar.Interaction plugin object (expected):", typeof FullCalendar.Interaction, FullCalendar.Interaction);
         // --- END DEBUGGING ---
 
         // Filter and map events to ensure they are well-formed for FullCalendar
@@ -402,7 +402,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }));
 
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
-            plugins: [FullCalendar.dayGrid, FullCalendar.interaction],
+            // Corrected plugin references to use capitalized global names
+            plugins: [FullCalendar.DayGrid, FullCalendar.Interaction],
             initialView: 'dayGridMonth',
             headerToolbar: {
                 left: 'prev,next today',
@@ -1039,9 +1040,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     const valA = a[sortBy];
                     const valB = b[sortBy];
 
-                    // Handle null/undefined values
-                    if (valA === null || valA === undefined) return direction === 'asc' ? 1 : -1;
-                    if (valB === null || valB === undefined) return direction === 'asc' ? -1 : 1;
+                    // Custom handling for 'N/A' to push it to the end
+                    const isNA_A = (valA === null || valA === undefined || String(valA).trim().toUpperCase() === 'N/A');
+                    const isNA_B = (valB === null || valB === undefined || String(valB).trim().toUpperCase() === 'N/A');
+
+                    if (isNA_A && !isNA_B) return direction === 'asc' ? 1 : -1;
+                    if (!isNA_A && isNA_B) return direction === 'asc' ? -1 : 1;
+                    if (isNA_A && isNA_B) return 0; // Both are N/A, maintain relative order
 
                     // Numeric comparison
                     if (typeof valA === 'number' && typeof valB === 'number') {
