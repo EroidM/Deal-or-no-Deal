@@ -164,7 +164,7 @@ document.addEventListener('DOMContentLoaded', function() {
             // Map the new lead structure to what the frontend expects
             allLeads = data.map(lead => ({
                 id: lead.id,
-                fullName: lead.full_name || `${lead.firstName || ''} ${lead.lastName || ''}`.trim(), // Use full_name if available, otherwise construct
+                fullName: lead.full_name || '', // Use full_name
                 email: lead.email,
                 phone: lead.phone,
                 stage: lead.stage,
@@ -172,7 +172,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 notes: lead.notes,
                 lastFollowUp: lead.last_follow_up, // New field
                 nextFollowUp: lead.next_follow_up, // New field
-                dateOfContact: lead.dateOfContact // Keep for compatibility if needed elsewhere
             }));
             currentLeadsData = [...allLeads]; // Initialize current data for sorting/filtering
             
@@ -183,7 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
             populateLeadDropdowns('expenditureLeadId'); // Populate for expenditure modal
             populateLeadDropdowns('eventLeadId'); // Populate for event modal
             populateLeadDropdowns('editExpenditureLeadId'); // Populate for edit expense modal
-            populateLeadDropdowns('editEventLeadId'); // Populate for edit event modal
+            // Removed: populateLeadDropdowns('editEventLeadId'); // This ID doesn't exist in HTML
 
             leadsDataFetched = true; // Mark as fetched
         } catch (error) {
@@ -368,16 +367,17 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             events: events.map(event => ({
                 id: event.id,
-                title: event.description || event.type, // Use description as title, fallback to type
-                start: event.date,
+                title: event.title, // FullCalendar uses title for display
+                start: event.start,
+                end: event.end, // Use end date if available
                 extendedProps: {
-                    type: event.type,
-                    lead_id: event.lead_id,
-                    lead_name: event.lead_name,
-                    company: event.company,
-                    amount: event.amount
+                    type: event.extendedProps.type,
+                    lead_id: event.extendedProps.lead_id,
+                    lead_name: event.extendedProps.lead_name,
+                    company: event.extendedProps.company,
+                    amount: event.extendedProps.amount
                 },
-                classNames: [`fc-event-${event.type.toLowerCase().replace(/\s/g, '-')}`] // Add class for styling
+                classNames: [`fc-event-${event.extendedProps.type.toLowerCase().replace(/\s/g, '-')}`] // Add class for styling
             })),
             eventDidMount: function(info) {
                 // Add tooltip on hover
@@ -421,14 +421,23 @@ document.addEventListener('DOMContentLoaded', function() {
 
                 document.getElementById('eventId').value = eventId; // Hidden ID for update
                 document.getElementById('eventTitle').value = eventTitle;
-                document.getElementById('eventDate').value = eventStart ? eventStart.toISOString().split('T')[0] : ''; // Only date part
-                document.getElementById('eventType').value = eventData.type || '';
-                document.getElementById('eventDescription').value = info.event.title; // FullCalendar uses title for description
+                // Flatpickr handles date/time, so set the value directly
+                if (flatpickrInstances['eventStart']) {
+                    flatpickrInstances['eventStart'].setDate(eventStart);
+                } else {
+                    document.getElementById('eventStart').value = eventStart ? eventStart.toISOString().slice(0, 16) : ''; // YYYY-MM-DDTHH:MM for datetime-local
+                }
+                if (flatpickrInstances['eventEnd']) {
+                    flatpickrInstances['eventEnd'].setDate(eventEnd);
+                } else {
+                    document.getElementById('eventEnd').value = eventEnd ? eventEnd.toISOString().slice(0, 16) : '';
+                }
+                
                 document.getElementById('eventAmount').value = eventData.amount || '0.00';
                 
                 populateLeadDropdowns('eventLeadId', eventData.lead_id); // Populate and select lead
 
-                openModal('generalEventModal');
+                openModal('addEventModal'); // Use the addEventModal for editing
             }
         });
         calendarInstance.render();
@@ -576,7 +585,7 @@ document.addEventListener('DOMContentLoaded', function() {
         allLeads.forEach(lead => {
             const option = document.createElement('option');
             option.value = lead.id;
-            option.textContent = `${lead.fullName} (${lead.company || 'No Company'})`;
+            option.textContent = `${lead.fullName}`; // Removed company here as it's not directly on lead anymore
             if (selectedLeadId && lead.id === selectedLeadId) {
                 option.selected = true;
             }
@@ -679,7 +688,7 @@ document.addEventListener('DOMContentLoaded', function() {
             description: formData.get('description'),
             amount: parseFloat(formData.get('amount')),
             lead_id: formData.get('lead_id') || null,
-            company: formData.get('company') || null
+            company: formData.get('company') || null // Ensure company is sent
         };
 
         try {
@@ -693,6 +702,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showMessage(result.message, 'success');
                 closeModal('addExpenditureModal');
                 fetchExpenditureReport(); // Refresh report
+                fetchCalendarEvents(); // Refresh calendar if it was a calendar-based expense
             } else {
                 showMessage(`Error: ${result.message}`, 'error');
             }
@@ -718,7 +728,7 @@ document.addEventListener('DOMContentLoaded', function() {
             description: formData.get('description'),
             amount: parseFloat(formData.get('amount')),
             lead_id: formData.get('lead_id') || null,
-            company: formData.get('company') || null
+            company: formData.get('company') || null // Ensure company is sent
         };
 
         try {
@@ -732,6 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 showMessage(result.message, 'success');
                 closeModal('editExpenditureModal');
                 fetchExpenditureReport(); // Refresh report
+                fetchCalendarEvents(); // Refresh calendar if it was a calendar-based expense
             } else {
                 showMessage(`Error: ${result.message}`, 'error');
             }
@@ -755,11 +766,15 @@ document.addEventListener('DOMContentLoaded', function() {
             start: formData.get('start_time'),
             end: formData.get('end_time') || null,
             lead_id: formData.get('lead_id') || null,
-            amount: parseFloat(formData.get('amount')) || 0.00
+            amount: parseFloat(formData.get('amount')) || 0.00,
+            // Note: The calendar event form in HTML does not have a 'company' field.
+            // If you want to associate a company with a calendar event, you'd need to add a field to the form.
+            // For now, it will be null unless explicitly added to the form and sent.
+            company: null // Set explicitly to null as it's not in the current form
         };
 
         const method = eventData.id ? 'PUT' : 'POST';
-        const url = eventData.id ? `/api/calendar_events` : '/api/calendar_events'; // ID passed in body for PUT
+        const url = '/api/calendar_events'; // ID passed in body for PUT
 
         try {
             const response = await fetch(url, {
@@ -870,30 +885,30 @@ document.addEventListener('DOMContentLoaded', function() {
                 try {
                     let item;
                     if (sourceTable === 'general_expenses') {
-                        const response = await fetch(`/api/general_expenses?id=${itemId}`);
+                        const response = await fetch(`/api/general_expenses?id=${itemId}`); // Fetch from specific endpoint
                         if (!response.ok) throw new Error('Failed to fetch general expense for editing');
                         item = (await response.json())[0];
-                        // Populate general expense modal
+                        // Populate edit expenditure modal with general expense data
                         document.getElementById('editExpenditureId').value = item.id;
                         document.getElementById('editExpenditureDate').value = item.date || '';
-                        document.getElementById('editExpenditureType').value = item.type_category || ''; // For general, this is fixed
+                        document.getElementById('editExpenditureType').value = item.type_category || 'General Expense';
                         document.getElementById('editExpenditureDescription').value = item.description || '';
                         document.getElementById('editExpenditureAmount').value = item.amount || '0.00';
-                        document.getElementById('editExpenditureLeadId').value = ''; // No lead for general expense
-                        document.getElementById('editExpenditureCompany').value = ''; // No company for general expense
-                        openModal('editExpenditureModal'); // Use the correct modal for general expenses
+                        populateLeadDropdowns('editExpenditureLeadId', item.lead_id); // Populate and select lead
+                        document.getElementById('editExpenditureCompany').value = item.company || '';
+                        openModal('editExpenditureModal');
                     } else if (sourceTable === 'calendar_events') {
-                        const response = await fetch(`/api/calendar_events?id=${itemId}`);
+                        const response = await fetch(`/api/calendar_events?id=${itemId}`); // Fetch from specific endpoint
                         if (!response.ok) throw new Error('Failed to fetch calendar event for editing');
                         item = (await response.json())[0];
-                        // Populate expenditure modal with calendar event data
+                        // Populate edit expenditure modal with calendar event data
                         document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.date || '';
-                        document.getElementById('editExpenditureType').value = item.type || ''; // Type from calendar event
-                        document.getElementById('editExpenditureDescription').value = item.description || '';
-                        document.getElementById('editExpenditureAmount').value = item.amount || '0.00';
-                        populateLeadDropdowns('editExpenditureLeadId', item.lead_id);
-                        document.getElementById('editExpenditureCompany').value = item.company || '';
+                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : ''; // Get date part only
+                        document.getElementById('editExpenditureType').value = item.extendedProps.type || '';
+                        document.getElementById('editExpenditureDescription').value = item.title || ''; // FullCalendar title is description
+                        document.getElementById('editExpenditureAmount').value = item.extendedProps.amount || '0.00';
+                        populateLeadDropdowns('editExpenditureLeadId', item.extendedProps.lead_id);
+                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company || '';
                         openModal('editExpenditureModal');
                     }
                 } catch (error) {
@@ -913,14 +928,8 @@ document.addEventListener('DOMContentLoaded', function() {
                     showLoading();
                     try {
                         let response;
-                        if (sourceTable === 'general_expenses') {
-                            response = await fetch(`/api/general_expenses?id=${itemId}`, { method: 'DELETE' });
-                        } else if (sourceTable === 'calendar_events') {
-                            // For calendar events, we delete the event itself
-                            response = await fetch(`/api/calendar_events?id=${itemId}`, { method: 'DELETE' });
-                        } else {
-                            throw new Error('Unknown source table for deletion');
-                        }
+                        // Use the new /api/expenditure endpoint for deletion
+                        response = await fetch(`/api/expenditure?id=${itemId}&source_table=${sourceTable}`, { method: 'DELETE' });
 
                         const result = await response.json();
                         if (response.ok) {
@@ -961,13 +970,24 @@ document.addEventListener('DOMContentLoaded', function() {
                 let direction = sortDirections[tableId] && sortDirections[tableId].column === sortBy ?
                                 (sortDirections[tableId].direction === 'asc' ? 'desc' : 'asc') : 'asc';
 
-                // Remove existing sort classes
+                // Remove existing sort classes and icons
                 headers.forEach(h => {
                     h.classList.remove('asc', 'desc');
+                    const icon = h.querySelector('i.fas.fa-sort, i.fas.fa-sort-up, i.fas.fa-sort-down');
+                    if (icon) {
+                        icon.classList.remove('fa-sort-up', 'fa-sort-down');
+                        icon.classList.add('fa-sort');
+                    }
                 });
 
-                // Add current sort class
+                // Add current sort class and icon
                 this.classList.add(direction);
+                const currentIcon = this.querySelector('i.fas.fa-sort');
+                if (currentIcon) {
+                    currentIcon.classList.remove('fa-sort');
+                    currentIcon.classList.add(direction === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
+                }
+
 
                 // Sort the data array
                 const sortedData = [...dataArray].sort((a, b) => {
@@ -1018,7 +1038,10 @@ document.addEventListener('DOMContentLoaded', function() {
     initializeFlatpickr('#editLeadForm .flatpickr-input');
     initializeFlatpickr('#addExpenditureForm .flatpickr-input');
     initializeFlatpickr('#editExpenditureForm .flatpickr-input');
-    initializeFlatpickr('#addEventForm .flatpickr-input', { enableTime: true, dateFormat: "Y-m-d H:i" }); // For calendar events
+    // For calendar events, enable time selection
+    initializeFlatpickr('#addEventForm #eventStart', { enableTime: true, dateFormat: "Y-m-d H:i" });
+    initializeFlatpickr('#addEventForm #eventEnd', { enableTime: true, dateFormat: "Y-m-d H:i" });
+
 
     // Initialize Flatpickr for expenditure date range filter
     initializeFlatpickr('#expenditureDateRange', {
@@ -1042,6 +1065,7 @@ document.addEventListener('DOMContentLoaded', function() {
     fetchLeads(); // Leads data is needed for overview stats and dropdowns
 
     // Set up sorting listeners on table headers
+    // Using event delegation on the table itself, then checking if the click was on a sortable header.
     document.getElementById('recentLeadsTable')?.addEventListener('click', function(event) {
         const targetTh = event.target.closest('th[data-sort-by]');
         if (targetTh) {

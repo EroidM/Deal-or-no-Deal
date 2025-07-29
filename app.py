@@ -53,8 +53,6 @@ def init_db():
         if conn:
             cur = conn.cursor()
             # Create leads table with new columns
-            # Using ALTER TABLE IF NOT EXISTS ADD COLUMN for idempotency
-            # This allows you to run init_db multiple times without error if tables exist
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS leads (
                     id SERIAL PRIMARY KEY,
@@ -69,61 +67,49 @@ def init_db():
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            # Add new columns if they don't exist
-            # Note: For existing data, these columns will be NULL.
-            # You might need to backfill data if 'firstName', 'lastName', 'company' are still used
-            # For this new structure, 'company' is moved to expenditure/event directly if needed
+            # Add new columns to leads table if they don't exist
             cur.execute("ALTER TABLE leads ADD COLUMN IF NOT EXISTS full_name VARCHAR(255);")
             cur.execute("ALTER TABLE leads ADD COLUMN IF NOT EXISTS source VARCHAR(255);")
             cur.execute("ALTER TABLE leads ADD COLUMN IF NOT EXISTS last_follow_up DATE;")
             cur.execute("ALTER TABLE leads ADD COLUMN IF NOT EXISTS next_follow_up DATE;")
 
-            # Drop old columns if they exist and are no longer needed
-            # BE CAREFUL: This will delete data in these columns.
-            # Only uncomment if you are sure you want to remove them and have migrated data.
-            # cur.execute("ALTER TABLE leads DROP COLUMN IF EXISTS firstName;")
-            # cur.execute("ALTER TABLE leads DROP COLUMN IF EXISTS lastName;")
-            # cur.execute("ALTER TABLE leads DROP COLUMN IF EXISTS title;")
-            # cur.execute("ALTER TABLE leads DROP COLUMN IF EXISTS company;")
-            # cur.execute("ALTER TABLE leads DROP COLUMN IF EXISTS dateOfContact;") # dateOfContact is now implied by last_follow_up or notes
-
-            # Create general_expenses table (remains largely same)
+            # Create general_expenses table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS general_expenses (
                     id SERIAL PRIMARY KEY,
                     date DATE NOT NULL,
                     amount NUMERIC(10, 2) NOT NULL,
                     description TEXT NOT NULL,
-                    type_category VARCHAR(255) DEFAULT 'General Expense', -- Added default for clarity
-                    lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL, -- Added lead_id
-                    company VARCHAR(255), -- Added company
+                    type_category VARCHAR(255) DEFAULT 'General Expense',
+                    lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+                    company VARCHAR(255),
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            # Add new columns if they don't exist
+            # Add new columns to general_expenses table if they don't exist
             cur.execute("ALTER TABLE general_expenses ADD COLUMN IF NOT EXISTS type_category VARCHAR(255) DEFAULT 'General Expense';")
             cur.execute("ALTER TABLE general_expenses ADD COLUMN IF NOT EXISTS lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL;")
             cur.execute("ALTER TABLE general_expenses ADD COLUMN IF NOT EXISTS company VARCHAR(255);")
 
 
-            # Create calendar_events table (updated to align with FullCalendar and expenditure)
+            # Create calendar_events table
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS calendar_events (
                     id SERIAL PRIMARY KEY,
-                    date TIMESTAMP NOT NULL, -- Changed to TIMESTAMP for start/end time
-                    type VARCHAR(255) NOT NULL, -- Event type (Meeting, Visit, Call, etc.)
-                    description TEXT, -- This will store the 'title' from FullCalendar
+                    date TIMESTAMP NOT NULL,
+                    type VARCHAR(255) NOT NULL,
+                    description TEXT,
                     lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
                     amount NUMERIC(10, 2) DEFAULT 0.00,
-                    end_date TIMESTAMP, -- Added for event end time
+                    end_date TIMESTAMP,
+                    company VARCHAR(255), -- ADDED company column here
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
                 );
             """)
-            # Add new columns if they don't exist
+            # Add new columns to calendar_events table if they don't exist
             cur.execute("ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS end_date TIMESTAMP;")
-            # The 'description' column now holds the event 'title' from frontend
-            # The 'type' column now holds the event 'type' from frontend
-            # The 'date' column now holds the event 'start' from frontend (changed to TIMESTAMP)
+            cur.execute("ALTER TABLE calendar_events ADD COLUMN IF NOT EXISTS company VARCHAR(255);") # Ensure company column is added
+
 
             conn.commit()
             cur.close()
@@ -190,12 +176,10 @@ def handle_leads():
             lead_id = request.args.get('id')
             if lead_id:
                 logging.debug(f"Fetching lead with ID: {lead_id}")
-                # Select all new columns
                 cur.execute("SELECT id, full_name, email, phone, stage, source, notes, last_follow_up, next_follow_up, created_at FROM leads WHERE id = %s;", (lead_id,))
                 leads = cur.fetchall()
             else:
                 logging.debug("Fetching all leads.")
-                # Select all new columns
                 cur.execute("SELECT id, full_name, email, phone, stage, source, notes, last_follow_up, next_follow_up, created_at FROM leads ORDER BY created_at DESC;")
                 leads = cur.fetchall()
 
@@ -275,7 +259,7 @@ def handle_expenditure():
             logging.debug(f"Received expenditure POST data: {data}")
             if not data.get('date'):
                 return jsonify({"message": "Date is required."}), 400
-            if not data.get('amount'):
+            if data.get('amount') is None: # Check for None explicitly as 0 is valid
                 return jsonify({"message": "Amount is required."}), 400
             if not data.get('type_category'):
                 return jsonify({"message": "Type/Category is required."}), 400
@@ -294,10 +278,10 @@ def handle_expenditure():
                 # These are stored in calendar_events
                 cur.execute(
                     """
-                    INSERT INTO calendar_events (date, type, description, lead_id, amount)
-                    VALUES (%s, %s, %s, %s, %s) RETURNING id;
+                    INSERT INTO calendar_events (date, type, description, lead_id, amount, company)
+                    VALUES (%s, %s, %s, %s, %s, %s) RETURNING id; -- ADDED company here
                     """,
-                    (data['date'], data['type_category'], data['description'], data['lead_id'], data['amount'])
+                    (data['date'], data['type_category'], data['description'], data['lead_id'], data['amount'], data['company']) # ADDED data['company'] here
                 )
             new_id = cur.fetchone()['id']
             conn.commit()
@@ -312,7 +296,7 @@ def handle_expenditure():
                 return jsonify({"message": "Expenditure ID is required for update"}), 400
             if not data.get('date'):
                 return jsonify({"message": "Date is required."}), 400
-            if not data.get('amount'):
+            if data.get('amount') is None: # Check for None explicitly
                 return jsonify({"message": "Amount is required."}), 400
             if not data.get('type_category'):
                 return jsonify({"message": "Type/Category is required."}), 400
@@ -332,10 +316,10 @@ def handle_expenditure():
                 cur.execute(
                     """
                     UPDATE calendar_events SET
-                        date = %s, type = %s, description = %s, lead_id = %s, amount = %s
-                    WHERE id = %s;
+                        date = %s, type = %s, description = %s, lead_id = %s, amount = %s, company = %s
+                    WHERE id = %s; -- ADDED company here
                     """,
-                    (data['date'], data['type_category'], data['description'], data['lead_id'], data['amount'], item_id)
+                    (data['date'], data['type_category'], data['description'], data['lead_id'], data['amount'], data['company'], item_id) # ADDED data['company'] here
                 )
             conn.commit()
             if cur.rowcount == 0:
@@ -390,22 +374,30 @@ def handle_calendar_events():
                 return jsonify({"message": "Start date/time is required."}), 400
 
             # Map frontend 'title', 'start', 'end' to backend 'description', 'date', 'end_date'
-            # 'type' will be derived from title or a default
-            event_type = data.get('type') or 'Other' # Fallback if type not explicitly sent
-            if data['title'].lower().startswith('meeting'): event_type = 'Meeting'
-            elif data['title'].lower().startswith('visit'): event_type = 'Visit'
-            elif data['title'].lower().startswith('call'): event_type = 'Call'
-            elif data['title'].lower().startswith('email'): event_type = 'Email'
-            elif data['title'].lower().startswith('cold visit'): event_type = 'Cold Visit'
-            elif data['title'].lower().startswith('office day'): event_type = 'Office Day Note'
-            elif data['title'].lower().startswith('expense'): event_type = 'General Expense' # For events that are expenses
+            event_type = data.get('type') or 'Other' # Fallback if type not explicitly sent from form
+            # The frontend form doesn't send 'type', so derive it from title if possible, otherwise 'Other'
+            # The dashboard.js now sends 'title' and 'start' (and 'end', 'lead_id', 'amount')
+            # The 'type' in DB should be the category of event (Meeting, Visit, etc.)
+            # The 'description' in DB should be the 'title' from FullCalendar.
+            
+            # Attempt to derive type from title if not explicitly provided
+            if not data.get('type'):
+                title_lower = data['title'].lower()
+                if 'meeting' in title_lower: event_type = 'Meeting'
+                elif 'visit' in title_lower: event_type = 'Visit'
+                elif 'call' in title_lower: event_type = 'Call'
+                elif 'email' in title_lower: event_type = 'Email'
+                elif 'cold visit' in title_lower: event_type = 'Cold Visit'
+                elif 'office day' in title_lower: event_type = 'Office Day Note'
+                elif 'expense' in title_lower: event_type = 'General Expense'
+                else: event_type = 'Other' # Default if no keyword match
 
             cur.execute(
                 """
-                INSERT INTO calendar_events (date, type, description, lead_id, amount, end_date)
-                VALUES (%s, %s, %s, %s, %s, %s) RETURNING id;
+                INSERT INTO calendar_events (date, type, description, lead_id, amount, end_date, company)
+                VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING id; -- ADDED company here
                 """,
-                (data['start'], event_type, data['title'], data.get('lead_id'), data.get('amount', 0.00), data.get('end'))
+                (data['start'], event_type, data['title'], data.get('lead_id'), data.get('amount', 0.00), data.get('end'), data.get('company')) # ADDED data.get('company') here
             )
             new_event_id = cur.fetchone()['id']
             conn.commit()
@@ -417,7 +409,7 @@ def handle_calendar_events():
             if event_id:
                 logging.debug(f"Fetching calendar event with ID: {event_id}")
                 cur.execute("""
-                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount, ce.end_date,
+                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount, ce.end_date, ce.company, -- ADDED ce.company
                            l.id AS lead_id, l.full_name AS lead_full_name
                     FROM calendar_events ce
                     LEFT JOIN leads l ON ce.lead_id = l.id
@@ -427,7 +419,7 @@ def handle_calendar_events():
             else:
                 logging.debug("Fetching all calendar events with linked lead info.")
                 cur.execute("""
-                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount, ce.end_date,
+                    SELECT ce.id, ce.date, ce.type, ce.description, ce.amount, ce.end_date, ce.company, -- ADDED ce.company
                            l.id AS lead_id, l.full_name AS lead_full_name
                     FROM calendar_events ce
                     LEFT JOIN leads l ON ce.lead_id = l.id
@@ -442,12 +434,8 @@ def handle_calendar_events():
                 start_date = event['date'].isoformat() if event['date'] else None
                 end_date = event['end_date'].isoformat() if event['end_date'] else None
 
-                # Construct lead_name and company for display in calendar tooltip
                 lead_name = event['lead_full_name'] if event['lead_full_name'] else 'N/A'
-                # Company is not directly in leads table anymore, so it's not available here unless fetched differently
-                # For now, we'll use N/A or derive it if needed from lead_id via another query (more complex)
-                # Or, if company is passed with the event creation, it could be stored in a new column in calendar_events
-                company = 'N/A' # Placeholder for now
+                company_name = event['company'] if event['company'] else 'N/A' # Now correctly fetched from DB
 
                 formatted_events.append({
                     'id': event['id'],
@@ -458,7 +446,7 @@ def handle_calendar_events():
                         'type': event['type'],
                         'lead_id': event['lead_id'],
                         'lead_name': lead_name,
-                        'company': company, # Placeholder
+                        'company': company_name, # Now correctly populated
                         'amount': float(event['amount']) if event['amount'] is not None else 0.00
                     }
                 })
@@ -476,22 +464,25 @@ def handle_calendar_events():
             if not data.get('start'):
                 return jsonify({"message": "Start date/time is required."}), 400
 
-            event_type = data.get('type') or 'Other' # Fallback if type not explicitly sent
-            if data['title'].lower().startswith('meeting'): event_type = 'Meeting'
-            elif data['title'].lower().startswith('visit'): event_type = 'Visit'
-            elif data['title'].lower().startswith('call'): event_type = 'Call'
-            elif data['title'].lower().startswith('email'): event_type = 'Email'
-            elif data['title'].lower().startswith('cold visit'): event_type = 'Cold Visit'
-            elif data['title'].lower().startswith('office day'): event_type = 'Office Day Note'
-            elif data['title'].lower().startswith('expense'): event_type = 'General Expense'
+            event_type = data.get('type') or 'Other' # Fallback if type not explicitly sent from form
+            if not data.get('type'):
+                title_lower = data['title'].lower()
+                if 'meeting' in title_lower: event_type = 'Meeting'
+                elif 'visit' in title_lower: event_type = 'Visit'
+                elif 'call' in title_lower: event_type = 'Call'
+                elif 'email' in title_lower: event_type = 'Email'
+                elif 'cold visit' in title_lower: event_type = 'Cold Visit'
+                elif 'office day' in title_lower: event_type = 'Office Day Note'
+                elif 'expense' in title_lower: event_type = 'General Expense'
+                else: event_type = 'Other'
 
             cur.execute(
                 """
                 UPDATE calendar_events SET
-                    date = %s, type = %s, description = %s, lead_id = %s, amount = %s, end_date = %s
-                WHERE id = %s;
+                    date = %s, type = %s, description = %s, lead_id = %s, amount = %s, end_date = %s, company = %s
+                WHERE id = %s; -- ADDED company here
                 """,
-                (data['start'], event_type, data['title'], data.get('lead_id'), data.get('amount', 0.00), data.get('end'), event_id)
+                (data['start'], event_type, data['title'], data.get('lead_id'), data.get('amount', 0.00), data.get('end'), data.get('company'), event_id) # ADDED data.get('company') here
             )
             conn.commit()
             if cur.rowcount == 0:
@@ -543,8 +534,8 @@ def get_expenditure_report():
 
         # Base query for calendar events with amount > 0
         query_calendar_expenses = """
-            SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount,
-                   l.id AS lead_id, l.full_name AS lead_full_name, NULL AS company, -- Company is not in leads table
+            SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount, ce.company, -- ADDED ce.company
+                   l.id AS lead_id, l.full_name AS lead_full_name,
                    'calendar_events' AS source_table
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
@@ -602,7 +593,7 @@ def get_expenditure_report():
                 "amount": float(item['amount']),
                 "lead_id": item['lead_id'],
                 "lead_name": item['lead_full_name'] if item['lead_full_name'] else 'N/A',
-                "company": item['company'] if item['company'] else 'N/A', # Use company from calendar_events if available
+                "company": item['company'] if item['company'] else 'N/A', # Now correctly fetched from calendar_events
                 "source_table": item['source_table']
             })
 
@@ -691,7 +682,7 @@ def export_expenditure_report():
         # Fetch calendar_events with amount > 0, using LEFT JOIN for leads
         query_calendar_expenses = """
             SELECT ce.date, ce.type AS type_category, ce.description, ce.amount,
-                   l.full_name AS lead_full_name, NULL AS company, -- Company is not in leads table
+                   l.full_name AS lead_full_name, ce.company, -- ADDED ce.company
                    'calendar_events' AS source_table
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
