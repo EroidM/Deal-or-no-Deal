@@ -4,7 +4,6 @@ import psycopg2
 from psycopg2 import extras
 import logging
 from dotenv import load_dotenv
-import csv
 from io import StringIO
 from datetime import datetime, date # Import date specifically
 
@@ -53,10 +52,6 @@ def init_db():
         if conn:
             cur = conn.cursor()
             # Create leads table with new columns
-            # IMPORTANT: Changed full_name to NOT NULL in CREATE TABLE, but ALTER TABLE ADD COLUMN
-            # does not add a NOT NULL constraint by default, which is safer for existing data.
-            # If you have existing leads without full_name, they will remain NULL.
-            # New leads will require full_name.
             cur.execute("""
                 CREATE TABLE IF NOT EXISTS leads (
                     id SERIAL PRIMARY KEY,
@@ -431,9 +426,12 @@ def handle_calendar_events():
             formatted_events = []
             for event in events:
                 # Ensure date/time fields are ISO formatted strings, handle None
-                # Check for None and type before calling isoformat()
-                start_date = event['date'].isoformat() if isinstance(event['date'], (datetime, date)) else None
-                end_date = event['end_date'].isoformat() if isinstance(event['end_date'], (datetime, date)) else None
+                # If date is None, use current datetime as a fallback
+                event_date = event['date'] if event['date'] is not None else datetime.now()
+                start_date = event_date.isoformat() if isinstance(event_date, (datetime, date)) else None
+
+                event_end_date = event['end_date'] if event['end_date'] is not None else event_date # Fallback to start date if end is None
+                end_date = event_end_date.isoformat() if isinstance(event_end_date, (datetime, date)) else None
 
                 lead_name = event['lead_full_name'] if event['lead_full_name'] else 'N/A'
                 company_name = event['company'] if event['company'] else 'N/A' # Now correctly fetched from DB
@@ -441,8 +439,8 @@ def handle_calendar_events():
                 formatted_events.append({
                     'id': event['id'],
                     'title': event['description'], # FullCalendar uses 'title' for display text
-                    'start': start_date,
-                    'end': end_date,
+                    'start': start_date, # Now guaranteed to be a string or None if conversion fails
+                    'end': end_date,     # Now guaranteed to be a string or None if conversion fails
                     'extendedProps': { # Custom properties for FullCalendar
                         'type': event['type'],
                         'lead_id': event['lead_id'],
@@ -536,7 +534,7 @@ def get_expenditure_report():
         # Base query for calendar events with amount > 0
         query_calendar_expenses = """
             SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount, ce.company,
-                   l.id AS lead_id, l.full_name AS lead_full_name,
+                   l.id AS lead_id, l.full_name AS lead_full_name
                    'calendar_events' AS source_table
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
