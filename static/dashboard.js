@@ -127,10 +127,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Attach event listeners to header buttons to open modals
     document.getElementById('addLeadButton')?.addEventListener('click', () => {
+        console.log("Add Lead button clicked."); // Debugging line
         document.getElementById('addLeadForm').reset(); // Clear form for new entry
         openModal('addLeadModal');
     });
     document.getElementById('addExpenditureButton')?.addEventListener('click', async () => {
+        console.log("Add Expenditure button clicked."); // Debugging line
         document.getElementById('addExpenditureForm').reset(); // Clear form
         await fetchLeads(); // Ensure leads are fetched before populating dropdown
         console.log("DEBUG: allLeads before populating expenditureLeadId dropdown:", allLeads); // Debugging line
@@ -138,6 +140,7 @@ document.addEventListener('DOMContentLoaded', function() {
         openModal('addExpenditureModal');
     });
     document.getElementById('addEventButton')?.addEventListener('click', async () => {
+        console.log("Add Event button clicked."); // Debugging line
         document.getElementById('addEventForm').reset(); // Clear form
         // Clear the hidden eventId field when opening for a new event
         const eventIdInput = document.getElementById('eventId');
@@ -167,14 +170,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Map the new lead structure to what the frontend expects
             allLeads = data.map(lead => ({
                 id: lead.id,
-                fullName: lead.full_name || 'N/A', // Reverted to N/A
-                email: lead.email || 'N/A', // Reverted to N/A
-                phone: lead.phone || 'N/A', // Reverted to N/A
-                stage: lead.stage || 'N/A', // Reverted to N/A
-                source: lead.source || 'N/A', // Reverted to N/A
-                notes: lead.notes || 'N/A', // Reverted to N/A
-                lastFollowUp: lead.last_follow_up || 'N/A', // Reverted to N/A
-                nextFollowUp: lead.next_follow_up || 'N/A', // Reverted to N/A
+                fullName: lead.full_name || 'N/A',
+                email: lead.email || 'N/A',
+                phone: lead.phone || 'N/A',
+                stage: lead.stage || 'N/A',
+                source: lead.source || 'N/A',
+                notes: lead.notes || 'N/A',
+                lastFollowUp: lead.last_follow_up || 'N/A',
+                nextFollowUp: lead.next_follow_up || 'N/A',
             }));
             currentLeadsData = [...allLeads]; // Initialize current data for sorting/filtering
             
@@ -401,17 +404,19 @@ document.addEventListener('DOMContentLoaded', function() {
             },
             // Ensure classNames is robust against null/undefined type
             classNames: [`fc-event-${event.extendedProps.type ? event.extendedProps.type.toLowerCase().replace(/\s/g, '-') : 'other'}`],
-            // Temporary inline style for debugging blank calendar events
-            // Remove this after confirming events are visible
-            // You might want to move this to CSS for proper styling
+            // TEMPORARY: Aggressive inline style for debugging blank calendar events
+            // This is to force visibility. Remove this after confirming events are visible
+            // You should move this to your CSS for proper styling later.
             style: {
-                color: 'black',
-                fontWeight: 'bold',
-                fontSize: '14px',
-                backgroundColor: '#e6f7ff', // Light blue background for visibility
-                borderColor: '#91d5ff' // Blue border
+                color: 'black !important', // Force black text
+                fontWeight: 'bold !important', // Force bold text
+                fontSize: '14px !important', // Ensure readable size
+                backgroundColor: '#e6f7ff !important', // Light blue background for visibility
+                borderColor: '#91d5ff !important' // Blue border
             }
         }));
+        
+        console.log("DEBUG: Formatted events for calendar (after mapping and styling):", formattedEvents); // New debugging line
 
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
             // Corrected plugin references to use capitalized global names and access 'default' property
@@ -447,10 +452,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (info.event.extendedProps.type) {
                         tooltipContent += `<span>Type: ${info.event.extendedProps.type}</span>`;
                     }
-                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== 'N/A') { // Reverted to N/A
+                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== 'N/A') { 
                         tooltipContent += `<span>Lead: ${info.event.extendedProps.lead_name}</span>`;
                     }
-                    if (info.event.extendedProps.company && info.event.extendedProps.company !== 'N/A') { // Reverted to N/A
+                    if (info.event.extendedProps.company && info.event.extendedProps.company !== 'N/A') { 
                         tooltipContent += `<span>Company: ${info.event.extendedProps.company}</span>`;
                     }
                     if (info.event.extendedProps.amount && info.event.extendedProps.amount > 0) {
@@ -495,7 +500,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 document.getElementById('eventAmount').value = eventData.amount || '0.00';
-                document.getElementById('eventCompany').value = eventData.company || 'N/A'; // Reverted to N/A
+                document.getElementById('eventCompany').value = eventData.company || 'N/A';
                 
                 populateLeadDropdowns('eventLeadId', eventData.lead_id); // Populate and select lead
 
@@ -883,23 +888,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Populate edit modal fields
                     document.getElementById('editLeadId').value = lead.id;
-                    document.getElementById('editLeadFullName').value = lead.full_name || 'N/A'; // Reverted to N/A
-                    document.getElementById('editLeadEmail').value = lead.email || 'N/A'; // Reverted to N/A
-                    document.getElementById('editLeadPhone').value = lead.phone || 'N/A'; // Reverted to N/A
-                    document.getElementById('editLeadStage').value = lead.stage || 'N/A'; // Reverted to N/A
-                    document.getElementById('editLeadSource').value = lead.source || 'N/A'; // Reverted to N/A
-                    document.getElementById('editLeadNotes').value = lead.notes || 'N/A'; // Reverted to N/A
+                    document.getElementById('editLeadFullName').value = lead.full_name || 'N/A';
+                    document.getElementById('editLeadEmail').value = lead.email || 'N/A';
+                    document.getElementById('editLeadPhone').value = lead.phone || 'N/A';
+                    document.getElementById('editLeadStage').value = lead.stage || 'N/A';
+                    document.getElementById('editLeadSource').value = lead.source || 'N/A';
+                    document.getElementById('editLeadNotes').value = lead.notes || 'N/A';
                     
                     // Flatpickr instances need to be updated
                     if (flatpickrInstances['editLeadLastFollowUp']) {
                         flatpickrInstances['editLeadLastFollowUp'].setDate(lead.last_follow_up);
                     } else {
-                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up || 'N/A'; // Reverted to N/A
+                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up || 'N/A';
                     }
                     if (flatpickrInstances['editLeadNextFollowUp']) {
                         flatpickrInstances['editLeadNextFollowUp'].setDate(lead.next_follow_up);
                     } else {
-                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up || 'N/A'; // Reverted to N/A
+                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up || 'N/A';
                     }
 
                     openModal('editLeadModal');
@@ -957,12 +962,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with general expense data
                         document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.date || 'N/A'; // Reverted to N/A
+                        document.getElementById('editExpenditureDate').value = item.date || 'N/A';
                         document.getElementById('editExpenditureType').value = item.type_category || 'General Expense';
-                        document.getElementById('editExpenditureDescription').value = item.description || 'N/A'; // Reverted to N/A
+                        document.getElementById('editExpenditureDescription').value = item.description || 'N/A';
                         document.getElementById('editExpenditureAmount').value = item.amount || '0.00';
                         populateLeadDropdowns('editExpenditureLeadId', item.lead_id); // Populate and select lead
-                        document.getElementById('editExpenditureCompany').value = item.company || 'N/A'; // Reverted to N/A
+                        document.getElementById('editExpenditureCompany').value = item.company || 'N/A';
                         openModal('editExpenditureModal');
                     } else if (sourceTable === 'calendar_events') {
                         // For calendar events (which can also be expenditures), fetch from calendar events endpoint
@@ -971,12 +976,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with calendar event data
                         document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : 'N/A'; // Get date part only, reverted to N/A
-                        document.getElementById('editExpenditureType').value = item.extendedProps.type || 'N/A'; // Reverted to N/A
-                        document.getElementById('editExpenditureDescription').value = item.title || 'N/A'; // FullCalendar title is description, reverted to N/A
+                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : 'N/A';
+                        document.getElementById('editExpenditureType').value = item.extendedProps.type || 'N/A';
+                        document.getElementById('editExpenditureDescription').value = item.title || 'N/A'; // FullCalendar title is description
                         document.getElementById('editExpenditureAmount').value = item.extendedProps.amount || '0.00';
                         populateLeadDropdowns('editExpenditureLeadId', item.extendedProps.lead_id);
-                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company || 'N/A'; // Reverted to N/A
+                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company || 'N/A';
                         openModal('editExpenditureModal');
                     }
                 } catch (error) {
