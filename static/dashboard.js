@@ -357,11 +357,17 @@ document.addEventListener('DOMContentLoaded', function() {
             calendarInstance.destroy(); // Destroy existing instance before re-rendering
         }
 
+        // --- DEBUGGING: Log FullCalendar components ---
+        console.log("DEBUG: FullCalendar core object:", typeof FullCalendar, FullCalendar);
+        console.log("DEBUG: FullCalendar.dayGrid plugin object:", typeof FullCalendar.dayGrid, FullCalendar.dayGrid);
+        console.log("DEBUG: FullCalendar.interaction plugin object:", typeof FullCalendar.interaction, FullCalendar.interaction);
+        // --- END DEBUGGING ---
+
         // Filter and map events to ensure they are well-formed for FullCalendar
         const formattedEvents = events.filter(event => {
             // Basic check: ensure event object itself exists and has core properties
             if (!event || typeof event.id === 'undefined' || typeof event.title === 'undefined' || typeof event.start === 'undefined') {
-                console.warn('Skipping malformed event:', event);
+                console.warn('Skipping malformed event (missing id, title, or start):', event);
                 return false;
             }
             // Ensure extendedProps exists
@@ -392,7 +398,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 amount: event.extendedProps.amount
             },
             // Ensure classNames is robust against null/undefined type
-            classNames: [`fc-event-${event.extendedProps.type.toLowerCase().replace(/\s/g, '-')}`]
+            classNames: [`fc-event-${event.extendedProps.type ? event.extendedProps.type.toLowerCase().replace(/\s/g, '-') : 'other'}`]
         }));
 
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
