@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales & Marketing Dashboard</title>
+    
+    <!-- PWA Manifest Link -->
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <!-- Theme color for browser UI when installed as PWA -->
+    <meta name="theme-color" content="#007bff">
+
     <!-- CSS for Font Awesome - still using CDN as it's not a direct npm dependency we installed for this purpose -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
@@ -1127,5 +1133,20 @@
 
     <!-- Your custom dashboard.js should be the LAST script loaded -->
     <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+
+    <!-- PWA Service Worker Registration -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/static/service-worker.js')
+                    .then(function(registration) {
+                        console.log('Service Worker registered with scope: ', registration.scope);
+                    })
+                    .catch(function(error) {
+                        console.log('Service Worker registration failed: ', error);
+                    });
+            });
+        }
+    </script>
 </body>
 </html>

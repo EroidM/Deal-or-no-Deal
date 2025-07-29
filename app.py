@@ -16,6 +16,8 @@ load_dotenv()
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 
 # Initialize Flask app
+# Ensure static_folder points to the correct location for all your static assets
+# This will serve files from the 'static' directory, including manifest.json and service-worker.js
 app = Flask(__name__, static_folder=os.path.join(BASE_DIR, 'static'))
 
 # --- IMPORTANT: Create a Blueprint for node_modules static files ---
@@ -777,4 +779,3 @@ def export_expenditure_report():
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     app.run(host='0.0.0.0', port=port)
-
