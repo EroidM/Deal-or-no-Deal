@@ -315,7 +315,7 @@ def handle_expenditure():
                 cur.execute(
                     """
                     UPDATE calendar_events SET
-                        date = %s, type = %s, description = %s, lead_id = %s, amount = %s, company = %s
+                        date = %s, type = %s, description = %s, lead_id = %s, amount = %s, end_date = %s, company = %s
                     WHERE id = %s;
                     """,
                     (data['date'], data['type_category'], data['description'], data['lead_id'], data['amount'], data['company'], item_id)
@@ -425,13 +425,23 @@ def handle_calendar_events():
             # Format events for FullCalendar (map DB fields to FC event object)
             formatted_events = []
             for event in events:
-                # Ensure date/time fields are ISO formatted strings, handle None
-                # If date is None, use current datetime as a fallback
-                event_date = event['date'] if event['date'] is not None else datetime.now()
-                start_date = event_date.isoformat() if isinstance(event_date, (datetime, date)) else None
+                # Ensure event_date is always a datetime object
+                event_date_obj = event['date']
+                if not isinstance(event_date_obj, (datetime, date)):
+                    # Provide a default valid datetime if the database returns None or an invalid type
+                    logging.warning(f"Calendar event ID {event.get('id', 'N/A')} has invalid 'date'. Defaulting to 2000-01-01.")
+                    event_date_obj = datetime(2000, 1, 1, 0, 0, 0) 
 
-                event_end_date = event['end_date'] if event['end_date'] is not None else event_date # Fallback to start date if end is None
-                end_date = event_end_date.isoformat() if isinstance(event_end_date, (datetime, date)) else None
+                # Ensure start_date is always an ISO formatted string
+                start_date = event_date_obj.isoformat()
+
+                # Ensure event_end_date_obj is always a datetime object (fallback to start date if None or invalid)
+                event_end_date_obj = event['end_date']
+                if not isinstance(event_end_date_obj, (datetime, date)):
+                    event_end_date_obj = event_date_obj # Default to start date if None or invalid
+
+                # Ensure end_date is always an ISO formatted string
+                end_date = event_end_date_obj.isoformat()
 
                 lead_name = event['lead_full_name'] if event['lead_full_name'] else 'N/A'
                 company_name = event['company'] if event['company'] else 'N/A' # Now correctly fetched from DB
@@ -439,8 +449,8 @@ def handle_calendar_events():
                 formatted_events.append({
                     'id': event['id'],
                     'title': event['description'], # FullCalendar uses 'title' for display text
-                    'start': start_date, # Now guaranteed to be a string or None if conversion fails
-                    'end': end_date,     # Now guaranteed to be a string or None if conversion fails
+                    'start': start_date, # Now guaranteed to be a string
+                    'end': end_date,     # Now guaranteed to be a string
                     'extendedProps': { # Custom properties for FullCalendar
                         'type': event['type'],
                         'lead_id': event['lead_id'],
@@ -534,7 +544,7 @@ def get_expenditure_report():
         # Base query for calendar events with amount > 0
         query_calendar_expenses = """
             SELECT ce.id, ce.date, ce.type AS type_category, ce.description, ce.amount, ce.company,
-                   l.id AS lead_id, l.full_name AS lead_full_name
+                   l.id AS lead_id, l.full_name AS lead_full_name, -- Added missing comma here
                    'calendar_events' AS source_table
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
@@ -681,7 +691,7 @@ def export_expenditure_report():
         # Fetch calendar_events with amount > 0, using LEFT JOIN for leads
         query_calendar_expenses = """
             SELECT ce.date, ce.type AS type_category, ce.description, ce.amount,
-                   l.full_name AS lead_full_name, ce.company,
+                   l.full_name AS lead_full_name,
                    'calendar_events' AS source_table
             FROM calendar_events ce
             LEFT JOIN leads l ON ce.lead_id = l.id
