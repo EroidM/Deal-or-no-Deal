@@ -106,15 +106,6 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         document.getElementById(viewId).classList.add('active');
 
-        // Update active state of bottom navigation buttons
-        document.querySelectorAll('.nav-button').forEach(button => {
-            if (button.dataset.view === viewId) {
-                button.classList.add('active');
-            } else {
-                button.classList.remove('active');
-            }
-        });
-
         // Fetch data for the activated view if not already fetched
         if (viewId === 'leads-view' && !leadsDataFetched) {
             fetchLeads();
@@ -142,6 +133,7 @@ document.addEventListener('DOMContentLoaded', function() {
     document.getElementById('addExpenditureButton')?.addEventListener('click', async () => {
         document.getElementById('addExpenditureForm').reset(); // Clear form
         await fetchLeads(); // Ensure leads are fetched before populating dropdown
+        console.log("DEBUG: allLeads before populating expenditureLeadId dropdown:", allLeads); // Debugging line
         populateLeadDropdowns('expenditureLeadId'); // Populate lead dropdown for new expense
         openModal('addExpenditureModal');
     });
@@ -151,6 +143,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const eventIdInput = document.getElementById('eventId');
         if (eventIdInput) eventIdInput.value = '';
         await fetchLeads(); // Ensure leads are fetched before populating dropdown
+        console.log("DEBUG: allLeads before populating eventLeadId dropdown:", allLeads); // Debugging line
         populateLeadDropdowns('eventLeadId'); // Populate lead dropdown for new event
         openModal('addEventModal');
     });
@@ -174,14 +167,14 @@ document.addEventListener('DOMContentLoaded', function() {
             // Map the new lead structure to what the frontend expects
             allLeads = data.map(lead => ({
                 id: lead.id,
-                fullName: lead.full_name || '', // Use full_name
-                email: lead.email,
-                phone: lead.phone,
-                stage: lead.stage,
-                source: lead.source,
-                notes: lead.notes,
-                lastFollowUp: lead.last_follow_up, // New field
-                nextFollowUp: lead.next_follow_up, // New field
+                fullName: lead.full_name || 'N/A', // Reverted to N/A
+                email: lead.email || 'N/A', // Reverted to N/A
+                phone: lead.phone || 'N/A', // Reverted to N/A
+                stage: lead.stage || 'N/A', // Reverted to N/A
+                source: lead.source || 'N/A', // Reverted to N/A
+                notes: lead.notes || 'N/A', // Reverted to N/A
+                lastFollowUp: lead.last_follow_up || 'N/A', // Reverted to N/A
+                nextFollowUp: lead.next_follow_up || 'N/A', // Reverted to N/A
             }));
             currentLeadsData = [...allLeads]; // Initialize current data for sorting/filtering
             
@@ -189,9 +182,10 @@ document.addEventListener('DOMContentLoaded', function() {
             updateLeadStatistics(allLeads);
             updateLeadsByStageChart(allLeads);
             updateUpcomingFollowUps(allLeads);
-            populateLeadDropdowns('expenditureLeadId'); // Populate for expenditure modal
-            populateLeadDropdowns('eventLeadId'); // Populate for event modal
-            populateLeadDropdowns('editExpenditureLeadId'); // Populate for edit expense modal
+            // Ensure dropdowns are populated after allLeads is updated
+            populateLeadDropdowns('expenditureLeadId');
+            populateLeadDropdowns('eventLeadId');
+            populateLeadDropdowns('editExpenditureLeadId');
 
             leadsDataFetched = true; // Mark as fetched
         } catch (error) {
@@ -286,14 +280,14 @@ document.addEventListener('DOMContentLoaded', function() {
             row.dataset.leadId = lead.id; // Store ID for actions
 
             row.innerHTML = `
-                <td data-label="Full Name">${lead.fullName || ''}</td>
-                <td data-label="Email">${lead.email || ''}</td>
-                <td data-label="Phone">${lead.phone || ''}</td>
-                <td data-label="Stage">${lead.stage || ''}</td>
-                <td data-label="Source">${lead.source || ''}</td>
-                <td data-label="Notes">${lead.notes || ''}</td>
-                <td data-label="Last Follow-up">${lead.lastFollowUp || ''}</td>
-                <td data-label="Next Follow-up">${lead.nextFollowUp || ''}</td>
+                <td data-label="Full Name">${lead.fullName || 'N/A'}</td>
+                <td data-label="Email">${lead.email || 'N/A'}</td>
+                <td data-label="Phone">${lead.phone || 'N/A'}</td>
+                <td data-label="Stage">${lead.stage || 'N/A'}</td>
+                <td data-label="Source">${lead.source || 'N/A'}</td>
+                <td data-label="Notes">${lead.notes || 'N/A'}</td>
+                <td data-label="Last Follow-up">${lead.lastFollowUp || 'N/A'}</td>
+                <td data-label="Next Follow-up">${lead.nextFollowUp || 'N/A'}</td>
                 <td data-label="Actions">
                     <button class="btn btn-sm btn-info edit-lead-btn" data-id="${lead.id}" title="Edit Lead"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-sm btn-danger delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash"></i></button>
@@ -328,12 +322,12 @@ document.addEventListener('DOMContentLoaded', function() {
             row.dataset.sourceTable = item.source_table; // Store source table for correct deletion
 
             row.innerHTML = `
-                <td data-label="Date">${item.date || ''}</td>
-                <td data-label="Type/Category">${item.type_category || ''}</td>
-                <td data-label="Description">${item.description || ''}</td>
+                <td data-label="Date">${item.date || 'N/A'}</td>
+                <td data-label="Type/Category">${item.type_category || 'N/A'}</td>
+                <td data-label="Description">${item.description || 'N/A'}</td>
                 <td data-label="Amount (KSh)">KSh ${item.amount ? item.amount.toFixed(2) : '0.00'}</td>
-                <td data-label="Lead Name">${item.lead_name || ''}</td>
-                <td data-label="Company">${item.company || ''}</td>
+                <td data-label="Lead Name">${item.lead_name || 'N/A'}</td>
+                <td data-label="Company">${item.company || 'N/A'}</td>
                 <td data-label="Actions">
                     <button class="btn btn-sm btn-info edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Expense"><i class="fas fa-edit"></i></button>
                     <button class="btn btn-sm btn-danger delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Expense"><i class="fas fa-trash"></i></button>
@@ -394,7 +388,8 @@ document.addEventListener('DOMContentLoaded', function() {
             return true; // Keep the event if it passes checks
         }).map(event => ({
             id: event.id,
-            title: event.title,
+            // Provide a fallback for the title if it's empty or null
+            title: event.title || event.extendedProps.type || 'No Title', 
             start: event.start,
             end: event.end,
             extendedProps: {
@@ -405,7 +400,17 @@ document.addEventListener('DOMContentLoaded', function() {
                 amount: event.extendedProps.amount
             },
             // Ensure classNames is robust against null/undefined type
-            classNames: [`fc-event-${event.extendedProps.type ? event.extendedProps.type.toLowerCase().replace(/\s/g, '-') : 'other'}`]
+            classNames: [`fc-event-${event.extendedProps.type ? event.extendedProps.type.toLowerCase().replace(/\s/g, '-') : 'other'}`],
+            // Temporary inline style for debugging blank calendar events
+            // Remove this after confirming events are visible
+            // You might want to move this to CSS for proper styling
+            style: {
+                color: 'black',
+                fontWeight: 'bold',
+                fontSize: '14px',
+                backgroundColor: '#e6f7ff', // Light blue background for visibility
+                borderColor: '#91d5ff' // Blue border
+            }
         }));
 
         calendarInstance = new FullCalendar.Calendar(calendarEl, {
@@ -442,10 +447,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (info.event.extendedProps.type) {
                         tooltipContent += `<span>Type: ${info.event.extendedProps.type}</span>`;
                     }
-                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== '') { // Changed from 'N/A' to ''
+                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== 'N/A') { // Reverted to N/A
                         tooltipContent += `<span>Lead: ${info.event.extendedProps.lead_name}</span>`;
                     }
-                    if (info.event.extendedProps.company && info.event.extendedProps.company !== '') { // Changed from 'N/A' to ''
+                    if (info.event.extendedProps.company && info.event.extendedProps.company !== 'N/A') { // Reverted to N/A
                         tooltipContent += `<span>Company: ${info.event.extendedProps.company}</span>`;
                     }
                     if (info.event.extendedProps.amount && info.event.extendedProps.amount > 0) {
@@ -490,7 +495,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
                 
                 document.getElementById('eventAmount').value = eventData.amount || '0.00';
-                document.getElementById('eventCompany').value = eventData.company || ''; // Populate company field
+                document.getElementById('eventCompany').value = eventData.company || 'N/A'; // Reverted to N/A
                 
                 populateLeadDropdowns('eventLeadId', eventData.lead_id); // Populate and select lead
 
@@ -637,12 +642,19 @@ document.addEventListener('DOMContentLoaded', function() {
             console.warn(`Dashboard.js: Lead dropdown with ID ${dropdownId} not found.`);
             return;
         }
-        dropdown.innerHTML = '<option value="">-- Select Lead (Optional) --</option>'; // Default option
+        
+        // Clear existing options, but keep the default "Select Lead" option
+        dropdown.innerHTML = '<option value="">-- Select Lead (Optional) --</option>'; 
+
+        if (allLeads.length === 0) {
+            console.warn(`Dashboard.js: allLeads array is empty, cannot populate dropdown ${dropdownId}.`);
+            return;
+        }
 
         allLeads.forEach(lead => {
             const option = document.createElement('option');
             option.value = lead.id;
-            option.textContent = `${lead.fullName}`; // Removed company here as it's not directly on lead anymore
+            option.textContent = `${lead.fullName}`; 
             if (selectedLeadId && lead.id === selectedLeadId) {
                 option.selected = true;
             }
@@ -871,23 +883,23 @@ document.addEventListener('DOMContentLoaded', function() {
                     
                     // Populate edit modal fields
                     document.getElementById('editLeadId').value = lead.id;
-                    document.getElementById('editLeadFullName').value = lead.full_name || '';
-                    document.getElementById('editLeadEmail').value = lead.email || '';
-                    document.getElementById('editLeadPhone').value = lead.phone || '';
-                    document.getElementById('editLeadStage').value = lead.stage || '';
-                    document.getElementById('editLeadSource').value = lead.source || '';
-                    document.getElementById('editLeadNotes').value = lead.notes || '';
+                    document.getElementById('editLeadFullName').value = lead.full_name || 'N/A'; // Reverted to N/A
+                    document.getElementById('editLeadEmail').value = lead.email || 'N/A'; // Reverted to N/A
+                    document.getElementById('editLeadPhone').value = lead.phone || 'N/A'; // Reverted to N/A
+                    document.getElementById('editLeadStage').value = lead.stage || 'N/A'; // Reverted to N/A
+                    document.getElementById('editLeadSource').value = lead.source || 'N/A'; // Reverted to N/A
+                    document.getElementById('editLeadNotes').value = lead.notes || 'N/A'; // Reverted to N/A
                     
                     // Flatpickr instances need to be updated
                     if (flatpickrInstances['editLeadLastFollowUp']) {
                         flatpickrInstances['editLeadLastFollowUp'].setDate(lead.last_follow_up);
                     } else {
-                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up || '';
+                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up || 'N/A'; // Reverted to N/A
                     }
                     if (flatpickrInstances['editLeadNextFollowUp']) {
                         flatpickrInstances['editLeadNextFollowUp'].setDate(lead.next_follow_up);
                     } else {
-                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up || '';
+                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up || 'N/A'; // Reverted to N/A
                     }
 
                     openModal('editLeadModal');
@@ -945,12 +957,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with general expense data
                         document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.date || '';
+                        document.getElementById('editExpenditureDate').value = item.date || 'N/A'; // Reverted to N/A
                         document.getElementById('editExpenditureType').value = item.type_category || 'General Expense';
-                        document.getElementById('editExpenditureDescription').value = item.description || '';
+                        document.getElementById('editExpenditureDescription').value = item.description || 'N/A'; // Reverted to N/A
                         document.getElementById('editExpenditureAmount').value = item.amount || '0.00';
                         populateLeadDropdowns('editExpenditureLeadId', item.lead_id); // Populate and select lead
-                        document.getElementById('editExpenditureCompany').value = item.company || '';
+                        document.getElementById('editExpenditureCompany').value = item.company || 'N/A'; // Reverted to N/A
                         openModal('editExpenditureModal');
                     } else if (sourceTable === 'calendar_events') {
                         // For calendar events (which can also be expenditures), fetch from calendar events endpoint
@@ -959,12 +971,12 @@ document.addEventListener('DOMContentLoaded', function() {
                         item = (await response.json())[0];
                         // Populate edit expenditure modal with calendar event data
                         document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : ''; // Get date part only
-                        document.getElementById('editExpenditureType').value = item.extendedProps.type || '';
-                        document.getElementById('editExpenditureDescription').value = item.title || ''; // FullCalendar title is description
+                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : 'N/A'; // Get date part only, reverted to N/A
+                        document.getElementById('editExpenditureType').value = item.extendedProps.type || 'N/A'; // Reverted to N/A
+                        document.getElementById('editExpenditureDescription').value = item.title || 'N/A'; // FullCalendar title is description, reverted to N/A
                         document.getElementById('editExpenditureAmount').value = item.extendedProps.amount || '0.00';
                         populateLeadDropdowns('editExpenditureLeadId', item.extendedProps.lead_id);
-                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company || '';
+                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company || 'N/A'; // Reverted to N/A
                         openModal('editExpenditureModal');
                     }
                 } catch (error) {
