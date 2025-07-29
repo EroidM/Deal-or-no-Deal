@@ -431,11 +431,12 @@ def handle_calendar_events():
             formatted_events = []
             for event in events:
                 # Ensure date/time fields are ISO formatted strings, handle None
-                start_date = event['date'].isoformat() if event['date'] else None
-                end_date = event['end_date'].isoformat() if event['end_date'] else None
+                # Check for None and type before calling isoformat()
+                start_date = event['date'].isoformat() if isinstance(event['date'], (datetime, date)) else None
+                end_date = event['end_date'].isoformat() if isinstance(event['end_date'], (datetime, date)) else None
 
                 lead_name = event['lead_full_name'] if event['lead_full_name'] else 'N/A'
-                company_name = event['company'] if event['company'] else 'N/A'
+                company_name = event['company'] if event['company'] else 'N/A' # Now correctly fetched from DB
 
                 formatted_events.append({
                     'id': event['id'],
