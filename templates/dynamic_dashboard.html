@@ -4,10 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales & Marketing Dashboard</title>
+    <!-- CSS for Font Awesome - still using CDN as it's not a direct npm dependency we installed for this purpose -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
+    <!-- Local CSS for Flatpickr from node_modules -->
     <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.css') }}">
-    <style>
+    <!-- FullCalendar CSS is injected by its JS, so no direct link tags needed here -->
+        <style>
         /* Modern, Space-centric Styling */
         :root {
             --primary-color: #007bff;
@@ -321,7 +324,8 @@
             transition: color 0.2s ease;
         }
 
-        .close-button:hover, .close-button:focus {
+        .close-button:hover,
+        .close-button:focus {
             color: var(--danger-color);
             text-decoration: none;
         }
@@ -389,101 +393,41 @@
             background-color: var(--primary-color);
             color: white;
             border: none;
-            padding: 12px 25px;
+            padding: 14px 25px;
             border-radius: 8px;
             cursor: pointer;
             font-size: 1.1rem;
-            font-weight: 600;
+            width: 100%;
             margin-top: 25px;
-            transition: background-color 0.2s ease, transform 0.1s ease;
+            font-weight: 600;
+            transition: background-color 0.2s ease, transform 0.2s ease;
         }
+
         .modal-content button[type="submit"]:hover {
             background-color: #0056b3;
-            transform: translateY(-1px);
+            transform: translateY(-2px);
         }
 
-        /* Calendar tooltip for events */
-        .calendar-tooltip {
-            position: absolute;
-            background-color: var(--text-dark);
-            color: white;
-            padding: 10px 15px;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            pointer-events: none; /* Allows clicks to pass through */
-            opacity: 0;
-            transition: opacity 0.2s ease, transform 0.2s ease;
-            transform: translate(-50%, -10px); /* Initial offset for animation */
-            white-space: pre-wrap; /* Allows new lines in description */
-            box-shadow: 0 4px 15px var(--shadow-medium);
-            max-width: 300px;
-            z-index: 1001; /* Ensure it's above modals if they overlap */
-        }
-
-        .calendar-tooltip.active {
-            opacity: 1;
-            transform: translate(-50%, 0); /* Moves to original position */
-        }
-
-
-        /* Loading overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-        }
-
-        .loading-overlay.active {
-            opacity: 1;
-            visibility: visible;
-        }
-
-        .spinner {
-            border: 5px solid #f3f3f3;
-            border-top: 5px solid var(--primary-color);
-            border-radius: 50%;
-            width: 50px;
-            height: 50px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Message Container */
+        /* Message Box Styles */
         .message-container {
+            display: none;
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 12px 25px;
+            padding: 15px 25px;
             border-radius: 8px;
+            font-weight: bold;
             color: white;
-            font-weight: 500;
-            z-index: 1500;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
             opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            font-size: 0.95rem;
+            transition: opacity 0.3s ease;
         }
 
         .message-container.active {
             opacity: 1;
-            visibility: visible;
-            transform: translateX(-50%) translateY(0);
         }
 
         .message-container.success {
@@ -494,236 +438,387 @@
             background-color: var(--danger-color);
         }
 
-        .message-container.warning {
-            background-color: var(--warning-color);
-            color: var(--text-dark); /* Ensure readable text on warning */
-        }
-
-        /* FullCalendar overrides */
-        .fc .fc-button-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            color: white;
-        }
-
-        .fc .fc-button-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
-        }
-
-        .fc .fc-button-primary:focus {
-            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-        }
-
-        .fc .fc-daygrid-event {
+        .message-container.info {
             background-color: var(--info-color);
-            border-color: var(--info-color);
+        }
+
+        /* Loading Overlay Styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top of everything */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid var(--primary-color); /* Primary color */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-overlay p {
+            color: var(--text-dark);
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* FullCalendar Specific Styles - Aesthetic Enhancements */
+        .fc-toolbar-title {
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+        .fc-button {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            color: white !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .fc-button:hover {
+            background-color: #0056b3 !important;
+            border-color: #0056b3 !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .fc-daygrid-day-number {
+            color: var(--text-muted);
+        }
+        .fc-day-other .fc-daygrid-day-number {
+            color: #c0c7d2; /* Faded numbers for days outside the current month */
+        }
+        
+        /* Custom Event Colors based on Type */
+        /* Group 1: Positive Lead Interaction */
+        .fc-event-visit {
+            background-color: #28a745 !important; /* Success Green */
+            border-color: #28a745 !important;
+            color: white !important;
+        }
+        .fc-event-meeting {
+            background-color: #6610f2 !important; /* Purple */
+            border-color: #6610f2 !important;
+            color: white !important;
+        }
+        .fc-event-call { /* New */
+            background-color: #17a2b8 !important; /* Info Blue */
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+        .fc-event-email { /* New */
+            background-color: #5bc0de !important; /* Lighter Info Blue */
+            border-color: #5bc0de !important;
+            color: white !important;
+        }
+        .fc-event-follow-up { /* Keep existing follow-up color, similar to info */
+            background-color: #17a2b8 !important; 
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+
+        /* Group 2: New Outreach/Warning */
+        .fc-event-cold-visit {
+            background-color: #fd7e14 !important; /* Orange */
+            border-color: #fd7e14 !important;
+            color: white !important;
+        }
+
+        /* Group 3: Financial */
+        .fc-event-general-expense {
+            background-color: #dc3545 !important; /* Danger Red */
+            border-color: #dc3545 !important;
+            color: white !important;
+        }
+
+        /* Group 4: Internal/Other */
+        .fc-event-office-day-note {
+            background-color: #6c757d !important; /* Secondary Gray */
+            border-color: #6c757d !important;
+            color: white !important;
+        }
+        .fc-event-other {
+            background-color: #20c997 !important; /* Teal */
+            border-color: #20c997 !important;
+            color: white !important;
+        }
+
+        /* Calendar Day Cell Styling for "Gray Days" */
+        .fc-daygrid-day {
+            background-color: #fcfcfc; /* Very light background for all days */
+            border: 1px solid var(--border-color); /* Subtle border */
+        }
+        /* Optional: Highlight days with events slightly more if needed, or let event colors dominate */
+        .fc-daygrid-day-frame.fc-day-today {
+            background-color: #e6f7ff; /* Light blue for today */
+        }
+
+
+        /* Calendar Tooltip Styling */
+        .calendar-tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.85);
             color: white;
-            font-size: 0.85em;
-            padding: 2px 4px;
-            border-radius: 3px;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            pointer-events: none; /* Allows mouse events to pass through to calendar */
+            z-index: 100; /* Above calendar but below modals */
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            max-width: 250px;
+            box-shadow: 0 4px 12px var(--shadow-medium);
         }
 
-        /* Style for different event types */
-        .fc-event.type-Call { background-color: #28a745; } /* Success green */
-        .fc-event.type-Meeting { background-color: #ffc107; } /* Warning yellow */
-        .fc-event.type-Email { background-color: #17a2b8; } /* Info blue */
-        .fc-event.type-Demo { background-color: #6f42c1; } /* Purple */
-        .fc-event.type-FollowUp { background-color: #fd7e14; } /* Orange */
-        .fc-event.type-Other { background-color: #6c757d; } /* Secondary gray */
-        .fc-event.type-General-Expense { background-color: #dc3545; } /* Danger red */
-
-        /* Responsive adjustments for tables on smaller screens */
-        @media (max-width: 768px) {
-            table, thead, tbody, th, td, tr {
-                display: block;
-            }
-
-            thead tr {
-                position: absolute;
-                top: -9999px;
-                left: -9999px;
-            }
-
-            table tr {
-                border: 1px solid var(--border-color);
-                margin-bottom: 1.5rem;
-                border-radius: 8px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            }
-
-            table td {
-                border: none;
-                border-bottom: 1px solid var(--border-color);
-                position: relative;
-                padding-left: 50%; /* Adjust as needed based on data-label width */
-                text-align: right;
-            }
-
-            table td:last-child {
-                border-bottom: none;
-            }
-
-            table td::before {
-                content: attr(data-label);
-                position: absolute;
-                left: 1rem;
-                width: calc(50% - 1.5rem);
-                padding-right: 1rem;
-                white-space: nowrap;
-                text-align: left;
-                font-weight: 600;
-                color: var(--text-dark);
-            }
-
-            .table-container {
-                overflow-x: hidden; /* Hide default scrollbar, handled by inner elements */
-            }
+        .calendar-tooltip strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1rem;
+        }
+        .calendar-tooltip span {
+            display: block;
+            font-size: 0.85rem;
+            color: #ccc;
         }
 
-        /* --- Mobile Responsiveness (New Rules) --- */
-        @media (max-width: 768px) {
-            body {
-                padding: 0;
-            }
+        /* Upcoming Follow-ups List Styling */
+        .upcoming-followups-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1.5rem;
+        }
 
+        .upcoming-followups-list li {
+            background-color: var(--background-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .upcoming-followups-list .lead-name {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .upcoming-followups-list .followup-details {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-end; /* Align buttons/inputs at the bottom */
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        .input-group .form-group {
+            flex-grow: 1;
+            margin-bottom: 0; /* Remove default margin as input-group manages spacing */
+        }
+
+        .input-group button {
+            padding: 12px 20px;
+            height: 46px; /* Match height of input fields */
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+        }
+
+        /* Expenditure Report specific styling */
+        #expenditureReportTable th {
+            white-space: nowrap; /* Keep headers on one line */
+        }
+
+        #totalExpenditureSummary {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-top: 1.5rem;
+            text-align: right;
+            color: var(--text-dark);
+            padding-right: 1.2rem;
+        }
+
+        /* Responsive Adjustments */
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr; /* Stack columns on smaller wide screens */
+                padding: 1.5rem;
+            }
             .header {
                 padding: 1rem 1.5rem;
             }
+        }
 
-            .header h1 {
-                font-size: 1.5rem;
-            }
-
-            .main-content {
-                grid-template-columns: 1fr; /* Single column layout for mobile */
-                padding: 1.5rem;
-                gap: 1.5rem;
-            }
-
-            .dashboard-grid {
-                grid-template-columns: 1fr; /* Stack cards vertically */
-                gap: 1.5rem;
-            }
-
-            .card {
-                padding: 1.5rem;
-            }
-
-            .card h2 {
-                font-size: 1.4rem;
-                flex-direction: column; /* Stack title and buttons */
+        @media (max-width: 768px) {
+            .header {
+                flex-direction: column;
                 align-items: flex-start;
-                padding-bottom: 1rem;
-                margin-bottom: 1rem;
             }
-
-            .card h2 .btn,
-            .card h2 .button-group-header {
-                margin-top: 10px; /* Space between title and buttons */
-                margin-left: 0; /* Reset margin */
-                width: 100%; /* Full width buttons/group */
-                justify-content: flex-start; /* Align buttons to the left */
-            }
-
-            .card h2 .btn-icon {
-                margin-left: 0; /* Reset margin */
-                margin-right: 8px; /* Space between stacked icons */
-            }
-
-            .stats-grid {
-                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); /* Smaller grid for stats */
-                gap: 1rem;
-            }
-
-            .stat-item {
-                padding: 1rem;
-            }
-
-            .stat-item p {
+            .header h1 {
                 font-size: 1.6rem;
+                margin-bottom: 10px;
             }
-
-            /* Modals should not be full screen on mobile */
-            .modal-content {
-                width: 95%; /* Make it slightly less than full width */
-                max-width: 95%; /* Adjust max-width for mobile */
-                padding: 20px; /* Reduce padding */
-            }
-
-            .modal-content h2 {
-                font-size: 1.5rem;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-            }
-
-            .form-grid {
-                grid-template-columns: 1fr; /* Single column for forms on mobile */
-                gap: 15px;
-            }
-
-            .form-group input[type="text"],
-            .form-group input[type="email"],
-            .form-group input[type="tel"],
-            .form-group input[type="date"],
-            .form-group input[type="number"],
-            .form-group select,
-            .form-group textarea {
-                width: calc(100% - 20px); /* Adjust for padding */
-                padding: 10px;
-            }
-
-            .btn {
-                padding: 0.7rem 1.2rem; /* Slightly larger buttons for touch */
-                font-size: 1rem;
-            }
-
-            /* Adjust calendar for smaller screens */
-            .fc .fc-toolbar-title {
-                font-size: 1.2rem;
-            }
-
-            .fc .fc-toolbar-chunk {
+            .header-actions {
+                width: 100%;
                 display: flex;
                 flex-wrap: wrap;
                 justify-content: center;
                 margin-top: 10px;
             }
-
-            .fc .fc-button-group {
+            .header-actions .btn {
                 margin: 5px;
+            }
+            .main-content {
+                padding: 1rem;
+                gap: 1.5rem;
+            }
+            .dashboard-grid {
+                gap: 1.5rem;
+            }
+            .card {
+                padding: 1.5rem;
+            }
+            .card h2 {
+                font-size: 1.4rem;
+                margin-bottom: 1rem;
+            }
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+            /* Adjust form grid for small screens to stack columns */
+            .modal-content .form-grid {
+                grid-template-columns: 1fr; /* Single column on small screens */
+                gap: 15px;
+            }
+            .form-grid .form-group.full-width {
+                grid-column: span 1; /* Reset span for single column */
+            }
+            .form-group input, .form-group select, .form-group textarea {
+                width: calc(100% - 20px);
+                padding: 10px;
+            }
+            .input-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .input-group button {
+                width: 100%;
+                height: auto;
+            }
+
+            /* Responsive Table Styling for smaller screens */
+            .table-container {
+                border-radius: 0; /* Remove rounded corners for full width */
+                border-left: none;
+                border-right: none;
+            }
+            table {
+                border: 0; /* Remove table borders */
+            }
+            table thead {
+                display: none; /* Hide table headers on small screens */
+            }
+            table, table tbody, table tr, table td {
+                display: block; /* Make table elements behave like block elements */
+                width: 100%; /* Take full width */
+            }
+            table tr {
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+            table td {
+                text-align: right; /* Align content to the right */
+                padding-left: 50%; /* Make space for the label */
+                position: relative;
+                border: none; /* Remove cell borders */
+            }
+            table td::before {
+                content: attr(data-label); /* Use data-label for the pseudo-element content */
+                position: absolute;
+                left: 10px;
+                width: calc(50% - 20px); /* Adjust width for label */
+                padding-right: 10px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 600;
+                color: var(--text-dark);
+                text-align: left;
+            }
+            table td:last-child {
+                border-bottom: 0; /* No bottom border for the last cell in a row */
+            }
+        }
+
+        @media (max-width: 480px) {
+            .header-actions {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .header-actions .btn {
+                margin: 5px 0;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            table th, table td {
+                padding: 0.8rem;
+                font-size: 0.85rem;
             }
         }
     </style>
 </head>
 <body>
-    <div class="loading-overlay" id="loadingOverlay">
+    <div id="loadingOverlay" class="loading-overlay">
         <div class="spinner"></div>
+        <p>Loading...</p>
     </div>
-    <div class="message-container" id="messageContainer"></div>
-
+    <div id="messageContainer" class="message-container"></div>
     <div class="container">
         <header class="header">
             <h1>Sales & Marketing Dashboard</h1>
+            <!-- Header actions removed and moved to specific cards -->
             <div class="header-actions">
-                </div>
+                <!-- Buttons moved to cards below -->
+            </div>
         </header>
 
         <main class="main-content">
             <section class="left-column">
                 <div class="dashboard-grid">
                     <div class="card">
-                        <h2>
-                            Overall Leads
-                            <div class="button-group-header">
-                                <button class="btn btn-primary btn-icon" id="addLeadModalBtn" title="Add New Lead">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                                <button class="btn btn-secondary btn-icon" id="exportLeadsBtn" title="Export Leads">
-                                    <i class="fas fa-file-export"></i>
-                                </button>
-                            </div>
-                        </h2>
+                        <h2>Leads Statistics</h2>
                         <div class="stats-grid">
                             <div class="stat-item">
                                 <h3>Total Leads</h3>
@@ -746,91 +841,102 @@
                                 <p id="closedLostLeadsCount">0</p>
                             </div>
                         </div>
+                    </div>
+
+                    <div class="card">
+                        <h2>Leads by Stage</h2>
                         <div class="chart-container">
                             <canvas id="leadsByStageChart"></canvas>
                         </div>
                     </div>
+                </div>
 
-                    <div class="card">
-                        <h2>
-                            Recent Leads
-                            <button class="btn btn-primary btn-icon" id="refreshRecentLeadsBtn" title="Refresh Recent Leads">
-                                <i class="fas fa-sync-alt"></i>
-                            </button>
-                        </h2>
-                        <div class="table-container">
-                            <table id="recentLeadsTable">
-                                <thead>
-                                    <tr>
-                                        <th data-sort-by="fullName">Name</th>
-                                        <th data-sort-by="company">Company</th>
-                                        <th data-sort-by="stage">Stage</th>
-                                        <th data-sort-by="dateofcontact">Contact Date</th>
-                                        <th data-sort-by="followup">Follow-up Date</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr><td colspan="6" class="text-center py-4">Loading leads...</td></tr>
-                                </tbody>
-                            </table>
+                <div class="card">
+                    <h2>
+    			Recent Leads
+                <div class="button-group-header">
+        			<button class="btn btn-primary btn-icon" id="addLeadModalBtn" title="Add New Lead"><i class="fas fa-plus"></i></button>
+        			<button id="exportLeadsBtn" class="btn btn-secondary btn-icon" title="Export Leads"><i class="fas fa-download"></i></button>
+                </div>
+		    </h2>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="leadSearchInput">Search Leads:</label>
+                            <input type="text" id="leadSearchInput" placeholder="Search by name, company, stage...">
                         </div>
                     </div>
-
-                    <div class="card full-width-card">
-                        <h2>
-                            Expenditure Report
-                            <div class="button-group-header">
-                                <button class="btn btn-primary btn-icon" id="addExpenseModalBtn" title="Add General Expense">
-                                    <i class="fas fa-plus"></i>
-                                </button>
-                                <button class="btn btn-secondary btn-icon" id="exportExpenditureBtn" title="Export Expenditure Report">
-                                    <i class="fas fa-file-export"></i>
-                                </button>
-                                <button class="btn btn-info btn-icon" id="filterExpenditureBtn" title="Filter Expenditure Report">
-                                    <i class="fas fa-filter"></i>
-                                </button>
-                            </div>
-                        </h2>
-                        <div class="date-filter-inputs">
-                            <input type="date" id="reportStartDate" placeholder="Start Date">
-                            <input type="date" id="reportEndDate" placeholder="End Date">
-                        </div>
-                        <div class="table-container">
-                            <table id="expenditureReportTable">
-                                <thead>
-                                    <tr>
-                                        <th data-sort-by="date">Date</th>
-                                        <th data-sort-by="type_category">Type/Category</th>
-                                        <th data-sort-by="description">Description</th>
-                                        <th data-sort-by="amount">Amount (KSh)</th>
-                                        <th data-sort-by="lead_name">Lead Name</th>
-                                        <th data-sort-by="company">Company</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <tr><td colspan="6" class="text-center py-4">Loading expenditure data...</td></tr>
-                                </tbody>
-                            </table>
-                        </div>
+                    <div class="table-container">
+                        <table id="recentLeadsTable">
+                            <thead>
+                                <tr>
+                                    <th data-sort-by="firstName" class="sortable">Name</th>
+                                    <th data-sort-by="company" class="sortable">Company</th>
+                                    <th data-sort-by="stage" class="sortable">Stage</th>
+                                    <th data-sort-by="dateOfContact" class="sortable">Contact Date</th>
+                                    <th data-sort-by="followUp" class="sortable">Follow-up Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Leads will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
                     </div>
+                </div>
+
+                <div class="card">
+                    <h2>
+                        Expenditure Report
+                        <button class="btn btn-secondary btn-icon" id="addExpenseModalBtn" title="Add Expense"><i class="fas fa-dollar-sign"></i></button>
+                    </h2>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="reportStartDate">Start Date:</label>
+                            <input type="date" id="reportStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="reportEndDate">End Date:</label>
+                            <input type="date" id="reportEndDate">
+                        </div>
+                        <button class="btn btn-secondary btn-icon" id="filterReportBtn" title="Filter Report"><i class="fas fa-filter"></i></button>
+                        <button class="btn btn-secondary btn-icon" id="clearReportDatesBtn" title="Clear Dates"><i class="fas fa-times"></i></button> <!-- NEW BUTTON -->
+                        <button class="btn btn-primary btn-icon" id="exportExpenditureReportBtn" title="Export CSV"><i class="fas fa-file-csv"></i></button>
+                    </div>
+                    <div class="table-container">
+                        <table id="expenditureReportTable">
+                            <thead>
+                                <tr>
+                                    <th data-label="Date">Date</th>
+                                    <th data-label="Category">Category</th>
+                                    <th data-label="Description">Description</th>
+                                    <th data-label="Amount (KSh)">Amount (KSh)</th>
+                                    <th data-label="Lead Name">Lead Name</th>
+                                    <th data-label="Company">Company</th>
+                                    <th>Actions</th> <!-- Added for expense actions -->
+                                </tr>
+                            </thead>
+                            <tbody id="expenditureReportTableBody"> <!-- Changed ID for clarity -->
+                                <!-- Expenditure report items will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="totalExpenditureSummary">Total Expenditure: KSh 0.00</div>
                 </div>
             </section>
 
             <section class="right-column">
                 <div class="card">
+                    <h2>Upcoming Follow-ups</h2>
+                    <ul id="upcomingFollowupsList" class="upcoming-followups-list">
+                        </ul>
+                </div>
+
+                <div class="card">
                     <h2>
-                        Calendar & Events
-                        <button class="btn btn-primary btn-icon" id="addEventModalBtn" title="Add Calendar Event">
-                            <i class="fas fa-plus"></i>
-                        </button>
+                        Planning Calendar
+                        <button class="btn btn-primary btn-icon" id="addEventModalBtn" title="Add Event"><i class="fas fa-calendar-plus"></i></button>
                     </h2>
                     <div id="calendar"></div>
-                </div>
-                <div class="card">
-                    <h2>Upcoming Follow-ups</h2>
-                    <ul id="upcomingFollowupsList" class="list-group">
-                        </ul>
                 </div>
             </section>
         </main>
@@ -839,9 +945,9 @@
     <div id="leadModal" class="modal">
         <div class="modal-content">
             <span class="close-button" id="closeLeadModalBtn">&times;</span>
-            <h2>Add New Lead</h2>
+            <h2 id="leadModalTitle">Add New Lead</h2>
             <form id="addLeadForm">
-                <input type="hidden" id="leadId" name="id">
+                <input type="hidden" id="leadId">
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="firstName">First Name:</label>
@@ -875,9 +981,8 @@
                         <label for="stage">Stage:</label>
                         <select id="stage" name="stage" required>
                             <option value="New">New</option>
-                            <option value="Contacted">Contacted</option>
                             <option value="Qualified">Qualified</option>
-                            <option value="Proposal Sent">Proposal Sent</option>
+                            <option value="Proposal">Proposal</option>
                             <option value="Negotiation">Negotiation</option>
                             <option value="Closed Won">Closed Won</option>
                             <option value="Closed Lost">Closed Lost</option>
@@ -888,15 +993,54 @@
                         <input type="date" id="dateOfContact" name="dateOfContact" required>
                     </div>
                     <div class="form-group">
-                        <label for="followUp">Follow-up Date:</label>
+                        <label for="followUp">Follow-up Date (Optional):</label>
                         <input type="date" id="followUp" name="followUp">
                     </div>
                     <div class="form-group full-width">
                         <label for="notes">Notes:</label>
-                        <textarea id="notes" name="notes" rows="4"></textarea>
+                        <textarea id="notes" name="notes" rows="3"></textarea>
                     </div>
                 </div>
                 <button type="submit" class="btn btn-primary">Save Lead</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="visitModal" class="modal">
+        <div class="modal-content">
+            <span class="close-button" id="closeVisitModalBtn">&times;</span>
+            <h2>Add New Visit</h2>
+            <form id="addActivityForm">
+                <input type="hidden" id="activityLeadId" name="lead_id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="activityDate">Activity Date:</label>
+                        <input type="date" id="activityDate" name="activity_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="activityType">Activity Type:</label>
+                        <select id="activityType" name="activity_type" required>
+                            <option value="call">Call</option>
+                            <option value="email">Email</option>
+                            <option value="visit">Visit</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="general_expense">General Expense</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="activityExpenditure">Expenditure (KSh):</label>
+                        <input type="number" id="activityExpenditure" name="expenditure" step="0.01" min="0" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="activityLocationName">Location Name (Optional):</label>
+                        <input type="text" id="activityLocationName" name="location_name">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="activityDescription">Description:</label>
+                        <textarea id="activityDescription" name="description" rows="3"></textarea>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">Add Activity</button>
             </form>
         </div>
     </div>
@@ -906,7 +1050,7 @@
             <span class="close-button" id="closeGeneralExpenseModalBtn">&times;</span>
             <h2>Add General Expense</h2>
             <form id="addExpenseForm">
-                <input type="hidden" id="expenseId" name="id">
+                <input type="hidden" id="expenseId" name="id"> <!-- Hidden input for expense ID -->
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="generalExpenseDate">Date:</label>
@@ -914,14 +1058,14 @@
                     </div>
                     <div class="form-group">
                         <label for="generalExpenseAmount">Amount (KSh):</label>
-                        <input type="number" id="generalExpenseAmount" name="amount" step="0.01" min="0" value="0.00" required>
+                        <input type="number" id="generalExpenseAmount" name="amount" step="0.01" min="0" required>
                     </div>
                     <div class="form-group full-width">
                         <label for="generalExpenseDescription">Description:</label>
-                        <textarea id="generalExpenseDescription" name="description" rows="3" required></textarea>
+                        <input type="text" id="generalExpenseDescription" name="description" required>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Add Expense</button>
+                <button type="submit" class="btn btn-primary">Save Expense</button>
             </form>
         </div>
     </div>
@@ -931,30 +1075,32 @@
             <span class="close-button" id="closeGeneralEventModalBtn">&times;</span>
             <h2>Add Calendar Event</h2>
             <form id="addEventForm">
-                <input type="hidden" id="eventId" name="id">
+                <input type="hidden" id="eventId" name="id"> <!-- ADDED THIS LINE -->
                 <div class="form-grid">
                     <div class="form-group">
                         <label for="eventDate">Date:</label>
                         <input type="date" id="eventDate" name="date" required>
                     </div>
                     <div class="form-group">
-                        <label for="eventType">Type/Category:</label>
+                        <label for="eventType">Event Type:</label>
                         <select id="eventType" name="type" required>
+                            <option value="">-- Select Event Type --</option>
                             <option value="Meeting">Meeting</option>
+                            <option value="Visit">Visit</option>
                             <option value="Call">Call</option>
                             <option value="Email">Email</option>
-                            <option value="Demo">Demo</option>
-                            <option value="FollowUp">Follow-up</option>
-                            <option value="General-Expense">General Expense</option>
+                            <option value="Cold Visit">Cold Visit</option>
+                            <option value="Office Day Note">Office Day Note</option>
+                            <option value="General Expense">General Expense</option>
                             <option value="Other">Other</option>
                         </select>
                     </div>
                     <div class="form-group full-width">
                         <label for="eventDescription">Description:</label>
-                        <textarea id="eventDescription" name="description" rows="3"></textarea>
+                        <textarea id="eventDescription" name="description" rows="3" required></textarea>
                     </div>
                     <div class="form-group full-width">
-                        <label for="eventLeadId">Associated Lead:</label>
+                        <label for="eventLeadId">Link to Lead (Optional):</label>
                         <select id="eventLeadId" name="lead_id">
                         </select>
                     </div>
@@ -970,12 +1116,16 @@
 
     <div id="calendarTooltip" class="calendar-tooltip"></div>
 
+    <!-- Local JavaScript for Chart.js from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='chart.js/dist/chart.umd.js') }}"></script>
+    <!-- Local JavaScript for FullCalendar from node_modules -->
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/core/index.global.min.js') }}'></script>
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/daygrid/index.global.min.js') }}'></script>
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/interaction/index.global.min.js') }}'></script>
+    <!-- Local JavaScript for Flatpickr from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.js') }}"></script>
 
+    <!-- Your custom dashboard.js should be the LAST script loaded -->
     <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
 </body>
 </html>
