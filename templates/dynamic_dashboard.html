@@ -25,213 +25,167 @@
             --border-color: #e0e6ed;
             --shadow-light: rgba(0, 0, 0, 0.08);
             --shadow-medium: rgba(0, 0, 0, 0.15);
-        }
-
-        /* Global Box Sizing for easier layout calculations */
-        *, *::before, *::after {
-            box-sizing: border-box;
+            --font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
         }
 
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: var(--font-family);
             margin: 0;
             padding: 0;
             background-color: var(--background-light);
             color: var(--text-dark);
             line-height: 1.6;
-            min-height: 100vh; /* Ensure body takes full viewport height */
-            display: flex;
-            flex-direction: column;
         }
 
-        header {
-            background-color: var(--primary-color);
+        .container {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        .header {
+            background-color: var(--text-dark);
             color: white;
-            padding: 1rem 2rem;
-            box-shadow: 0 2px 4px var(--shadow-medium);
+            padding: 1.2rem 2.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+            box-shadow: 0 2px 10px var(--shadow-medium);
+            z-index: 10;
         }
 
-        header h1 {
+        .header h1 {
             margin: 0;
-            font-size: 1.8rem;
+            font-size: 2rem;
+            font-weight: 600;
         }
 
-        nav ul {
-            list-style: none;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            gap: 1.5rem;
-            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        /* Header actions removed as buttons are moved to cards */
+        .header-actions {
+            display: none; /* Hide the header actions div now */
         }
 
-        nav a {
-            color: white;
-            text-decoration: none;
-            font-weight: bold;
-            transition: color 0.3s ease;
+        .main-content {
+            flex-grow: 1;
+            padding: 2.5rem;
+            display: grid;
+            grid-template-columns: 2fr 1fr; /* Main content area with two columns */
+            gap: 2.5rem;
+            align-items: start;
         }
 
-        nav a:hover {
-            color: rgba(255, 255, 255, 0.8);
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 2.5rem;
+            margin-bottom: 2.5rem;
         }
 
-        main {
-            padding: 2rem;
-            flex-grow: 1; /* Allow main content to take available space */
-            display: flex;
-            flex-direction: column;
-            gap: 2rem;
-            max-width: 1200px; /* Max width for desktop */
-            margin: 0 auto; /* Center content */
-            width: 100%; /* Ensure it takes full width on smaller screens */
-        }
-
-        .dashboard-section {
+        .card {
             background-color: var(--card-background);
-            padding: 1.5rem;
             border-radius: 12px;
-            box-shadow: 0 4px 12px var(--shadow-light);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 15px var(--shadow-light);
+            padding: 2rem;
+            transition: transform 0.2s ease-in-out;
+            position: relative; /* For button positioning */
         }
 
-        .dashboard-section:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 16px var(--shadow-medium);
+        .card:hover {
+            transform: translateY(-5px);
         }
 
-        .section-header {
+        .card h2 {
+            margin-top: 0;
+            color: var(--text-dark);
+            font-size: 1.6rem;
+            font-weight: 600;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+            margin-bottom: 1.5rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.8rem;
-            border-bottom: 1px solid var(--border-color);
-            flex-wrap: wrap; /* Allow wrapping for buttons/inputs */
-            gap: 1rem; /* Space between items when wrapping */
         }
-
-        .section-header h2 {
-            margin: 0;
-            font-size: 1.5rem;
-            color: var(--primary-color);
-        }
-
-        .btn {
-            padding: 0.75rem 1.5rem;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: background-color 0.3s ease, transform 0.1s ease;
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
+        /* Style for card title buttons */
+        .card h2 .btn {
+            padding: 0.5rem 1rem;
+            font-size: 0.85rem;
+            margin-left: 10px;
             white-space: nowrap; /* Prevent button text from wrapping */
         }
 
-        .btn:active {
-            transform: translateY(1px);
+        /* Specific styling for icon-only buttons in card headers */
+        .card h2 .btn-icon {
+            padding: 0.6rem; /* Adjust padding for square icon buttons */
+            width: 40px; /* Fixed width for consistent sizing */
+            height: 40px; /* Fixed height for consistent sizing */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            border-radius: 50%; /* Make them circular */
+            margin-left: 8px; /* Space between icons */
+        }
+        .card h2 .btn-icon i {
+            font-size: 1.1rem; /* Adjust icon size */
         }
 
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
+        /* For the specific button group in Recent Leads */
+        .card h2 .button-group-header {
+            display: flex;
+            gap: 8px; /* Space between buttons */
+            margin-left: auto; /* Push to the right */
         }
 
-        .btn-primary:hover {
-            background-color: #0056b3;
-        }
-
-        .btn-secondary {
-            background-color: var(--secondary-color);
-            color: white;
-        }
-
-        .btn-secondary:hover {
-            background-color: #5a6268;
-        }
-
-        .btn-success {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .btn-success:hover {
-            background-color: #218838;
-        }
-
-        .btn-danger {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .btn-danger:hover {
-            background-color: #c82333;
-        }
 
         .stats-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
             gap: 1.5rem;
-            margin-bottom: 2rem;
+            margin-top: 1.5rem;
         }
 
-        .stat-card {
-            background-color: var(--card-background);
-            padding: 1.5rem;
-            border-radius: 12px;
-            box-shadow: 0 4px 12px var(--shadow-light);
+        .stat-item {
+            background-color: var(--background-light);
+            padding: 1.2rem;
+            border-radius: 8px;
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            border: 1px solid var(--border-color);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
         }
 
-        .stat-card:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 16px var(--shadow-medium);
+        .stat-item h3 {
+            margin: 0;
+            font-size: 1.1rem;
+            color: var(--text-muted);
+            font-weight: 500;
         }
 
-        .stat-card .icon {
-            font-size: 2.5rem;
-            margin-bottom: 0.5rem;
+        .stat-item p {
+            margin: 0.6rem 0 0;
+            font-size: 2rem;
+            font-weight: bold;
             color: var(--primary-color);
         }
 
-        .stat-card .count {
-            font-size: 2.2rem;
-            font-weight: bold;
-            color: var(--text-dark);
-            margin-bottom: 0.2rem;
+        .chart-container {
+            height: 300px; /* Standard height for charts */
+            display: flex;
+            justify-content: center;
+            align-items: center;
         }
 
-        .stat-card .label {
-            font-size: 0.9rem;
-            color: var(--secondary-color);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Tables */
         .table-container {
-            overflow-x: auto; /* Enable horizontal scrolling for tables on small screens */
-            border-radius: 12px;
-            box-shadow: 0 4px 12px var(--shadow-light);
+            overflow-x: auto;
+            margin-top: 1.5rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
 
         table {
             width: 100%;
             border-collapse: collapse;
-            background-color: var(--card-background);
-            border-radius: 12px; /* Apply border-radius to the table itself */
-            overflow: hidden; /* Ensures rounded corners clip content */
+            font-size: 0.95rem;
+            /* white-space: nowrap; REMOVED for mobile responsiveness */
         }
 
         table th, table td {
@@ -241,23 +195,25 @@
         }
 
         table th {
-            background-color: var(--background-light);
-            font-weight: bold;
-            color: var(--primary-color);
-            cursor: pointer; /* Indicate sortable */
-            position: relative;
+            background-color: #f8fafd;
+            font-weight: 600;
+            color: var(--text-dark);
+            cursor: pointer;
+            position: sticky;
+            top: 0;
+            z-index: 1;
         }
 
         table th.asc::after {
             content: ' \25B2'; /* Up arrow */
-            position: absolute;
-            right: 0.5rem;
+            font-size: 0.7em;
+            vertical-align: super;
         }
 
         table th.desc::after {
             content: ' \25BC'; /* Down arrow */
-            position: absolute;
-            right: 0.5rem;
+            font-size: 0.7em;
+            vertical-align: super;
         }
 
         table tbody tr:last-child td {
@@ -265,159 +221,145 @@
         }
 
         table tbody tr:hover {
-            background-color: #f8f9fa;
+            background-color: #f0f4f7;
         }
 
-        table td button {
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-size: 1.1rem;
-            margin: 0 0.3rem;
-            padding: 0.2rem;
-            transition: color 0.2s ease;
-        }
-
-        /* Calendar Styling */
-        #calendar {
-            max-width: 100%; /* Ensure calendar is responsive */
-            margin: 0 auto;
-            padding: 1rem;
-            background-color: var(--card-background);
-            border-radius: 12px;
-            box-shadow: 0 4px 12px var(--shadow-light);
-        }
-
-        .fc .fc-toolbar-title {
-            font-size: 1.5em;
-            color: var(--primary-color);
-        }
-
-        .fc .fc-button-primary {
-            background-color: var(--primary-color);
-            border-color: var(--primary-color);
-            color: white;
-            border-radius: 8px;
-        }
-
-        .fc .fc-button-primary:hover {
-            background-color: #0056b3;
-            border-color: #0056b3;
-        }
-
-        .fc-event {
-            border-radius: 6px;
-            padding: 2px 5px;
-            font-size: 0.85em;
-            border: 1px solid transparent;
-            background-color: var(--info-color); /* Default event color */
-            color: white;
-        }
-
-        .fc-event-visit { background-color: #6f42c1; } /* Purple */
-        .fc-event-call { background-color: #fd7e14; } /* Orange */
-        .fc-event-meeting { background-color: #20c997; } /* Teal */
-        .fc-event-follow-up { background-color: #6c757d; } /* Gray */
-        .fc-event-general-expense { background-color: var(--danger-color); } /* Red */
-
-
-        .calendar-tooltip {
-            position: absolute;
-            background-color: rgba(0, 0, 0, 0.85);
-            color: white;
-            padding: 0.75rem 1rem;
-            border-radius: 8px;
-            font-size: 0.9rem;
-            pointer-events: none; /* Allows clicks to pass through to elements below */
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.2s ease, visibility 0.2s ease;
-            z-index: 1000;
+        .btn-group {
             display: flex;
-            flex-direction: column;
-            gap: 0.25rem;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            gap: 8px;
+            flex-wrap: wrap;
         }
 
-        .calendar-tooltip.active {
-            opacity: 1;
-            visibility: visible;
+        .btn {
+            padding: 0.6rem 1rem;
+            font-size: 0.9rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.1s ease;
+            font-weight: 500;
         }
 
-        /* Modals */
-        .modal-overlay {
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+        }
+        .btn-primary:hover {
+            background-color: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            border: none;
+        }
+        .btn-danger:hover {
+            background-color: #bd2130;
+            transform: translateY(-1px);
+        }
+
+        /* Modal Styles */
+        .modal {
+            display: none;
             position: fixed;
-            top: 0;
+            z-index: 1000;
             left: 0;
+            top: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.6);
-            display: flex;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.6);
+            display: flex; /* Changed to flex for centering */
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            padding: 20px;
             opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            transition: opacity 0.3s ease;
+            pointer-events: none; /* Allows clicks through when hidden */
         }
 
-        .modal-overlay.active {
+        .modal.active {
             opacity: 1;
-            visibility: visible;
+            pointer-events: auto;
         }
 
         .modal-content {
             background-color: var(--card-background);
-            padding: 2rem;
+            margin: auto;
+            padding: 30px;
             border-radius: 12px;
-            box-shadow: 0 8px 24px var(--shadow-medium);
-            width: 90%; /* Default width for desktop */
-            max-width: 600px; /* Max width for larger screens */
-            transform: translateY(-20px);
-            transition: transform 0.3s ease;
+            box-shadow: 0 8px 30px var(--shadow-medium);
+            width: 90%;
+            max-width: 750px; /* Increased max-width for two columns */
             position: relative;
+            max-height: 90vh;
+            overflow-y: auto;
+            transform: translateY(20px);
+            transition: transform 0.3s ease;
         }
 
-        .modal-overlay.active .modal-content {
+        .modal.active .modal-content {
             transform: translateY(0);
         }
 
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1.5rem;
-            padding-bottom: 0.8rem;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .modal-header h2 {
-            margin: 0;
-            font-size: 1.6rem;
-            color: var(--primary-color);
-        }
-
-        .close-btn {
-            background: none;
-            border: none;
-            font-size: 1.8rem;
+        .close-button {
+            color: var(--text-muted);
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            font-size: 32px;
+            font-weight: normal;
             cursor: pointer;
-            color: var(--secondary-color);
-            transition: color 0.3s ease;
+            transition: color 0.2s ease;
         }
 
-        .close-btn:hover {
+        .close-button:hover,
+        .close-button:focus {
             color: var(--danger-color);
+            text-decoration: none;
+        }
+
+        .modal-content h2 {
+            color: var(--text-dark);
+            margin-top: 0;
+            margin-bottom: 25px;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 15px;
+            font-size: 1.8rem;
+            font-weight: 600;
+        }
+
+        /* NEW: Form grid for two columns */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr; /* Two equal columns */
+            gap: 15px 30px; /* Row gap, Column gap */
+        }
+
+        /* Ensure textareas and full-width elements span both columns */
+        .form-grid .form-group.full-width {
+            grid-column: span 2;
         }
 
         .form-group {
-            margin-bottom: 1rem;
+            margin-bottom: 0; /* Managed by form-grid gap */
         }
 
         .form-group label {
             display: block;
-            margin-bottom: 0.5rem;
-            font-weight: bold;
+            margin-bottom: 8px;
+            font-weight: 600;
             color: var(--text-dark);
             font-size: 0.95rem;
         }
@@ -425,18 +367,18 @@
         .form-group input[type="text"],
         .form-group input[type="email"],
         .form-group input[type="tel"],
-        .form-group input[type="number"],
         .form-group input[type="date"],
+        .form-group input[type="number"],
         .form-group select,
         .form-group textarea {
-            width: 100%;
-            padding: 0.8rem 1rem;
+            width: calc(100% - 24px); /* Account for padding and border */
+            padding: 12px;
             border: 1px solid var(--border-color);
             border-radius: 8px;
             font-size: 1rem;
             color: var(--text-dark);
-            background-color: var(--background-light);
-            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+            background-color: #fdfdfd;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
         }
 
         .form-group input:focus,
@@ -447,75 +389,45 @@
             outline: none;
         }
 
-        .form-group textarea {
-            min-height: 80px;
-            resize: vertical;
-        }
-
-        .form-actions {
-            margin-top: 1.5rem;
-            display: flex;
-            justify-content: flex-end;
-            gap: 0.75rem;
-        }
-
-        /* Loading Overlay */
-        .loading-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
+        .modal-content button[type="submit"] {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 14px 25px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1.1rem;
             width: 100%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.8);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-            opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
+            margin-top: 25px;
+            font-weight: 600;
+            transition: background-color 0.2s ease, transform 0.2s ease;
         }
 
-        .loading-overlay.active {
-            opacity: 1;
-            visibility: visible;
+        .modal-content button[type="submit"]:hover {
+            background-color: #0056b3;
+            transform: translateY(-2px);
         }
 
-        .spinner {
-            border: 8px solid #f3f3f3; /* Light grey */
-            border-top: 8px solid var(--primary-color); /* Blue */
-            border-radius: 50%;
-            width: 60px;
-            height: 60px;
-            animation: spin 1s linear infinite;
-        }
-
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-
-        /* Message Container */
+        /* Message Box Styles */
         .message-container {
+            display: none;
             position: fixed;
             top: 20px;
             left: 50%;
             transform: translateX(-50%);
-            padding: 1rem 2rem;
+            padding: 15px 25px;
             border-radius: 8px;
-            color: white;
             font-weight: bold;
+            color: white;
             text-align: center;
-            z-index: 1500;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+            z-index: 1001;
             opacity: 0;
-            visibility: hidden;
-            transition: opacity 0.3s ease, visibility 0.3s ease;
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            transition: opacity 0.3s ease;
         }
 
         .message-container.active {
             opacity: 1;
-            visibility: visible;
         }
 
         .message-container.success {
@@ -526,553 +438,669 @@
             background-color: var(--danger-color);
         }
 
-        .message-container.warning {
-            background-color: var(--warning-color);
+        .message-container.info {
+            background-color: var(--info-color);
+        }
+
+        /* Loading Overlay Styles */
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent white background */
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000; /* Ensure it's on top of everything */
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+        }
+
+        .loading-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .spinner {
+            border: 8px solid #f3f3f3; /* Light grey */
+            border-top: 8px solid var(--primary-color); /* Primary color */
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            animation: spin 2s linear infinite;
+            margin-bottom: 15px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .loading-overlay p {
             color: var(--text-dark);
+            font-size: 1.2rem;
+            font-weight: bold;
+        }
+
+        /* FullCalendar Specific Styles - Aesthetic Enhancements */
+        .fc-toolbar-title {
+            color: var(--text-dark);
+            font-weight: 700;
+        }
+        .fc-button {
+            background-color: var(--primary-color) !important;
+            border-color: var(--primary-color) !important;
+            color: white !important;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .fc-button:hover {
+            background-color: #0056b3 !important;
+            border-color: #0056b3 !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        .fc-daygrid-day-number {
+            color: var(--text-muted);
+        }
+        .fc-day-other .fc-daygrid-day-number {
+            color: #c0c7d2; /* Faded numbers for days outside the current month */
+        }
+        
+        /* Custom Event Colors based on Type */
+        /* Group 1: Positive Lead Interaction */
+        .fc-event-visit {
+            background-color: #28a745 !important; /* Success Green */
+            border-color: #28a745 !important;
+            color: white !important;
+        }
+        .fc-event-meeting {
+            background-color: #6610f2 !important; /* Purple */
+            border-color: #6610f2 !important;
+            color: white !important;
+        }
+        .fc-event-call { /* New */
+            background-color: #17a2b8 !important; /* Info Blue */
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+        .fc-event-email { /* New */
+            background-color: #5bc0de !important; /* Lighter Info Blue */
+            border-color: #5bc0de !important;
+            color: white !important;
+        }
+        .fc-event-follow-up { /* Keep existing follow-up color, similar to info */
+            background-color: #17a2b8 !important; 
+            border-color: #17a2b8 !important;
+            color: white !important;
+        }
+
+        /* Group 2: New Outreach/Warning */
+        .fc-event-cold-visit {
+            background-color: #fd7e14 !important; /* Orange */
+            border-color: #fd7e14 !important;
+            color: white !important;
+        }
+
+        /* Group 3: Financial */
+        .fc-event-general-expense {
+            background-color: #dc3545 !important; /* Danger Red */
+            border-color: #dc3545 !important;
+            color: white !important;
+        }
+
+        /* Group 4: Internal/Other */
+        .fc-event-office-day-note {
+            background-color: #6c757d !important; /* Secondary Gray */
+            border-color: #6c757d !important;
+            color: white !important;
+        }
+        .fc-event-other {
+            background-color: #20c997 !important; /* Teal */
+            border-color: #20c997 !important;
+            color: white !important;
+        }
+
+        /* Calendar Day Cell Styling for "Gray Days" */
+        .fc-daygrid-day {
+            background-color: #fcfcfc; /* Very light background for all days */
+            border: 1px solid var(--border-color); /* Subtle border */
+        }
+        /* Optional: Highlight days with events slightly more if needed, or let event colors dominate */
+        .fc-daygrid-day-frame.fc-day-today {
+            background-color: #e6f7ff; /* Light blue for today */
+        }
+
+
+        /* Calendar Tooltip Styling */
+        .calendar-tooltip {
+            position: absolute;
+            background-color: rgba(0, 0, 0, 0.85);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            pointer-events: none; /* Allows mouse events to pass through to calendar */
+            z-index: 100; /* Above calendar but below modals */
+            opacity: 0;
+            transition: opacity 0.2s ease-in-out;
+            max-width: 250px;
+            box-shadow: 0 4px 12px var(--shadow-medium);
+        }
+
+        .calendar-tooltip strong {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 1rem;
+        }
+        .calendar-tooltip span {
+            display: block;
+            font-size: 0.85rem;
+            color: #ccc;
+        }
+
+        /* Upcoming Follow-ups List Styling */
+        .upcoming-followups-list {
+            list-style: none;
+            padding: 0;
+            margin-top: 1.5rem;
+        }
+
+        .upcoming-followups-list li {
+            background-color: var(--background-light);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 12px 18px;
+            margin-bottom: 12px;
+            display: flex;
+            flex-direction: column;
+            font-size: 0.95rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+
+        .upcoming-followups-list .lead-name {
+            font-weight: 600;
+            color: var(--primary-color);
+            font-size: 1rem;
+            margin-bottom: 5px;
+        }
+
+        .upcoming-followups-list .followup-details {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-end; /* Align buttons/inputs at the bottom */
+            flex-wrap: wrap; /* Allow wrapping on smaller screens */
+        }
+
+        .input-group .form-group {
+            flex-grow: 1;
+            margin-bottom: 0; /* Remove default margin as input-group manages spacing */
+        }
+
+        .input-group button {
+            padding: 12px 20px;
+            height: 46px; /* Match height of input fields */
+            flex-shrink: 0; /* Prevent buttons from shrinking */
+        }
+
+        /* Expenditure Report specific styling */
+        #expenditureReportTable th {
+            white-space: nowrap; /* Keep headers on one line */
+        }
+
+        #totalExpenditureSummary {
+            font-size: 1.3rem;
+            font-weight: bold;
+            margin-top: 1.5rem;
+            text-align: right;
+            color: var(--text-dark);
+            padding-right: 1.2rem;
         }
 
         /* Responsive Adjustments */
-        /* Desktop-first approach for main content grid */
-        .analytics-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr; /* Two columns for desktop */
-            gap: 1.5rem;
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr; /* Stack columns on smaller wide screens */
+                padding: 1.5rem;
+            }
+            .header {
+                padding: 1rem 1.5rem;
+            }
         }
-
-        /* Group for search/export/filter buttons */
-        .search-export-group, .filter-export-group {
-            display: flex;
-            flex-wrap: wrap; /* Allow items to wrap */
-            gap: 0.75rem; /* Space between items */
-            align-items: center;
-            justify-content: flex-end; /* Align to right on desktop */
-        }
-
-        .search-export-group input,
-        .filter-export-group input {
-            flex-grow: 1; /* Allow inputs to grow */
-            max-width: 200px; /* Limit input width on desktop */
-        }
-
 
         @media (max-width: 768px) {
-            header {
-                padding: 1rem;
+            .header {
                 flex-direction: column;
                 align-items: flex-start;
             }
-
-            header h1 {
-                font-size: 1.5rem;
-                margin-bottom: 0.5rem;
+            .header h1 {
+                font-size: 1.6rem;
+                margin-bottom: 10px;
             }
-
-            nav ul {
-                flex-direction: column;
-                gap: 0.5rem;
+            .header-actions {
                 width: 100%;
-                align-items: flex-start;
-            }
-
-            nav li {
-                width: 100%;
-            }
-
-            main {
-                padding: 1rem;
-                gap: 1.5rem;
-            }
-
-            .stats-grid {
-                grid-template-columns: 1fr; /* Stack stats cards vertically */
-                gap: 1rem;
-            }
-
-            .stat-card {
-                padding: 1rem;
-            }
-
-            .stat-card .icon {
-                font-size: 2rem;
-            }
-
-            .stat-card .count {
-                font-size: 1.8rem;
-            }
-
-            .section-header {
-                flex-direction: column;
-                align-items: flex-start;
-                gap: 0.8rem;
-            }
-
-            .section-header h2 {
-                font-size: 1.3rem;
-            }
-
-            .btn {
-                width: 100%; /* Make buttons full width in smaller contexts */
-                justify-content: center;
-                padding: 0.8rem;
-            }
-
-            .form-actions {
-                flex-direction: column;
-                gap: 0.5rem;
-            }
-
-            /* Tables: Make headers disappear and data appear as labels */
-            table, thead, tbody, th, td, tr {
-                display: block;
-            }
-
-            thead tr {
-                position: absolute;
-                top: -9999px;
-                left: -9999px;
-            }
-
-            tr {
-                border: 1px solid var(--border-color);
-                margin-bottom: 1rem;
-                border-radius: 8px;
-                overflow: hidden;
-            }
-
-            td {
-                border: none;
-                position: relative;
-                padding-left: 50%; /* Space for the label */
-                text-align: right;
-                white-space: normal; /* Allow text to wrap */
-            }
-
-            td::before {
-                content: attr(data-label);
-                position: absolute;
-                left: 0;
-                width: 45%;
-                padding-left: 1rem;
-                font-weight: bold;
-                text-align: left;
-                white-space: nowrap;
-                color: var(--primary-color);
-            }
-
-            /* Specific adjustments for actions column */
-            td[data-label="Actions"] {
-                text-align: center;
-                padding-left: 0;
-                display: flex; /* Use flex to center buttons */
-                justify-content: center;
-                align-items: center;
-                padding-top: 0.5rem; /* Add some padding above buttons */
-                padding-bottom: 0.5rem;
-            }
-
-            td[data-label="Actions"]::before {
-                content: ''; /* Hide label for actions */
-                display: none;
-            }
-
-            /* Calendar specific mobile adjustments */
-            .fc .fc-toolbar-title {
-                font-size: 1.2em;
-            }
-            .fc .fc-button-group {
                 display: flex;
                 flex-wrap: wrap;
                 justify-content: center;
+                margin-top: 10px;
             }
-            .fc .fc-button {
-                margin: 0.2em;
+            .header-actions .btn {
+                margin: 5px;
             }
-
-            /* Analytics section mobile layout */
-            .analytics-grid {
-                grid-template-columns: 1fr; /* Stack analytics vertically */
+            .main-content {
+                padding: 1rem;
                 gap: 1.5rem;
             }
-
-            /* Search and filter groups on mobile */
-            .search-export-group, .filter-export-group {
-                flex-direction: column; /* Stack items vertically */
-                width: 100%; /* Take full width */
-                align-items: stretch; /* Stretch items */
-                justify-content: flex-start; /* Align to start */
+            .dashboard-grid {
+                gap: 1.5rem;
             }
-
-            .search-export-group input,
-            .filter-export-group input {
-                max-width: 100%; /* Allow inputs to take full width */
+            .card {
+                padding: 1.5rem;
             }
-
-            /* Modal content on mobile - less wide */
-            .modal-content {
-                width: calc(100% - 2rem); /* 1rem padding on each side */
-                max-width: 400px; /* Cap max width even on mobile for smaller modals */
-                margin: 1rem; /* Ensure some margin around the modal */
-            }
-            .modal-header h2 {
+            .card h2 {
                 font-size: 1.4rem;
+                margin-bottom: 1rem;
+            }
+            .modal-content {
+                width: 95%;
+                padding: 20px;
+            }
+            /* Adjust form grid for small screens to stack columns */
+            .modal-content .form-grid {
+                grid-template-columns: 1fr; /* Single column on small screens */
+                gap: 15px;
+            }
+            .form-grid .form-group.full-width {
+                grid-column: span 1; /* Reset span for single column */
+            }
+            .form-group input, .form-group select, .form-group textarea {
+                width: calc(100% - 20px);
+                padding: 10px;
+            }
+            .input-group {
+                flex-direction: column;
+                gap: 10px;
+            }
+            .input-group button {
+                width: 100%;
+                height: auto;
+            }
+
+            /* Responsive Table Styling for smaller screens */
+            .table-container {
+                border-radius: 0; /* Remove rounded corners for full width */
+                border-left: none;
+                border-right: none;
+            }
+            table {
+                border: 0; /* Remove table borders */
+            }
+            table thead {
+                display: none; /* Hide table headers on small screens */
+            }
+            table, table tbody, table tr, table td {
+                display: block; /* Make table elements behave like block elements */
+                width: 100%; /* Take full width */
+            }
+            table tr {
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 8px;
+                padding: 10px;
+                box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+            }
+            table td {
+                text-align: right; /* Align content to the right */
+                padding-left: 50%; /* Make space for the label */
+                position: relative;
+                border: none; /* Remove cell borders */
+            }
+            table td::before {
+                content: attr(data-label); /* Use data-label for the pseudo-element content */
+                position: absolute;
+                left: 10px;
+                width: calc(50% - 20px); /* Adjust width for label */
+                padding-right: 10px;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                font-weight: 600;
+                color: var(--text-dark);
+                text-align: left;
+            }
+            table td:last-child {
+                border-bottom: 0; /* No bottom border for the last cell in a row */
             }
         }
 
         @media (max-width: 480px) {
-            body {
-                font-size: 0.9rem; /* Slightly smaller base font for very small screens */
+            .header-actions {
+                flex-direction: column;
+                align-items: stretch;
             }
-            header h1 {
-                font-size: 1.3rem;
+            .header-actions .btn {
+                margin: 5px 0;
             }
-            .stat-card .count {
-                font-size: 1.6rem;
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
-            .stat-card .label {
-                font-size: 0.8rem;
-            }
-            .modal-header h2 {
-                font-size: 1.2rem;
-            }
-            .form-group label {
-                font-size: 0.9rem;
-            }
-            .form-group input, .form-group select, .form-group textarea {
-                padding: 0.6rem 0.8rem;
-                font-size: 0.9rem;
+            table th, table td {
+                padding: 0.8rem;
+                font-size: 0.85rem;
             }
         }
-
     </style>
 </head>
 <body>
     <div id="loadingOverlay" class="loading-overlay">
         <div class="spinner"></div>
+        <p>Loading...</p>
     </div>
     <div id="messageContainer" class="message-container"></div>
+    <div class="container">
+        <header class="header">
+            <h1>Sales & Marketing Dashboard</h1>
+            <!-- Header actions removed and moved to specific cards -->
+            <div class="header-actions">
+                <!-- Buttons moved to cards below -->
+            </div>
+        </header>
 
-    <header>
-        <h1>Sales & Marketing Dashboard</h1>
-        <nav>
-            <ul>
-                <li><a href="#leads-section"><i class="fas fa-users"></i> Leads</a></li>
-                <li><a href="#calendar-section"><i class="fas fa-calendar-alt"></i> Calendar</a></li>
-                <li><a href="#expenditure-section"><i class="fas fa-chart-line"></i> Expenditure</a></li>
-                <li><a href="#reports-section"><i class="fas fa-file-alt"></i> Reports</a></li>
-            </ul>
-        </nav>
-    </header>
+        <main class="main-content">
+            <section class="left-column">
+                <div class="dashboard-grid">
+                    <div class="card">
+                        <h2>Leads Statistics</h2>
+                        <div class="stats-grid">
+                            <div class="stat-item">
+                                <h3>Total Leads</h3>
+                                <p id="totalLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>New Leads</h3>
+                                <p id="newLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>Qualified Leads</h3>
+                                <p id="qualifiedLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>Closed Won</h3>
+                                <p id="closedWonLeadsCount">0</p>
+                            </div>
+                            <div class="stat-item">
+                                <h3>Closed Lost</h3>
+                                <p id="closedLostLeadsCount">0</p>
+                            </div>
+                        </div>
+                    </div>
 
-    <main>
-        <!-- Lead Statistics Section -->
-        <section id="leads-stats-section" class="dashboard-section">
-            <div class="section-header">
-                <h2>Lead Statistics</h2>
-                <button id="addLeadModalBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add New Lead</button>
-            </div>
-            <div class="stats-grid">
-                <div class="stat-card">
-                    <i class="fas fa-users icon"></i>
-                    <div id="totalLeadsCount" class="count">0</div>
-                    <div class="label">Total Leads</div>
+                    <div class="card">
+                        <h2>Leads by Stage</h2>
+                        <div class="chart-container">
+                            <canvas id="leadsByStageChart"></canvas>
+                        </div>
+                    </div>
                 </div>
-                <div class="stat-card">
-                    <i class="fas fa-user-plus icon"></i>
-                    <div id="newLeadsCount" class="count">0</div>
-                    <div class="label">New Leads</div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-check-circle icon"></i>
-                    <div id="qualifiedLeadsCount" class="count">0</div>
-                    <div class="label">Qualified Leads</div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-handshake icon"></i>
-                    <div id="closedWonLeadsCount" class="count">0</div>
-                    <div class="label">Closed Won</div>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-times-circle icon"></i>
-                    <div id="closedLostLeadsCount" class="count">0</div>
-                    <div class="label">Closed Lost</div>
-                </div>
-            </div>
-        </section>
 
-        <!-- Recent Leads Section -->
-        <section id="leads-section" class="dashboard-section">
-            <div class="section-header">
-                <h2>Recent Leads</h2>
-                <div class="search-export-group">
-                    <input type="text" id="leadSearchInput" placeholder="Search leads...">
-                    <button id="exportLeadsBtn" class="btn btn-secondary"><i class="fas fa-download"></i> Export Leads</button>
+                <div class="card">
+                    <h2>
+    			Recent Leads
+                <div class="button-group-header">
+        			<button class="btn btn-primary btn-icon" id="addLeadModalBtn" title="Add New Lead"><i class="fas fa-plus"></i></button>
+        			<button id="exportLeadsBtn" class="btn btn-secondary btn-icon" title="Export Leads"><i class="fas fa-download"></i></button>
                 </div>
-            </div>
-            <div class="table-container">
-                <table id="recentLeadsTable">
-                    <thead>
-                        <tr>
-                            <th data-sort-by="firstname">Name</th>
-                            <th data-sort-by="company">Company</th>
-                            <th data-sort-by="stage">Stage</th>
-                            <th data-sort-by="dateofcontact">Contact Date</th>
-                            <th data-sort-by="followup">Follow-up Date</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <!-- Lead data will be loaded here by JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <!-- Upcoming Follow-ups & Leads by Stage Chart -->
-        <section id="analytics-section" class="dashboard-section">
-            <div class="section-header">
-                <h2>Analytics Overview</h2>
-            </div>
-            <div class="analytics-grid"> <!-- Changed class name here -->
-                <div class="p-4 bg-gray-50 rounded-lg shadow-inner">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Upcoming Follow-ups</h3>
-                    <ul id="upcomingFollowupsList" class="list-disc pl-5 space-y-2">
-                        <!-- Follow-up items will be loaded here -->
-                    </ul>
+		    </h2>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="leadSearchInput">Search Leads:</label>
+                            <input type="text" id="leadSearchInput" placeholder="Search by name, company, stage...">
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table id="recentLeadsTable">
+                            <thead>
+                                <tr>
+                                    <th data-sort-by="firstName" class="sortable">Name</th>
+                                    <th data-sort-by="company" class="sortable">Company</th>
+                                    <th data-sort-by="stage" class="sortable">Stage</th>
+                                    <th data-sort-by="dateOfContact" class="sortable">Contact Date</th>
+                                    <th data-sort-by="followUp" class="sortable">Follow-up Date</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Leads will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-                <div class="p-4 bg-gray-50 rounded-lg shadow-inner">
-                    <h3 class="text-lg font-semibold text-gray-700 mb-2">Leads by Stage</h3>
-                    <canvas id="leadsByStageChart"></canvas>
+
+                <div class="card">
+                    <h2>
+                        Expenditure Report
+                        <button class="btn btn-secondary btn-icon" id="addExpenseModalBtn" title="Add Expense"><i class="fas fa-dollar-sign"></i></button>
+                    </h2>
+                    <div class="input-group">
+                        <div class="form-group">
+                            <label for="reportStartDate">Start Date:</label>
+                            <input type="date" id="reportStartDate">
+                        </div>
+                        <div class="form-group">
+                            <label for="reportEndDate">End Date:</label>
+                            <input type="date" id="reportEndDate">
+                        </div>
+                        <button class="btn btn-secondary btn-icon" id="filterReportBtn" title="Filter Report"><i class="fas fa-filter"></i></button>
+                        <button class="btn btn-secondary btn-icon" id="clearReportDatesBtn" title="Clear Dates"><i class="fas fa-times"></i></button> <!-- NEW BUTTON -->
+                        <button class="btn btn-primary btn-icon" id="exportExpenditureReportBtn" title="Export CSV"><i class="fas fa-file-csv"></i></button>
+                    </div>
+                    <div class="table-container">
+                        <table id="expenditureReportTable">
+                            <thead>
+                                <tr>
+                                    <th data-label="Date">Date</th>
+                                    <th data-label="Category">Category</th>
+                                    <th data-label="Description">Description</th>
+                                    <th data-label="Amount (KSh)">Amount (KSh)</th>
+                                    <th data-label="Lead Name">Lead Name</th>
+                                    <th data-label="Company">Company</th>
+                                    <th>Actions</th> <!-- Added for expense actions -->
+                                </tr>
+                            </thead>
+                            <tbody id="expenditureReportTableBody"> <!-- Changed ID for clarity -->
+                                <!-- Expenditure report items will be populated here by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="totalExpenditureSummary">Total Expenditure: KSh 0.00</div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- Calendar Section -->
-        <section id="calendar-section" class="dashboard-section">
-            <div class="section-header">
-                <h2>Calendar Events</h2>
-                <button id="addEventModalBtn" class="btn btn-primary"><i class="fas fa-plus"></i> Add Event</button>
-            </div>
-            <div id="calendar"></div>
-        </section>
-
-        <!-- Expenditure Report Section -->
-        <section id="expenditure-section" class="dashboard-section">
-            <div class="section-header">
-                <h2>Expenditure Report</h2>
-                <div class="filter-export-group">
-                    <input type="date" id="reportStartDate" class="flatpickr-input">
-                    <input type="date" id="reportEndDate" class="flatpickr-input">
-                    <button id="filterReportBtn" class="btn btn-secondary"><i class="fas fa-filter"></i> Filter</button>
-                    <button id="clearReportDatesBtn" class="btn btn-secondary"><i class="fas fa-times"></i> Clear Dates</button>
-                    <button id="addExpenseModalBtn" class="btn btn-success"><i class="fas fa-plus"></i> Add Expense</button>
-                    <button id="exportExpenditureReportBtn" class="btn btn-secondary"><i class="fas fa-download"></i> Export Report</button>
+            <section class="right-column">
+                <div class="card">
+                    <h2>Upcoming Follow-ups</h2>
+                    <ul id="upcomingFollowupsList" class="upcoming-followups-list">
+                        </ul>
                 </div>
-            </div>
-            <div class="table-container">
-                <table id="expenditureReportTable">
-                    <thead>
-                        <tr>
-                            <th data-sort-by="date">Date</th>
-                            <th data-sort-by="type_category">Category</th>
-                            <th data-sort-by="description">Description</th>
-                            <th data-sort-by="amount">Amount (KSh)</th>
-                            <th data-sort-by="lead_name">Lead Name</th>
-                            <th data-sort-by="company">Company</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="expenditureReportTableBody">
-                        <!-- Expenditure data will be loaded here by JavaScript -->
-                    </tbody>
-                </table>
-            </div>
-            <div class="text-right mt-4 font-bold text-lg" id="totalExpenditureSummary">
-                Total Expenditure: KSh 0.00
-            </div>
-        </section>
-    </main>
 
-    <!-- Modals -->
-    <!-- Lead Modal -->
-    <div id="leadModal" class="modal-overlay">
+                <div class="card">
+                    <h2>
+                        Planning Calendar
+                        <button class="btn btn-primary btn-icon" id="addEventModalBtn" title="Add Event"><i class="fas fa-calendar-plus"></i></button>
+                    </h2>
+                    <div id="calendar"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <div id="leadModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add New Lead</h2>
-                <button class="close-btn" id="closeLeadModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeLeadModalBtn">&times;</span>
+            <h2 id="leadModalTitle">Add New Lead</h2>
             <form id="addLeadForm">
-                <input type="hidden" id="leadId" name="id">
-                <div class="form-group">
-                    <label for="firstName">First Name:</label>
-                    <input type="text" id="firstName" name="firstName" required>
+                <input type="hidden" id="leadId">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="firstName">First Name:</label>
+                        <input type="text" id="firstName" name="firstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName">Last Name:</label>
+                        <input type="text" id="lastName" name="lastName">
+                    </div>
+                    <div class="form-group">
+                        <label for="title">Title:</label>
+                        <input type="text" id="title" name="title">
+                    </div>
+                    <div class="form-group">
+                        <label for="company">Company:</label>
+                        <input type="text" id="company" name="company" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email:</label>
+                        <input type="email" id="email" name="email">
+                    </div>
+                    <div class="form-group">
+                        <label for="phone">Phone:</label>
+                        <input type="tel" id="phone" name="phone">
+                    </div>
+                    <div class="form-group">
+                        <label for="product">Product of Interest:</label>
+                        <input type="text" id="product" name="product">
+                    </div>
+                    <div class="form-group">
+                        <label for="stage">Stage:</label>
+                        <select id="stage" name="stage" required>
+                            <option value="New">New</option>
+                            <option value="Qualified">Qualified</option>
+                            <option value="Proposal">Proposal</option>
+                            <option value="Negotiation">Negotiation</option>
+                            <option value="Closed Won">Closed Won</option>
+                            <option value="Closed Lost">Closed Lost</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="dateOfContact">Date of Contact:</label>
+                        <input type="date" id="dateOfContact" name="dateOfContact" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="followUp">Follow-up Date (Optional):</label>
+                        <input type="date" id="followUp" name="followUp">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="notes">Notes:</label>
+                        <textarea id="notes" name="notes" rows="3"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="lastName">Last Name:</label>
-                    <input type="text" id="lastName" name="lastName">
-                </div>
-                <div class="form-group">
-                    <label for="title">Title:</label>
-                    <input type="text" id="title" name="title">
-                </div>
-                <div class="form-group">
-                    <label for="company">Company:</label>
-                    <input type="text" id="company" name="company" required>
-                </div>
-                <div class="form-group">
-                    <label for="email">Email:</label>
-                    <input type="email" id="email" name="email">
-                </div>
-                <div class="form-group">
-                    <label for="phone">Phone:</label>
-                    <input type="tel" id="phone" name="phone">
-                </div>
-                <div class="form-group">
-                    <label for="product">Product/Service of Interest:</label>
-                    <input type="text" id="product" name="product">
-                </div>
-                <div class="form-group">
-                    <label for="stage">Stage:</label>
-                    <select id="stage" name="stage" required>
-                        <option value="New">New</option>
-                        <option value="Contacted">Contacted</option>
-                        <option value="Qualified">Qualified</option>
-                        <option value="Proposal Sent">Proposal Sent</option>
-                        <option value="Negotiation">Negotiation</option>
-                        <option value="Closed Won">Closed Won</option>
-                        <option value="Closed Lost">Closed Lost</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="dateOfContact">Date of Contact:</label>
-                    <input type="date" id="dateOfContact" name="dateOfContact" required>
-                </div>
-                <div class="form-group">
-                    <label for="followUp">Follow-up Date:</label>
-                    <input type="date" id="followUp" name="followUp">
-                </div>
-                <div class="form-group">
-                    <label for="notes">Notes:</label>
-                    <textarea id="notes" name="notes"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save Lead</button>
-                    <button type="button" class="btn btn-secondary" id="cancelLeadBtn">Cancel</button>
-                </div>
+                <button type="submit" class="btn btn-primary">Save Lead</button>
             </form>
         </div>
     </div>
 
-    <!-- Visit/Activity Modal (for lead activities) -->
-    <div id="visitModal" class="modal-overlay">
+    <div id="visitModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Log Lead Activity</h2>
-                <button class="close-btn" id="closeVisitModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeVisitModalBtn">&times;</span>
+            <h2>Add New Visit</h2>
             <form id="addActivityForm">
-                <input type="hidden" id="activityId" name="id">
-                <div class="form-group">
-                    <label for="activityLeadId">Lead:</label>
-                    <select id="activityLeadId" name="lead_id">
-                        <!-- Leads will be populated here by JS -->
-                    </select>
+                <input type="hidden" id="activityLeadId" name="lead_id">
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="activityDate">Activity Date:</label>
+                        <input type="date" id="activityDate" name="activity_date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="activityType">Activity Type:</label>
+                        <select id="activityType" name="activity_type" required>
+                            <option value="call">Call</option>
+                            <option value="email">Email</option>
+                            <option value="visit">Visit</option>
+                            <option value="meeting">Meeting</option>
+                            <option value="general_expense">General Expense</option>
+                        </select>
+                    </div>
+                     <div class="form-group">
+                        <label for="activityExpenditure">Expenditure (KSh):</label>
+                        <input type="number" id="activityExpenditure" name="expenditure" step="0.01" min="0" value="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label for="activityLocationName">Location Name (Optional):</label>
+                        <input type="text" id="activityLocationName" name="location_name">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="activityDescription">Description:</label>
+                        <textarea id="activityDescription" name="description" rows="3"></textarea>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="activityType">Activity Type:</label>
-                    <select id="activityType" name="activity_type" required>
-                        <option value="">Select Type</option>
-                        <option value="Call">Call</option>
-                        <option value="Email">Email</option>
-                        <option value="Meeting">Meeting</option>
-                        <option value="Visit">Visit</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="activityDate">Date:</label>
-                    <input type="date" id="activityDate" name="activity_date" required>
-                </div>
-                <div class="form-group">
-                    <label for="activityDescription">Description:</label>
-                    <textarea id="activityDescription" name="description"></textarea>
-                </div>
-                <div class="form-group">
-                    <label for="activityExpenditure">Expenditure (KSh):</label>
-                    <input type="number" id="activityExpenditure" name="expenditure" step="0.01" min="0" value="0.00">
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Log Activity</button>
-                    <button type="button" class="btn btn-secondary" id="cancelActivityBtn">Cancel</button>
-                </div>
+                <button type="submit" class="btn btn-primary">Add Activity</button>
             </form>
         </div>
     </div>
 
-    <!-- General Expense Modal -->
-    <div id="generalExpenseModal" class="modal-overlay">
+    <div id="generalExpenseModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add General Expense</h2>
-                <button class="close-btn" id="closeGeneralExpenseModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeGeneralExpenseModalBtn">&times;</span>
+            <h2>Add General Expense</h2>
             <form id="addExpenseForm">
-                <input type="hidden" id="expenseId" name="id">
-                <div class="form-group">
-                    <label for="generalExpenseCategory">Category:</label>
-                    <input type="text" id="generalExpenseCategory" name="category" required>
+                <input type="hidden" id="expenseId" name="id"> <!-- Hidden input for expense ID -->
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="generalExpenseDate">Date:</label>
+                        <input type="date" id="generalExpenseDate" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="generalExpenseAmount">Amount (KSh):</label>
+                        <input type="number" id="generalExpenseAmount" name="amount" step="0.01" min="0" required>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="generalExpenseDescription">Description:</label>
+                        <input type="text" id="generalExpenseDescription" name="description" required>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="generalExpenseDate">Date:</label>
-                    <input type="date" id="generalExpenseDate" name="date" required>
-                </div>
-                <div class="form-group">
-                    <label for="generalExpenseAmount">Amount (KSh):</label>
-                    <input type="number" id="generalExpenseAmount" name="amount" step="0.01" min="0" value="0.00" required>
-                </div>
-                <div class="form-group">
-                    <label for="generalExpenseDescription">Description:</label>
-                    <textarea id="generalExpenseDescription" name="description"></textarea>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Save Expense</button>
-                    <button type="button" class="btn btn-secondary" id="cancelExpenseBtn">Cancel</button>
-                </div>
+                <button type="submit" class="btn btn-primary">Save Expense</button>
             </form>
         </div>
     </div>
 
-    <!-- General Event Modal (for FullCalendar events) -->
-    <div id="generalEventModal" class="modal-overlay">
+    <div id="generalEventModal" class="modal">
         <div class="modal-content">
-            <div class="modal-header">
-                <h2>Add Calendar Event</h2>
-                <button class="close-btn" id="closeGeneralEventModalBtn">&times;</button>
-            </div>
+            <span class="close-button" id="closeGeneralEventModalBtn">&times;</span>
+            <h2>Add Calendar Event</h2>
             <form id="addEventForm">
-                <input type="hidden" id="eventId" name="id">
-                <div class="form-group">
-                    <label for="eventDate">Date:</label>
-                    <input type="date" id="eventDate" name="date" required>
-                </div>
-                <div class="form-group">
-                    <label for="eventType">Event Type:</label>
-                    <select id="eventType" name="type" required>
-                        <option value="">Select Type</option>
-                        <option value="Call">Call</option>
-                        <option value="Email">Email</option>
-                        <option value="Meeting">Meeting</option>
-                        <option value="Visit">Visit</option>
-                        <option value="Follow-up">Follow-up</option>
-                        <option value="General Expense">General Expense</option>
-                        <option value="Other">Other</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="eventDescription">Description:</label>
-                    <textarea id="eventDescription" name="description"></textarea>
-                </div>
-                <div class="form-group">
-                        <label for="eventLeadId">Associated Lead:</label>
+                <input type="hidden" id="eventId" name="id"> <!-- ADDED THIS LINE -->
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="eventDate">Date:</label>
+                        <input type="date" id="eventDate" name="date" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="eventType">Event Type:</label>
+                        <select id="eventType" name="type" required>
+                            <option value="">-- Select Event Type --</option>
+                            <option value="Meeting">Meeting</option>
+                            <option value="Visit">Visit</option>
+                            <option value="Call">Call</option>
+                            <option value="Email">Email</option>
+                            <option value="Cold Visit">Cold Visit</option>
+                            <option value="Office Day Note">Office Day Note</option>
+                            <option value="General Expense">General Expense</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="eventDescription">Description:</label>
+                        <textarea id="eventDescription" name="description" rows="3" required></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="eventLeadId">Link to Lead (Optional):</label>
                         <select id="eventLeadId" name="lead_id">
                         </select>
                     </div>
