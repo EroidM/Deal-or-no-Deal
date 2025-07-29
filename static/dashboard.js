@@ -139,16 +139,18 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('addLeadForm').reset(); // Clear form for new entry
         openModal('addLeadModal');
     });
-    document.getElementById('addExpenditureButton')?.addEventListener('click', () => {
+    document.getElementById('addExpenditureButton')?.addEventListener('click', async () => {
         document.getElementById('addExpenditureForm').reset(); // Clear form
+        await fetchLeads(); // Ensure leads are fetched before populating dropdown
         populateLeadDropdowns('expenditureLeadId'); // Populate lead dropdown for new expense
         openModal('addExpenditureModal');
     });
-    document.getElementById('addEventButton')?.addEventListener('click', () => {
+    document.getElementById('addEventButton')?.addEventListener('click', async () => {
         document.getElementById('addEventForm').reset(); // Clear form
         // Clear the hidden eventId field when opening for a new event
         const eventIdInput = document.getElementById('eventId');
         if (eventIdInput) eventIdInput.value = '';
+        await fetchLeads(); // Ensure leads are fetched before populating dropdown
         populateLeadDropdowns('eventLeadId'); // Populate lead dropdown for new event
         openModal('addEventModal');
     });
@@ -365,6 +367,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Filter and map events to ensure they are well-formed for FullCalendar
         const formattedEvents = events.filter(event => {
+            // Filter out events with the fallback date (2000-01-01)
+            if (event.start === "2000-01-01T00:00:00") {
+                console.warn('Skipping event with fallback date (2000-01-01):', event);
+                return false;
+            }
             // Basic check: ensure event object itself exists and has core properties
             if (!event || typeof event.id === 'undefined' || typeof event.title === 'undefined' || typeof event.start === 'undefined') {
                 console.warn('Skipping malformed event (missing id, title, or start):', event);
