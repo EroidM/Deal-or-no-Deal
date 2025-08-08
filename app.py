@@ -1,3 +1,5 @@
+# app.py - Updated to use a dedicated Firebase config endpoint and improved error handling
+
 import os
 import csv
 from flask import Flask, request, jsonify, render_template, Blueprint, send_from_directory, make_response
@@ -9,8 +11,8 @@ from io import StringIO
 from datetime import datetime, date
 import json
 
-# Configure logging to show INFO messages
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+# Configure logging to show DEBUG messages
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 load_dotenv()
 
@@ -29,72 +31,74 @@ node_modules_bp = Blueprint(
 )
 app.register_blueprint(node_modules_bp)
 
-# --- Configuration for Database and Firebase ---
+# --- Configuration ---
 DATABASE_URL = os.getenv('DATABASE_URL')
-FIREBASE_CONFIG = os.getenv('FIREBASE_CONFIG')
-INITIAL_AUTH_TOKEN = os.getenv('INITIAL_AUTH_TOKEN')
+# Firebase config variables from .env
+FIREBASE_CONFIG = {
+    "apiKey": os.getenv('apiKey', '').strip().strip("'\""),
+    "appId": os.getenv('appId', '').strip().strip("'\""),
+    "authDomain": os.getenv('authDomain', '').strip().strip("'\""),
+    "measurementId": os.getenv('measurementId', '').strip().strip("'\""),
+    "messagingSenderId": os.getenv('messagingSenderId', '').strip().strip("'\""),
+    "projectId": os.getenv('projectId', '').strip().strip("'\""),
+    "storageBucket": os.getenv('storageBucket', '').strip().strip("'\""),
+}
+INITIAL_AUTH_TOKEN = os.getenv('initial_auth_token', '').strip().strip("'\"")
 
-# --- Database Connection Function ---
 def get_db_connection():
     """Establishes a new database connection."""
     conn = None
     try:
         conn = psycopg2.connect(DATABASE_URL)
-        logging.info("Database connection successful.")
         return conn
-    except psycopg2.Error as e:
-        logging.error(f"Database connection error: {e}")
-        return None
-
-# --- Routes ---
+    except psycopg2.OperationalError as e:
+        logging.error(f"Failed to connect to database: {e}")
+        raise e
 
 @app.route('/')
-def index():
+def home():
+    return "Welcome to the Sales & Marketing Dashboard Backend."
+
+@app.route('/dashboard')
+def render_dashboard():
     """Renders the main dashboard page."""
+    logging.debug("Rendering dynamic_dashboard.html")
     return render_template('dynamic_dashboard.html')
 
-@app.route('/firebase_config')
-def firebase_config():
-    """Provides the Firebase configuration and authentication token to the frontend."""
-    if not FIREBASE_CONFIG or not INITIAL_AUTH_TOKEN:
-        logging.error("Firebase environment variables are not set.")
-        return jsonify({"error": "Firebase configuration not available"}), 500
+@app.route('/static/<path:filename>')
+def serve_static(filename):
+    """Serve static files from the 'static' directory."""
+    return send_from_directory(app.static_folder, filename)
 
-    try:
-        firebase_config_dict = json.loads(FIREBASE_CONFIG)
-    except json.JSONDecodeError as e:
-        logging.error(f"Failed to parse FIREBASE_CONFIG JSON: {e}")
-        return jsonify({"error": "Invalid Firebase configuration format"}), 500
-
-    config_data = {
-        "firebaseConfig": firebase_config_dict,
+@app.route('/api/firebase_config')
+def get_firebase_config():
+    """API endpoint to serve the Firebase configuration."""
+    logging.debug("Serving Firebase configuration via API.")
+    return jsonify({
+        "firebaseConfig": FIREBASE_CONFIG,
         "initialAuthToken": INITIAL_AUTH_TOKEN
-    }
-    return jsonify(config_data)
+    })
 
 @app.route('/api/leads', methods=['GET'])
 def get_leads():
-    """Fetches all leads from the database."""
-    conn = get_db_connection()
-    if conn is None:
-        return jsonify({"message": "Database connection failed"}), 500
-
+    """Fetch and return all leads data."""
+    conn = None
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute("""
-                SELECT
-                    l.id, l.full_name, l.email, l.phone, l.status, l.created_at,
-                    c.name as company, c.email as company_email, c.phone as company_phone
-                FROM leads l
-                LEFT JOIN companies c ON l.company_id = c.id
-                ORDER BY l.created_at DESC;
-            """)
-            leads = cur.fetchall()
-            leads_list = [dict(row) for row in leads]
-        return jsonify(leads_list)
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT * FROM leads ORDER BY created_at DESC;")
+        leads = cur.fetchall()
+        logging.debug(f"Fetched {len(leads)} leads.")
+        return jsonify([dict(lead) for lead in leads])
+    except psycopg2.OperationalError as e:
+        logging.error(f"Database connection error: {e}")
+        return jsonify({"message": "Database connection error."}), 500
     except psycopg2.Error as e:
         logging.error(f"Database error when fetching leads: {e}")
         return jsonify({"message": f"Database error: {e}"}), 500
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+        return jsonify({"message": f"An unexpected error occurred: {e}"}), 500
     finally:
         if conn:
             conn.close()
@@ -102,108 +106,87 @@ def get_leads():
 @app.route('/api/expenditure_report', methods=['GET'])
 def get_expenditure_report():
     """
-    Generates and fetches the expenditure report from the database.
-    Supports filtering by date range.
+    Fetches and returns expenditure report data, optionally filtered by date range.
     """
-    conn = get_db_connection()
-    if conn is None:
-        return jsonify({"message": "Database connection failed"}), 500
-
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-
-    # Base query
-    query = """
-        SELECT
-            e.date,
-            e.type_category,
-            e.description,
-            e.amount,
-            l.full_name as lead_full_name,
-            c.name as company
-        FROM expenditures e
-        LEFT JOIN leads l ON e.lead_id = l.id
-        LEFT JOIN companies c ON l.company_id = c.id
-    """
-    params = []
-    
-    if start_date and end_date:
-        query += " WHERE e.date BETWEEN %s AND %s"
-        params.append(start_date)
-        params.append(end_date)
-    elif start_date:
-        query += " WHERE e.date >= %s"
-        params.append(start_date)
-    elif end_date:
-        query += " WHERE e.date <= %s"
-        params.append(end_date)
-    
-    query += " ORDER BY e.date DESC"
-
+    conn = None
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute(query, tuple(params))
-            report = cur.fetchall()
-            report_list = [dict(row) for row in report]
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+
+        start_date_str = request.args.get('start_date')
+        end_date_str = request.args.get('end_date')
+
+        query = "SELECT * FROM expenditures"
+        params = []
+        if start_date_str and end_date_str:
+            query += " WHERE expenditure_date BETWEEN %s AND %s"
+            params.extend([start_date_str, end_date_str])
+        
+        query += " ORDER BY expenditure_date DESC;"
+        
+        cur.execute(query, tuple(params))
+        report_data = cur.fetchall()
+        logging.debug(f"Fetched {len(report_data)} expenditure items.")
+
+        # Convert DictRow to standard dict for jsonify
+        report_list = [dict(item) for item in report_data]
         return jsonify(report_list)
+
+    except psycopg2.OperationalError as e:
+        logging.error(f"Database connection error: {e}")
+        return jsonify({"message": "Database connection error."}), 500
     except psycopg2.Error as e:
         logging.error(f"Database error when fetching expenditure report: {e}")
         return jsonify({"message": f"Database error: {e}"}), 500
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+        return jsonify({"message": f"An unexpected error occurred: {e}"}), 500
     finally:
         if conn:
             conn.close()
 
-@app.route('/api/export_expenditure', methods=['GET'])
+@app.route('/api/export_expenditure_report')
 def export_expenditure_report():
     """
-    Generates a CSV export of the expenditure report.
+    Export expenditure report as a CSV file.
     """
-    conn = get_db_connection()
-    if conn is None:
-        return jsonify({"message": "Database connection failed"}), 500
-
-    start_date = request.args.get('start_date')
-    end_date = request.args.get('end_date')
-
-    query = """
-        SELECT
-            e.date, e.type_category, e.description, e.amount,
-            l.full_name as lead_full_name, c.name as company
-        FROM expenditures e
-        LEFT JOIN leads l ON e.lead_id = l.id
-        LEFT JOIN companies c ON l.company_id = c.id
-    """
-    params = []
-    if start_date and end_date:
-        query += " WHERE e.date BETWEEN %s AND %s"
-        params.append(start_date)
-        params.append(end_date)
-    elif start_date:
-        query += " WHERE e.date >= %s"
-        params.append(start_date)
-    elif end_date:
-        query += " WHERE e.date <= %s"
-        params.append(end_date)
-    
-    query += " ORDER BY e.date DESC"
-
+    conn = None
     try:
-        with conn.cursor(cursor_factory=psycopg2.extras.DictCursor) as cur:
-            cur.execute(query, tuple(params))
-            report_data = cur.fetchall()
+        conn = get_db_connection()
+        cur = conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
+        cur.execute("SELECT e.*, l.full_name as lead_full_name, l.company FROM expenditures e LEFT JOIN leads l ON e.lead_id = l.lead_id;")
+        expenditure_items = cur.fetchall()
+
+        report_data = []
+        for item in expenditure_items:
+            report_data.append({
+                'date': item['expenditure_date'].isoformat(),
+                'type_category': item['expenditure_type'] if item['expenditure_type'] else 'N/A',
+                'description': item['description'],
+                'amount': float(item['amount']),
+                'lead_name': item['lead_full_name'] if item['lead_full_name'] else 'N/A',
+                'company': item['company'] if item['company'] else 'N/A'
+            })
+
+        report_data.sort(key=lambda x: x['date']) # Sort for CSV output
 
         si = StringIO()
         cw = csv.writer(si)
 
-        cw.writerow(["Date", "Type/Category", "Description", "Amount (KSh)", "Lead Name", "Company"])
+        # Write header
+        cw.writerow([
+            "Date", "Type/Category", "Description", "Amount (KSh)", "Lead Name", "Company"
+        ])
+
+        # Write data
         for item in report_data:
             cw.writerow([
                 item['date'],
                 item['type_category'],
                 item['description'],
                 item['amount'],
-                item['lead_full_name'] if item['lead_full_name'] else 'N/A',
-                item['company'] if item['company'] else 'N/A'
+                item['lead_name'],
+                item['company']
             ])
 
         output = si.getvalue()
@@ -211,6 +194,7 @@ def export_expenditure_report():
         response.headers["Content-Disposition"] = "attachment; filename=expenditure_report_export.csv"
         response.headers["Content-type"] = "text/csv"
         return response
+
     except psycopg2.Error as e:
         logging.error(f"Database error when exporting expenditure report: {e}")
         return jsonify({"message": f"Database error: {e}"}), 500
@@ -218,17 +202,45 @@ def export_expenditure_report():
         if conn:
             conn.close()
 
-# --- Service Worker & Manifest Routes (for PWA) ---
-@app.route('/service-worker.js')
-def serve_service_worker():
-    """Serves the service worker file from the static directory."""
-    return send_from_directory(app.static_folder, 'service-worker.js')
 
-@app.route('/manifest.json')
-def serve_manifest():
-    """Serves the PWA manifest file from the static directory."""
-    return send_from_directory(app.static_folder, 'manifest.json')
+@app.route('/api/add_expenditure', methods=['POST'])
+def add_expenditure():
+    """API endpoint to add a new expenditure."""
+    conn = None
+    try:
+        data = request.json
+        if not all(k in data for k in ['expenditure_date', 'expenditure_type', 'description', 'amount']):
+            return jsonify({'message': 'Missing required fields'}), 400
+        
+        conn = get_db_connection()
+        cur = conn.cursor()
+        
+        sql = "INSERT INTO expenditures (expenditure_date, expenditure_type, description, amount, lead_id) VALUES (%s, %s, %s, %s, %s);"
+        cur.execute(sql, (
+            data['expenditure_date'],
+            data['expenditure_type'],
+            data['description'],
+            data['amount'],
+            data.get('lead_id')
+        ))
+        conn.commit()
+        
+        return jsonify({"message": "Expenditure added successfully"}), 201
+    
+    except psycopg2.OperationalError as e:
+        logging.error(f"Database connection error: {e}")
+        return jsonify({"message": "Database connection error."}), 500
+    except psycopg2.Error as e:
+        logging.error(f"Database error when adding expenditure: {e}")
+        return jsonify({'message': f'Database error: {e}'}), 500
+    except Exception as e:
+        logging.error(f"An unexpected error occurred: {e}")
+        return jsonify({'message': f'An unexpected error occurred: {e}'}), 500
+    finally:
+        if conn:
+            conn.close()
+
 
 if __name__ == '__main__':
-    # Use 0.0.0.0 to make the app accessible externally on Render
-    app.run(host='0.0.0.0', port=os.environ.get('PORT', 5000))
+    app.run(debug=True, port=8000)
+
