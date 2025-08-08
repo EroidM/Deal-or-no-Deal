@@ -4,22 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sales & Marketing Dashboard</title>
-    <!-- Favicon -->
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <!-- PWA Manifest -->
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
 
-    <!-- CSS for Font Awesome - still using CDN as it's not a direct npm dependency we installed for this purpose -->
+    <!-- CSS for Font Awesome - for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
     <!-- Local CSS for Flatpickr from node_modules -->
     <link rel="stylesheet" href="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.css') }}">
     
-    <!-- Firebase SDKs - MUST be loaded from a CDN -->
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
-
     <style>
         /* Modern, App-centric Styling */
         :root {
@@ -29,684 +22,416 @@
             --secondary-color: #2196F3; /* A vibrant blue */
             --success-color: #66BB6A; /* Lighter green for success */
             --danger-color: #EF5350; /* Softer red for danger */
-            --info-color: #29B6F6; /* Lighter blue for info */
-            --warning-color: #FFCA28; /* Amber for warning */
-            --background-light: #f5f7fa; /* A very light gray-blue background */
+            --warning-color: #FFC107; /* A bright yellow */
+            --info-color: #B3E5FC; /* A light blue */
+            --text-color: #333;
+            --background-color: #f4f7f6;
             --card-background: #ffffff;
-            --text-dark: #263238; /* A dark gray-blue */
             --border-color: #e0e0e0;
-            --shadow-light: rgba(0, 0, 0, 0.05);
-            --font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            --header-height: 60px;
-        }
-
-        body {
-            font-family: var(--font-family);
-            background-color: var(--background-light);
-            color: var(--text-dark);
-            margin: 0;
-            padding: 0;
-            overflow-x: hidden;
+            --shadow-light: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --shadow-hover: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
         }
         
-        /* Flexbox for the main layout */
-        .container-fluid {
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            color: var(--text-color);
+            background-color: var(--background-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
             display: flex;
             min-height: 100vh;
+            flex-direction: column;
         }
 
-        /* Sidebar Styling */
+        .dashboard-container {
+            display: flex;
+            flex: 1;
+            width: 100%;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
         .sidebar {
             width: 250px;
-            background: linear-gradient(to bottom, var(--primary-color), var(--primary-dark));
-            color: white;
-            padding: 20px;
-            box-shadow: 2px 0 5px var(--shadow-light);
+            background-color: var(--card-background);
+            box-shadow: var(--shadow-light);
+            padding: 20px 0;
             display: flex;
             flex-direction: column;
-            transition: transform 0.3s ease-in-out;
-            position: fixed;
-            height: 100%;
-            top: 0;
-            left: 0;
-            z-index: 1000;
         }
 
-        .sidebar.hidden {
-            transform: translateX(-100%);
-        }
-
-        .sidebar-header {
+        .sidebar h2 {
             text-align: center;
+            color: var(--primary-color);
             margin-bottom: 30px;
         }
 
-        .sidebar-header h3 {
-            margin: 0;
-            font-weight: 600;
-        }
-
-        .nav-link {
-            display: block;
+        .sidebar nav a {
+            display: flex;
+            align-items: center;
             padding: 15px 20px;
-            color: rgba(255, 255, 255, 0.8);
+            color: var(--text-color);
             text-decoration: none;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            transition: background-color 0.2s ease-in-out, color 0.2s ease-in-out;
+            font-weight: 500;
+            transition: background-color 0.3s, color 0.3s;
         }
 
-        .nav-link:hover, .nav-link.active {
-            background-color: rgba(255, 255, 255, 0.1);
+        .sidebar nav a i {
+            margin-right: 15px;
+            font-size: 1.2em;
+        }
+
+        .sidebar nav a:hover,
+        .sidebar nav a.active {
+            background-color: var(--primary-color);
             color: white;
         }
 
-        .nav-link i {
-            margin-right: 10px;
-        }
-        
-        /* Main Content Area */
         .main-content {
-            flex-grow: 1;
+            flex: 1;
             padding: 20px;
-            margin-left: 250px; /* Offset for the sidebar */
-            transition: margin-left 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
         }
 
-        .main-content.expanded {
-            margin-left: 0;
-        }
-
-        .topbar {
+        .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid var(--border-color);
             margin-bottom: 20px;
         }
 
-        .hamburger {
-            display: none; /* Hidden on desktop */
-            cursor: pointer;
-            font-size: 24px;
-            color: var(--text-dark);
+        .header h1 {
+            margin: 0;
+            font-size: 1.8em;
         }
 
-        .view-content {
-            display: none;
+        .date-range-picker {
+            display: flex;
+            align-items: center;
         }
 
-        .view-content.active {
-            display: block;
+        .date-range-picker input {
+            padding: 8px 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 1em;
+            margin-right: 10px;
         }
-
-        .dashboard-header {
-            font-size: 2rem;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: var(--primary-dark);
+        
+        .dashboard-view {
+            display: none; /* Hidden by default */
         }
-
-        .stats-cards {
+        
+        .card-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
             gap: 20px;
-            margin-bottom: 30px;
+            margin-bottom: 20px;
         }
 
         .card {
             background-color: var(--card-background);
             border-radius: 12px;
             padding: 20px;
-            box-shadow: 0 4px 6px var(--shadow-light);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            transition: transform 0.2s ease-in-out;
+            box-shadow: var(--shadow-light);
+            transition: box-shadow 0.3s;
         }
 
         .card:hover {
-            transform: translateY(-5px);
+            box-shadow: var(--shadow-hover);
         }
 
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 15px;
-        }
-
-        .card-header h5 {
-            margin: 0;
-            font-size: 1.1rem;
-            color: var(--text-dark);
-        }
-
-        .card-icon {
-            font-size: 2rem;
-            color: var(--primary-color);
-        }
-
-        .card-body h3 {
-            font-size: 2.5rem;
-            margin: 0;
-            font-weight: 700;
-        }
-        
-        /* Chart & Table containers */
-        .chart-container, .table-container, .form-container, .full-calendar-container {
-            background-color: var(--card-background);
-            padding: 25px;
-            border-radius: 12px;
-            box-shadow: 0 4px 6px var(--shadow-light);
-            margin-bottom: 20px;
-        }
-
-        .chart-container canvas {
-            max-width: 100%;
-            height: auto;
-        }
-
-        .form-container h4, .table-container h4, .full-calendar-container h4 {
-            margin-top: 0;
-            margin-bottom: 20px;
+        .card-title {
+            font-size: 1.2em;
+            font-weight: 600;
+            margin-bottom: 10px;
             color: var(--primary-dark);
         }
-
-        .table-responsive {
-            width: 100%;
-            overflow-x: auto;
+        
+        .card-value {
+            font-size: 2.5em;
+            font-weight: 700;
+            color: var(--text-color);
         }
-
-        .table {
+        
+        .table-container {
+            background-color: var(--card-background);
+            border-radius: 12px;
+            box-shadow: var(--shadow-light);
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        
+        .table-container table {
             width: 100%;
             border-collapse: collapse;
         }
         
-        .table th, .table td {
+        .table-container th, .table-container td {
             text-align: left;
-            padding: 12px 15px;
+            padding: 12px 20px;
             border-bottom: 1px solid var(--border-color);
         }
-
-        .table th {
-            background-color: var(--background-light);
-            color: var(--text-dark);
+        
+        .table-container th {
+            background-color: #f8f9fa;
             font-weight: 600;
             cursor: pointer;
+            position: relative;
         }
         
-        .table th i {
-            margin-left: 8px;
-            font-size: 0.8rem;
-        }
-        
-        /* Forms */
-        .form-group {
-            margin-bottom: 15px;
-        }
-        
-        .form-group label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 500;
-        }
-        
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%;
-            padding: 10px;
-            border: 1px solid var(--border-color);
-            border-radius: 8px;
-            font-size: 1rem;
-            box-sizing: border-box; /* Ensures padding doesn't affect width */
-        }
-        
-        .btn {
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-            font-weight: 600;
-            border: none;
-            transition: background-color 0.2s ease-in-out, transform 0.2s ease-in-out;
-        }
-        
-        .btn-primary {
-            background-color: var(--primary-color);
-            color: white;
-        }
-
-        .btn-primary:hover {
-            background-color: var(--primary-dark);
-            transform: translateY(-2px);
-        }
-
-        .btn-success {
-            background-color: var(--success-color);
-            color: white;
-        }
-
-        .btn-danger {
-            background-color: var(--danger-color);
-            color: white;
-        }
-
-        .btn-info {
-            background-color: var(--info-color);
-            color: white;
-        }
-
-        /* FullCalendar Specific Styles */
-        .full-calendar-container .fc-toolbar-title {
-            color: var(--primary-dark);
-            font-weight: 600;
-        }
-
-        .full-calendar-container a {
-            color: var(--primary-color);
-            text-decoration: none;
-        }
-
-        .full-calendar-container a:hover {
-            text-decoration: underline;
-        }
-
-        .fc-event {
-            border-radius: 5px;
-            padding: 3px 5px;
-            cursor: pointer;
-        }
-
-        .calendar-tooltip {
+        .table-container th .sort-icon {
             position: absolute;
-            background-color: #343a40;
-            color: white;
-            padding: 10px;
-            border-radius: 8px;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            z-index: 1000;
-            display: none;
-            max-width: 300px;
-            pointer-events: none; /* Allows mouse to hover over events below */
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+        
+        .chart-container {
+            position: relative;
+            background-color: var(--card-background);
+            border-radius: 12px;
+            box-shadow: var(--shadow-light);
+            padding: 20px;
+            margin-top: 20px;
         }
 
-        .calendar-tooltip strong {
-            display: block;
-            margin-bottom: 5px;
-            color: var(--info-color);
+        .full-calendar-container {
+            background-color: var(--card-background);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: var(--shadow-light);
+            margin-top: 20px;
         }
-
-        /* Modal Styling */
-        .modal-overlay {
+        
+        /* Loading Overlay */
+        .loading-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(255, 255, 255, 0.8);
             display: flex;
             justify-content: center;
             align-items: center;
             z-index: 1000;
             opacity: 0;
             visibility: hidden;
-            transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+            transition: opacity 0.3s, visibility 0.3s;
         }
 
-        .modal-overlay.active {
+        .loading-overlay.active {
             opacity: 1;
             visibility: visible;
         }
 
-        .modal-content {
-            background-color: var(--card-background);
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 500px;
-            width: 90%;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
-            transform: translateY(-50px);
-            transition: transform 0.3s ease-in-out;
-        }
-
-        .modal-overlay.active .modal-content {
-            transform: translateY(0);
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-
-        .modal-header h4 {
-            margin: 0;
-            font-size: 1.5rem;
-            color: var(--primary-dark);
-        }
-
-        .close-modal {
-            font-size: 1.8rem;
-            cursor: pointer;
-            color: var(--text-dark);
-            transition: color 0.2s ease-in-out;
-        }
-
-        .close-modal:hover {
-            color: var(--danger-color);
-        }
-
-        /* Message Box */
-        #messageBox {
-            position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            padding: 15px 30px;
-            border-radius: 8px;
-            color: white;
-            font-weight: 600;
-            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
-            z-index: 10000;
-            display: none;
-            transition: opacity 0.3s ease-in-out;
-            opacity: 0;
-        }
-
-        #messageBox.active {
-            opacity: 1;
-        }
-
-        #messageBox.success {
-            background-color: var(--success-color);
-        }
-
-        #messageBox.error {
-            background-color: var(--danger-color);
-        }
-
-        #messageBox.warning {
-            background-color: var(--warning-color);
-        }
-
-        /* Loading Overlay */
-        #loadingOverlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(255, 255, 255, 0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-        
-        #loadingOverlay.active {
-            display: flex;
-        }
-
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
             border-left-color: var(--primary-color);
-            animation: spin 1s ease infinite;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
         }
         
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
+        /* Message Box */
+        .message-box {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #333;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: var(--shadow-hover);
+            z-index: 1001;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.3s, transform 0.3s;
         }
 
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 200px;
-                transform: translateX(-100%);
-            }
-            
-            .sidebar.active {
-                transform: translateX(0);
-            }
-
-            .main-content {
-                margin-left: 0;
-            }
-
-            .main-content.expanded {
-                margin-left: 0;
-            }
-
-            .hamburger {
-                display: block;
-            }
-            
-            .stats-cards {
-                grid-template-columns: 1fr;
-            }
+        .message-box.active {
+            opacity: 1;
+            transform: translateY(0);
         }
+        
+        .message-box.success { background-color: var(--success-color); }
+        .message-box.error { background-color: var(--danger-color); }
+        .message-box.warning { background-color: var(--warning-color); }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            font-weight: 500;
+            transition: background-color 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+        }
+        
     </style>
 </head>
 <body>
 
-    <!-- Main Loading Overlay -->
-    <div id="loadingOverlay">
+    <div id="loadingOverlay" class="loading-overlay">
         <div class="spinner"></div>
     </div>
     
-    <div class="container-fluid">
-        <!-- Sidebar Navigation -->
-        <nav class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <h3>Dashboard</h3>
-            </div>
-            <a href="#" class="nav-link active" data-view="overview-view"><i class="fas fa-home"></i> Overview</a>
-            <a href="#" class="nav-link" data-view="leads-view"><i class="fas fa-users"></i> Leads</a>
-            <a href="#" class="nav-link" data-view="expenditure-view"><i class="fas fa-money-bill-wave"></i> Expenditure</a>
-            <a href="#" class="nav-link" data-view="calendar-view"><i class="fas fa-calendar-alt"></i> Calendar</a>
-        </nav>
-        
-        <!-- Main Content Area -->
-        <main class="main-content" id="mainContent">
-            <header class="topbar">
-                <span class="hamburger" id="hamburger"><i class="fas fa-bars"></i></span>
-            </header>
+    <div id="messageBox" class="message-box"></div>
 
+    <div class="dashboard-container">
+        
+        <!-- Sidebar Navigation -->
+        <div class="sidebar">
+            <h2>Dashboard</h2>
+            <nav>
+                <a href="#" class="nav-link active" data-view="overview-view">
+                    <i class="fas fa-chart-line"></i> Overview
+                </a>
+                <a href="#" class="nav-link" data-view="leads-view">
+                    <i class="fas fa-users"></i> Leads
+                </a>
+                <a href="#" class="nav-link" data-view="expenditure-report-view">
+                    <i class="fas fa-file-invoice-dollar"></i> Expenditure Report
+                </a>
+                <a href="#" class="nav-link" data-view="calendar-view">
+                    <i class="fas fa-calendar-alt"></i> Calendar
+                </a>
+            </nav>
+        </div>
+
+        <!-- Main Content Area -->
+        <div class="main-content">
             <!-- Overview View -->
-            <div id="overview-view" class="view-content active">
-                <h1 class="dashboard-header">Overview</h1>
-                <div class="stats-cards">
-                    <!-- Stat Card 1: Total Leads -->
+            <div id="overview-view" class="dashboard-view">
+                <div class="header">
+                    <h1>Dashboard Overview</h1>
+                </div>
+                <div class="card-grid">
                     <div class="card">
-                        <div class="card-header">
-                            <h5>Total Leads</h5>
-                            <i class="fas fa-users card-icon"></i>
-                        </div>
-                        <div class="card-body">
-                            <h3 id="totalLeadsCount">0</h3>
-                        </div>
+                        <div class="card-title">Total Leads</div>
+                        <div class="card-value" id="totalLeadsCount">0</div>
                     </div>
-                    <!-- Stat Card 2: Upcoming Events -->
                     <div class="card">
-                        <div class="card-header">
-                            <h5>Upcoming Events</h5>
-                            <i class="fas fa-calendar-check card-icon" style="color: var(--secondary-color);"></i>
-                        </div>
-                        <div class="card-body">
-                            <h3 id="upcomingEventsCount">0</h3>
-                        </div>
+                        <div class="card-title">New Leads (This Month)</div>
+                        <div class="card-value" id="newLeadsCount">0</div>
                     </div>
-                    <!-- Stat Card 3: Total Expenses (Last 30 Days) -->
                     <div class="card">
-                        <div class="card-header">
-                            <h5>Total Expenses</h5>
-                            <i class="fas fa-money-bill-wave card-icon" style="color: var(--danger-color);"></i>
-                        </div>
-                        <div class="card-body">
-                            <h3 id="totalExpensesAmount">KSh 0.00</h3>
-                        </div>
+                        <div class="card-title">Active Leads</div>
+                        <div class="card-value" id="activeLeadsCount">0</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">Won Deals</div>
+                        <div class="card-value" id="wonDealsCount">0</div>
                     </div>
                 </div>
-
-                <!-- Leads & Expenditure Charts -->
+                
                 <div class="chart-container">
-                    <h4>Leads & Expenditure Over Time</h4>
-                    <canvas id="leadsAndExpenditureChart"></canvas>
+                    <canvas id="leadsStatusChart"></canvas>
+                </div>
+                
+                <div class="table-container">
+                    <table id="recentLeadsTable">
+                        <thead>
+                            <tr>
+                                <th data-sort-by="full_name">Name <span class="sort-icon">—</span></th>
+                                <th data-sort-by="company">Company <span class="sort-icon">—</span></th>
+                                <th data-sort-by="status">Status <span class="sort-icon">—</span></th>
+                                <th data-sort-by="created_at">Date <span class="sort-icon">—</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Leads data will be injected here by dashboard.js -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
             <!-- Leads View -->
-            <div id="leads-view" class="view-content">
-                <h1 class="dashboard-header">Leads</h1>
-                <div class="form-container">
-                    <h4>Add New Lead</h4>
-                    <form id="addLeadForm">
-                        <div class="form-group">
-                            <label for="leadFullName">Full Name:</label>
-                            <input type="text" id="leadFullName" name="full_name" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="leadEmail">Email:</label>
-                            <input type="email" id="leadEmail" name="email">
-                        </div>
-                        <div class="form-group">
-                            <label for="leadPhone">Phone:</label>
-                            <input type="tel" id="leadPhone" name="phone">
-                        </div>
-                        <div class="form-group">
-                            <label for="leadCompany">Company:</label>
-                            <input type="text" id="leadCompany" name="company">
-                        </div>
-                        <div class="form-group">
-                            <label for="leadStatus">Status:</label>
-                            <select id="leadStatus" name="status">
-                                <option value="New">New</option>
-                                <option value="Contacted">Contacted</option>
-                                <option value="Qualified">Qualified</option>
-                                <option value="Lost">Lost</option>
-                                <option value="Won">Won</option>
-                            </select>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Add Lead</button>
-                    </form>
+            <div id="leads-view" class="dashboard-view">
+                <div class="header">
+                    <h1>Leads</h1>
                 </div>
-
-                <div class="table-container">
-                    <h4>Recent Leads</h4>
-                    <div class="table-responsive">
-                        <table class="table" id="recentLeadsTable">
-                            <thead>
-                                <tr>
-                                    <th data-sort-by="full_name">Full Name <i class="fas fa-sort"></i></th>
-                                    <th data-sort-by="email">Email <i class="fas fa-sort"></i></th>
-                                    <th data-sort-by="phone">Phone <i class="fas fa-sort"></i></th>
-                                    <th data-sort-by="company">Company <i class="fas fa-sort"></i></th>
-                                    <th data-sort-by="status">Status <i class="fas fa-sort"></i></th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Leads data will be inserted here by dashboard.js -->
-                            </tbody>
-                        </table>
-                    </div>
+                 <div class="table-container">
+                    <table id="allLeadsTable">
+                        <thead>
+                            <tr>
+                                <th data-sort-by="full_name">Name <span class="sort-icon">—</span></th>
+                                <th data-sort-by="company">Company <span class="sort-icon">—</span></th>
+                                <th data-sort-by="email">Email <span class="sort-icon">—</span></th>
+                                <th data-sort-by="phone">Phone <span class="sort-icon">—</span></th>
+                                <th data-sort-by="status">Status <span class="sort-icon">—</span></th>
+                                <th data-sort-by="created_at">Date <span class="sort-icon">—</span></th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Leads data will be injected here by dashboard.js -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
-            <!-- Expenditure View -->
-            <div id="expenditure-view" class="view-content">
-                <h1 class="dashboard-header">Expenditure</h1>
-                <div class="form-container">
-                    <h4>Add New Expenditure</h4>
-                    <form id="addExpenditureForm">
-                        <div class="form-group">
-                            <label for="expenditureDate">Date:</label>
-                            <input type="text" id="expenditureDate" name="date" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="expenditureType">Type/Category:</label>
-                            <input type="text" id="expenditureType" name="type_category" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="expenditureDescription">Description:</label>
-                            <textarea id="expenditureDescription" name="description" rows="2" required></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="expenditureAmount">Amount (KSh):</label>
-                            <input type="number" id="expenditureAmount" name="amount" step="0.01" min="0" required>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Add Expense</button>
-                    </form>
+            <!-- Expenditure Report View -->
+            <div id="expenditure-report-view" class="dashboard-view">
+                <div class="header">
+                    <h1>Expenditure Report</h1>
+                    <div class="date-range-picker">
+                        <input type="text" id="flatpickr-range" placeholder="Select Date Range" />
+                        <button id="exportExpenditureBtn" class="btn-primary"><i class="fas fa-file-export"></i> Export CSV</button>
+                    </div>
                 </div>
                 <div class="table-container">
-                    <h4>Expenditure Report</h4>
-                    <div class="report-controls">
-                        <input type="text" id="expenditureFilterDateRange" placeholder="Filter by Date Range">
-                        <button id="downloadExpenditureReport" class="btn btn-info"><i class="fas fa-download"></i> Download CSV</button>
-                    </div>
-                    <div class="table-responsive">
-                        <table class="table" id="expenditureReportTable">
-                            <thead>
-                                <tr>
-                                    <th data-sort-by="date">Date <i class="fas fa-sort"></i></th>
-                                    <th data-sort-by="type_category">Type/Category <i class="fas fa-sort"></i></th>
-                                    <th data-sort-by="description">Description <i class="fas fa-sort"></i></th>
-                                    <th data-sort-by="amount">Amount (KSh) <i class="fas fa-sort"></i></th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <!-- Expenditure data will be inserted here by dashboard.js -->
-                            </tbody>
-                        </table>
-                    </div>
+                    <table id="expenditureReportTable">
+                        <thead>
+                            <tr>
+                                <th data-sort-by="date">Date <span class="sort-icon">—</span></th>
+                                <th data-sort-by="type_category">Type/Category <span class="sort-icon">—</span></th>
+                                <th data-sort-by="description">Description <span class="sort-icon">—</span></th>
+                                <th data-sort-by="amount">Amount (KSh) <span class="sort-icon">—</span></th>
+                                <th data-sort-by="lead_full_name">Lead Name <span class="sort-icon">—</span></th>
+                                <th data-sort-by="company">Company <span class="sort-icon">—</span></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- Report data will be injected here by dashboard.js -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
 
             <!-- Calendar View -->
-            <div id="calendar-view" class="view-content">
-                <h1 class="dashboard-header">Calendar & Events</h1>
-                <div class="form-container">
-                    <h4>Add New Event</h4>
-                    <form id="addEventForm">
-                        <div class="form-group">
-                            <label for="eventTitle">Event Title:</label>
-                            <input type="text" id="eventTitle" name="title" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="eventStartDate">Start Date & Time:</label>
-                            <input type="text" id="eventStartDate" name="start_date" class="datetime-picker" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="eventEndDate">End Date & Time (Optional):</label>
-                            <input type="text" id="eventEndDate" name="end_date" class="datetime-picker">
-                        </div>
-                        <div class="form-group">
-                            <label for="eventLeadId">Associated Lead:</label>
-                            <select id="eventLeadId" name="lead_id">
-                                <!-- Options populated by dashboard.js -->
-                            </select>
-                        </div>
-                        <div class="form-group">
-                            <label for="eventAmount">Amount (KSh):</label>
-                            <input type="number" id="eventAmount" name="amount" step="0.01" min="0" value="0.00">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Add Event</button>
-                    </form>
+            <div id="calendar-view" class="dashboard-view">
+                <div class="header">
+                    <h1>Calendar</h1>
                 </div>
                 <div class="full-calendar-container">
-                    <h4>Upcoming Events</h4>
-                    <div id='calendar'></div>
+                    <div id="calendar"></div>
                 </div>
             </div>
-        </main>
+
+        </div>
     </div>
 
-    <!-- Message Box for user feedback -->
-    <div id="messageBox"></div>
-
+    <!-- JavaScripts -->
     <!-- Local JavaScript for Chart.js from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='chart.js/dist/chart.umd.js') }}"></script>
     <!-- Local JavaScript for FullCalendar from node_modules -->
@@ -715,31 +440,23 @@
     <script src='{{ url_for('node_modules_bp.static', filename='@fullcalendar/interaction/index.global.min.js') }}'></script>
     <!-- Local JavaScript for Flatpickr from node_modules -->
     <script src="{{ url_for('node_modules_bp.static', filename='flatpickr/dist/flatpickr.min.js') }}"></script>
-    
+
     <!-- Your custom dashboard.js should be the LAST script loaded -->
-    <script src="{{ url_for('static', filename='dashboard.js') }}"></script>
+    <script type="module" src="{{ url_for('static', filename='dashboard.js') }}"></script>
 
-    <!-- Script to initialize Firebase and fetch the config from the backend -->
+    <!-- Service Worker Registration -->
     <script>
-        window.addEventListener('load', async () => {
-            try {
-                const response = await fetch('/firebase_config');
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`);
-                }
-                const data = await response.json();
-                
-                // Expose Firebase config and token to the global scope for dashboard.js
-                window.firebaseConfig = data.firebaseConfig;
-                window.initialAuthToken = data.initialAuthToken;
-
-                // Log for debugging purposes
-                console.log("Firebase config and auth token fetched successfully.");
-            } catch (e) {
-                console.error("Failed to fetch Firebase configuration:", e);
-                // Handle the error gracefully in the UI if necessary
-            }
-        });
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('{{ url_for('static', filename='service-worker.js') }}')
+                    .then(registration => {
+                        console.log('Service Worker registered with scope:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.log('Service Worker registration failed:', error);
+                    });
+            });
+        }
     </script>
 </body>
 </html>
