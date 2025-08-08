@@ -1,24 +1,52 @@
-// dashboard.js - Rewritten for app-like navigation and improved structure
+// dashboard.js - Rewritten to use Firebase Firestore for a real-time,
+// serverless-like architecture. All data operations now happen directly
+// from the client to the database.
 
 document.addEventListener('DOMContentLoaded', function() {
-    console.log("Dashboard.js: DOM Content Loaded. Initializing dashboard components.");
+    console.log("Dashboard.js: DOM Content Loaded. Initializing dashboard components with Firebase.");
 
-    // Global variables to hold fetched data for client-side operations like sorting
+    // --- Global Variables ---
+    // These will hold our data, which will be populated in real-time by Firestore listeners.
     let allLeads = [];
     let currentLeadsData = [];
     let currentExpenditureData = [];
-    let calendarInstance; // To store the FullCalendar instance
-    let leadsDataFetched = false;
-    let expenditureDataFetched = false;
-    let calendarDataFetched = false;
+    let calendarEventsData = [];
+    let calendarInstance;
+    let auth;
+    let db;
+    let userId = null;
+
+    // --- Firebase Initialization & Authentication ---
+    // The firebaseConfig and initialAuthToken variables are fetched from the backend
+    // and exposed to the global scope in dynamic_dashboard.html.
+    const firebaseApp = firebase.initializeApp(window.firebaseConfig);
+    db = firebaseApp.firestore();
+    auth = firebaseApp.auth();
+
+    auth.signInWithCustomToken(window.initialAuthToken).then((userCredential) => {
+        // User is signed in. This is the main entry point after authentication.
+        userId = userCredential.user.uid;
+        console.log("Firebase: User signed in successfully with UID:", userId);
+        
+        // IMPORTANT: All real-time listeners should be set up here, after auth is successful.
+        // This ensures we're only fetching data when we know who the user is.
+        setupFirestoreListeners();
+
+        // Display user ID for debugging and collaboration purposes
+        document.getElementById('userIdDisplay').textContent = `User ID: ${userId}`;
+    }).catch((error) => {
+        console.error("Firebase: Error during sign-in:", error);
+        showMessage(`Authentication failed. Please refresh the page.`, 'error');
+        // Fallback or error handling for authentication failure
+    });
+
 
     // --- Utility Functions: Loading Spinner & Messages ---
 
     /**
-     * Shows a global loading overlay to indicate ongoing operations.
+     * Shows a global loading overlay.
      */
     function showLoading() {
-        console.log("Dashboard.js: Showing loading spinner.");
         const loadingOverlay = document.getElementById('loadingOverlay');
         if (loadingOverlay) {
             loadingOverlay.classList.add('active');
@@ -29,7 +57,6 @@ document.addEventListener('DOMContentLoaded', function() {
      * Hides the global loading overlay.
      */
     function hideLoading() {
-        console.log("Dashboard.js: Hiding loading spinner.");
         const loadingOverlay = document.getElementById('loadingOverlay');
         if (loadingOverlay) {
             loadingOverlay.classList.remove('active');
@@ -41,1126 +68,548 @@ document.addEventListener('DOMContentLoaded', function() {
      * @param {string} message - The message text.
      * @param {'success'|'error'|'warning'} type - The type of message for styling.
      */
-    function showMessage(message, type) {
+    function showMessage(message, type = 'info') {
         const messageBox = document.getElementById('messageBox');
         if (messageBox) {
             messageBox.textContent = message;
-            messageBox.className = `message-box show ${type}`; // Reset classes and add new ones
+            messageBox.className = `message-box active ${type}`;
             setTimeout(() => {
-                messageBox.classList.remove('show');
-            }, 3000); // Message disappears after 3 seconds
+                messageBox.classList.remove('active');
+            }, 5000);
         }
     }
 
-    // --- Modal Management ---
-    function openModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.add('show');
-        }
-    }
 
-    function closeModal(modalId) {
-        const modal = document.getElementById(modalId);
-        if (modal) {
-            modal.classList.remove('show');
-            // Clear form fields when closing, if it's a form modal
-            const form = modal.querySelector('form');
-            if (form) {
-                form.reset();
-                // Reset hidden IDs for edit forms
-                const hiddenIdInput = form.querySelector('input[type="hidden"][name$="_id"]');
-                if (hiddenIdInput) {
-                    hiddenIdInput.value = '';
-                }
-                // Also reset the 'id' field for the addEventForm if it's being used for editing
-                const eventIdInput = form.querySelector('#eventId');
-                if (eventIdInput) {
-                    eventIdInput.value = '';
-                }
-            }
-        }
-    }
-
-    // Attach close button listeners to all modals
-    document.querySelectorAll('.modal .close-button').forEach(button => {
-        button.addEventListener('click', function() {
-            closeModal(this.closest('.modal').id);
-        });
-    });
-
-    // Close modal when clicking outside the content
-    document.querySelectorAll('.modal').forEach(modal => {
-        modal.addEventListener('click', function(event) {
-            if (event.target === modal) {
-                closeModal(modal.id);
-            }
-        });
-    });
-
-    // --- Navigation Logic ---
-    function showView(viewId) {
-        console.log(`Dashboard.js: Switching to view: ${viewId}`);
-        document.querySelectorAll('.dashboard-view').forEach(view => {
-            view.classList.remove('active');
-        });
-        document.getElementById(viewId).classList.add('active');
-
-        // Fetch data for the activated view if not already fetched
-        if (viewId === 'leads-view' && !leadsDataFetched) {
-            fetchLeads();
-        } else if (viewId === 'expenditure-view' && !expenditureDataFetched) {
-            fetchExpenditureReport();
-        } else if (viewId === 'calendar-view' && !calendarDataFetched) {
-            fetchCalendarEvents();
-        }
-    }
-
-    // Attach event listeners to bottom navigation buttons
-    document.querySelectorAll('.nav-button').forEach(button => {
-        button.addEventListener('click', function(event) {
-            event.preventDefault(); // Prevent default link behavior
-            const viewId = this.dataset.view;
-            showView(viewId);
-        });
-    });
-
-    // Attach event listeners to header buttons to open modals
-    document.getElementById('addLeadButton')?.addEventListener('click', () => {
-        console.log("Add Lead button clicked."); // Debugging line
-        document.getElementById('addLeadForm').reset(); // Clear form for new entry
-        openModal('addLeadModal');
-    });
-    document.getElementById('addExpenditureButton')?.addEventListener('click', async () => {
-        console.log("Add Expenditure button clicked."); // Debugging line
-        document.getElementById('addExpenditureForm').reset(); // Clear form
-        await fetchLeads(); // Ensure leads are fetched before populating dropdown
-        console.log("DEBUG: allLeads before populating expenditureLeadId dropdown:", allLeads); // Debugging line
-        populateLeadDropdowns('expenditureLeadId'); // Populate lead dropdown for new expense
-        openModal('addExpenditureModal');
-    });
-    document.getElementById('addEventButton')?.addEventListener('click', async () => {
-        console.log("Add Event button clicked."); // Debugging line
-        document.getElementById('addEventForm').reset(); // Clear form
-        // Clear the hidden eventId field when opening for a new event
-        const eventIdInput = document.getElementById('eventId');
-        if (eventIdInput) eventIdInput.value = '';
-        await fetchLeads(); // Ensure leads are fetched before populating dropdown
-        console.log("DEBUG: allLeads before populating eventLeadId dropdown:", allLeads); // Debugging line
-        populateLeadDropdowns('eventLeadId'); // Populate lead dropdown for new event
-        openModal('addEventModal');
-    });
-
-
-    // --- Data Fetching Functions ---
-
-    /**
-     * Fetches leads data from the API and updates the dashboard.
-     */
-    async function fetchLeads() {
-        showLoading();
-        try {
-            const response = await fetch('/api/leads');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            console.log("Dashboard.js: Leads data received:", data);
-            
-            // Map the new lead structure to what the frontend expects
-            allLeads = data.map(lead => ({
-                id: lead.id,
-                fullName: lead.full_name ?? 'N/A', // Changed to ?? 'N/A'
-                email: lead.email ?? 'N/A', // Changed to ?? 'N/A'
-                phone: lead.phone ?? 'N/A', // Changed to ?? 'N/A'
-                stage: lead.stage ?? 'N/A', // Changed to ?? 'N/A'
-                source: lead.source ?? 'N/A', // Changed to ?? 'N/A'
-                notes: lead.notes ?? 'N/A', // Changed to ?? 'N/A'
-                lastFollowUp: lead.last_follow_up ?? 'N/A', // Changed to ?? 'N/A'
-                nextFollowUp: lead.next_follow_up ?? 'N/A', // Changed to ?? 'N/A'
-            }));
-            currentLeadsData = [...allLeads]; // Initialize current data for sorting/filtering
-            
+    // --- Firestore Real-time Listeners ---
+    // This is the core of the new data fetching logic. We use onSnapshot to get
+    // real-time updates without having to manually refresh the page or make new API calls.
+    function setupFirestoreListeners() {
+        // Leads Listener
+        db.collection(`artifacts/${__app_id}/users/${userId}/leads`).orderBy('created_at', 'desc').onSnapshot(snapshot => {
+            currentLeadsData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            allLeads = [...currentLeadsData]; // Keep a copy for filtering
             renderLeadsTable(currentLeadsData);
-            updateLeadStatistics(allLeads);
-            updateLeadsByStageChart(allLeads);
-            updateUpcomingFollowUps(allLeads);
-            // Ensure dropdowns are populated after allLeads is updated
-            populateLeadDropdowns('expenditureLeadId');
-            populateLeadDropdowns('eventLeadId');
-            populateLeadDropdowns('editExpenditureLeadId');
-
-            leadsDataFetched = true; // Mark as fetched
-        } catch (error) {
-            console.error("Dashboard.js: Error fetching leads:", error);
-            showMessage(`Error fetching leads: ${error.message}`, 'error');
-        } finally {
+            updateOverviewStats();
+            populateLeadDropdowns(currentLeadsData);
+            console.log("Firestore: Leads data updated in real-time.");
             hideLoading();
-        }
+        }, error => {
+            console.error("Firestore: Error fetching leads:", error);
+            showMessage('Error fetching leads.', 'error');
+            hideLoading();
+        });
+
+        // Expenditure Listener
+        db.collection(`artifacts/${__app_id}/users/${userId}/expenditure`).orderBy('date', 'desc').onSnapshot(snapshot => {
+            currentExpenditureData = snapshot.docs.map(doc => ({ ...doc.data(), id: doc.id }));
+            renderExpenditureReportTable(currentExpenditureData);
+            updateOverviewStats();
+            renderLeadsAndExpenditureChart();
+            console.log("Firestore: Expenditure data updated in real-time.");
+            hideLoading();
+        }, error => {
+            console.error("Firestore: Error fetching expenditure report:", error);
+            showMessage('Error fetching expenditure report.', 'error');
+            hideLoading();
+        });
+
+        // Calendar Events Listener
+        db.collection(`artifacts/${__app_id}/users/${userId}/calendar_events`).orderBy('start', 'asc').onSnapshot(snapshot => {
+            calendarEventsData = snapshot.docs.map(doc => ({
+                ...doc.data(),
+                id: doc.id,
+                start: doc.data().start.toDate(), // Convert Firestore Timestamp to JS Date
+                end: doc.data().end ? doc.data().end.toDate() : null
+            }));
+            updateCalendarEvents(calendarEventsData);
+            updateOverviewStats();
+            console.log("Firestore: Calendar events updated in real-time.");
+            hideLoading();
+        }, error => {
+            console.error("Firestore: Error fetching calendar events:", error);
+            showMessage('Error fetching calendar events.', 'error');
+            hideLoading();
+        });
     }
 
+    // --- Firestore CRUD Functions ---
+
     /**
-     * Fetches calendar events from the API.
+     * Adds a new lead to Firestore.
+     * @param {object} leadData - The data for the new lead.
      */
-    async function fetchCalendarEvents() {
+    async function addLead(leadData) {
         showLoading();
         try {
-            const response = await fetch('/api/calendar_events');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const events = await response.json();
-            console.log("Dashboard.js: Calendar events data received:", events);
-            // Log the raw events data to inspect its structure
-            console.log("Dashboard.js: Raw calendar events for inspection:", JSON.stringify(events, null, 2));
-
-            renderCalendar(events);
-            calendarDataFetched = true; // Mark as fetched
+            await db.collection(`artifacts/${__app_id}/users/${userId}/leads`).add(leadData);
+            showMessage('Lead added successfully!', 'success');
         } catch (error) {
-            console.error("Dashboard.js: Error fetching calendar events:", error);
-            showMessage(`Error fetching calendar events: ${error.message}`, 'error');
+            console.error("Error adding lead: ", error);
+            showMessage('Failed to add lead.', 'error');
         } finally {
             hideLoading();
         }
     }
 
     /**
-     * Fetches expenditure report data from the API.
-     * @param {string} startDate - Optional start date for filtering (YYYY-MM-DD).
-     * @param {string} endDate - Optional end date for filtering (YYYY-MM-DD).
+     * Adds a new expenditure record to Firestore.
+     * @param {object} expenditureData - The data for the new expenditure.
      */
-    async function fetchExpenditureReport(startDate = null, endDate = null) {
+    async function addExpenditure(expenditureData) {
         showLoading();
-        let url = '/api/expenditure_report';
-        const params = new URLSearchParams();
-        if (startDate) params.append('start_date', startDate);
-        if (endDate) params.append('end_date', endDate);
-        if (params.toString()) url += `?${params.toString()}`;
-
-        console.log(`Dashboard.js: Fetching expenditure report (Start: ${startDate ?? 'N/A'}, End: ${endDate ?? 'N/A'})...`); // Changed to ?? 'N/A'
-
         try {
-            const response = await fetch(url);
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            console.log("Dashboard.js: Expenditure report data received:", data);
-            currentExpenditureData = data; // Store for client-side operations
-            renderExpenditureReportTable(data);
-            calculateTotalExpenditure(data);
-            expenditureDataFetched = true; // Mark as fetched
+            await db.collection(`artifacts/${__app_id}/users/${userId}/expenditure`).add(expenditureData);
+            showMessage('Expenditure added successfully!', 'success');
         } catch (error) {
-            console.error("Dashboard.js: Error fetching expenditure report:", error);
-            showMessage(`Error fetching expenditure report: ${error.message}`, 'error');
+            console.error("Error adding expenditure: ", error);
+            showMessage('Failed to add expenditure.', 'error');
         } finally {
             hideLoading();
         }
     }
 
-    // --- Rendering Functions ---
+    /**
+     * Adds a new calendar event to Firestore.
+     * @param {object} eventData - The data for the new event.
+     */
+    async function addCalendarEvent(eventData) {
+        showLoading();
+        try {
+            await db.collection(`artifacts/${__app_id}/users/${userId}/calendar_events`).add(eventData);
+            showMessage('Event added successfully!', 'success');
+        } catch (error) {
+            console.error("Error adding event: ", error);
+            showMessage('Failed to add event.', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
 
     /**
-     * Renders the recent leads table.
-     * @param {Array} leads - Array of lead objects.
+     * Deletes a document from a specified collection.
+     * @param {string} collectionPath - The path to the collection.
+     * @param {string} docId - The ID of the document to delete.
      */
-    function renderLeadsTable(leads) {
+    async function deleteDocument(collectionPath, docId) {
+        showLoading();
+        try {
+            await db.collection(collectionPath).doc(docId).delete();
+            showMessage('Item deleted successfully!', 'success');
+        } catch (error) {
+            console.error("Error deleting document: ", error);
+            showMessage('Failed to delete item.', 'error');
+        } finally {
+            hideLoading();
+        }
+    }
+
+
+    // --- Rendering & UI Functions ---
+
+    /**
+     * Renders the leads data into the table.
+     * @param {Array<object>} data - The leads data to render.
+     */
+    function renderLeadsTable(data) {
         const tableBody = document.querySelector('#recentLeadsTable tbody');
-        if (!tableBody) {
-            console.error("Dashboard.js: Leads table body not found.");
+        if (!tableBody) return;
+        tableBody.innerHTML = '';
+        if (data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="6" class="text-center">No leads found.</td></tr>';
             return;
         }
-        tableBody.innerHTML = ''; // Clear existing rows
-
-        if (leads.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="9" class="text-muted" style="text-align: center;">No leads found.</td></tr>';
-            console.log("Dashboard.js: No leads to render.");
-            return;
-        }
-
-        leads.forEach(lead => {
+        data.forEach(lead => {
             const row = tableBody.insertRow();
-            row.dataset.leadId = lead.id; // Store ID for actions
-
             row.innerHTML = `
-                <td data-label="Full Name">${lead.fullName ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Email">${lead.email ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Phone">${lead.phone ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Stage">${lead.stage ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Source">${lead.source ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Notes">${lead.notes ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Last Follow-up">${lead.lastFollowUp ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Next Follow-up">${lead.nextFollowUp ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Actions">
-                    <button class="btn btn-sm btn-info edit-lead-btn" data-id="${lead.id}" title="Edit Lead"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-danger delete-lead-btn" data-id="${lead.id}" title="Delete Lead"><i class="fas fa-trash"></i></button>
+                <td>${lead.full_name}</td>
+                <td>${lead.email}</td>
+                <td>${lead.phone}</td>
+                <td>${lead.company}</td>
+                <td>${lead.status}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm delete-btn" data-id="${lead.id}" data-type="lead">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </td>
             `;
         });
-        console.log("Dashboard.js: Leads table rendered.");
-        attachLeadActionListeners();
     }
-
+    
     /**
-     * Renders the expenditure report table.
-     * @param {Array} reportData - Array of expenditure report items.
+     * Renders the expenditure report data into the table.
+     * @param {Array<object>} data - The expenditure data to render.
      */
-    function renderExpenditureReportTable(reportData) {
+    function renderExpenditureReportTable(data) {
         const tableBody = document.querySelector('#expenditureReportTable tbody');
-        if (!tableBody) {
-            console.error("Dashboard.js: Expenditure report table body not found.");
+        if (!tableBody) return;
+        tableBody.innerHTML = '';
+        if (data.length === 0) {
+            tableBody.innerHTML = '<tr><td colspan="5" class="text-center">No expenditure records found.</td></tr>';
             return;
         }
-        tableBody.innerHTML = ''; // Clear existing rows
-
-        if (reportData.length === 0) {
-            tableBody.innerHTML = '<tr><td colspan="7" class="text-muted" style="text-align: center;">No expenditure records found for the selected period.</td></tr>';
-            console.log("Dashboard.js: No expenditure records to render.");
-            return;
-        }
-
-        reportData.forEach(item => {
+        data.forEach(item => {
             const row = tableBody.insertRow();
-            row.dataset.id = item.id; // Store ID for actions
-            row.dataset.sourceTable = item.source_table; // Store source table for correct deletion
-
             row.innerHTML = `
-                <td data-label="Date">${item.date ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Type/Category">${item.type_category ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Description">${item.description ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Amount (KSh)">KSh ${item.amount ? item.amount.toFixed(2) : '0.00'}</td>
-                <td data-label="Lead Name">${item.lead_name ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Company">${item.company ?? 'N/A'}</td> <!-- Changed to ?? 'N/A' -->
-                <td data-label="Actions">
-                    <button class="btn btn-sm btn-info edit-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Edit Expense"><i class="fas fa-edit"></i></button>
-                    <button class="btn btn-sm btn-danger delete-expense-btn" data-id="${item.id}" data-source="${item.source_table}" title="Delete Expense"><i class="fas fa-trash"></i></button>
+                <td>${new Date(item.date).toLocaleDateString()}</td>
+                <td>${item.type_category}</td>
+                <td>${item.description}</td>
+                <td>${item.amount.toLocaleString('en-KE', { style: 'currency', currency: 'KES' })}</td>
+                <td>
+                    <button class="btn btn-danger btn-sm delete-btn" data-id="${item.id}" data-type="expenditure">
+                        <i class="fas fa-trash"></i>
+                    </button>
                 </td>
             `;
         });
-        console.log("Dashboard.js: Expenditure report table rendered.");
-        attachExpenditureActionListeners();
     }
 
     /**
-     * Renders the FullCalendar instance with events.
-     * @param {Array} events - Array of calendar event objects.
+     * Populates the lead dropdowns for events and other forms.
+     * @param {Array<object>} leads - The leads data.
      */
-    function renderCalendar(events) {
-        const calendarEl = document.getElementById('calendar');
-        if (!calendarEl) {
-            console.error("Dashboard.js: Calendar element not found.");
-            return;
-        }
-
-        if (calendarInstance) {
-            calendarInstance.destroy(); // Destroy existing instance before re-rendering
-        }
-
-        // --- DEBUGGING: Log FullCalendar components ---
-        console.log("DEBUG: FullCalendar core object:", typeof FullCalendar, FullCalendar);
-        console.log("DEBUG: FullCalendar.DayGrid plugin object (expected):", typeof FullCalendar.DayGrid, FullCalendar.DayGrid);
-        console.log("DEBUG: FullCalendar.Interaction plugin object (expected):", typeof FullCalendar.Interaction, FullCalendar.Interaction);
-        // --- END DEBUGGING ---
-
-        // Filter and map events to ensure they are well-formed for FullCalendar
-        const formattedEvents = events.filter(event => {
-            // Filter out events with the fallback date (2000-01-01)
-            if (event.start === "2000-01-01T00:00:00") {
-                // console.warn('Skipping event with fallback date (2000-01-01):', event); // Removed this warning
-                return false;
-            }
-            // Basic check: ensure event object itself exists and has core properties
-            if (!event || typeof event.id === 'undefined' || typeof event.title === 'undefined' || typeof event.start === 'undefined') {
-                console.warn('Skipping malformed event (missing id, title, or start):', event);
-                return false;
-            }
-            // Ensure extendedProps exists
-            if (!event.extendedProps) {
-                event.extendedProps = {}; // Initialize if missing
-            }
-            // Ensure type is a string
-            if (typeof event.extendedProps.type === 'undefined' || event.extendedProps.type === null) {
-                event.extendedProps.type = 'Other';
-            }
-            // Ensure amount is a number
-            if (typeof event.extendedProps.amount === 'undefined' || event.extendedProps.amount === null) {
-                event.extendedProps.amount = 0.00;
-            } else {
-                event.extendedProps.amount = parseFloat(event.extendedProps.amount);
-            }
-            return true; // Keep the event if it passes checks
-        }).map(event => ({
-            id: event.id,
-            // Provide a fallback for the title if it's empty or null
-            title: event.title ?? event.extendedProps.type ?? 'No Title', // Changed to ??
-            start: event.start,
-            end: event.end,
-            extendedProps: {
-                type: event.extendedProps.type,
-                lead_id: event.extendedProps.lead_id,
-                lead_name: event.extendedProps.lead_name,
-                company: event.extendedProps.company,
-                amount: event.extendedProps.amount
-            },
-            // Ensure classNames is robust against null/undefined type
-            classNames: [`fc-event-${event.extendedProps.type ? event.extendedProps.type.toLowerCase().replace(/\s/g, '-') : 'other'}`],
-            // TEMPORARY: Aggressive inline style for debugging blank calendar events
-            // This is to force visibility. Remove this after confirming events are visible
-            // You should move this to your CSS for proper styling later.
-            style: {
-                color: 'black !important', // Force black text
-                fontWeight: 'bold !important', // Force bold text
-                fontSize: '14px !important', // Ensure readable size
-                backgroundColor: '#e6f7ff !important', // Light blue background for visibility
-                borderColor: '#91d5ff !important' // Blue border
-            }
-        }));
-        
-        console.log("DEBUG: Formatted events for calendar (after mapping and styling):", formattedEvents); // New debugging line
-
-        calendarInstance = new FullCalendar.Calendar(calendarEl, {
-            // Corrected plugin references to use capitalized global names and access 'default' property
-            plugins: [
-                FullCalendar.DayGrid ? FullCalendar.DayGrid.default || FullCalendar.DayGrid : null,
-                FullCalendar.Interaction ? FullCalendar.Interaction.default || FullCalendar.Interaction : null
-            ].filter(Boolean), // Filter out any nulls if plugins aren't loaded
-            initialView: 'dayGridMonth',
-            headerToolbar: {
-                left: 'prev,next today',
-                center: 'title',
-                right: 'addEventButton' // Custom button for adding events
-            },
-            customButtons: {
-                addEventButton: {
-                    text: 'Add Event',
-                    click: function() {
-                        document.getElementById('addEventForm').reset(); // Clear form
-                        // Clear the hidden eventId field when opening for a new event
-                        const eventIdInput = document.getElementById('eventId');
-                        if (eventIdInput) eventIdInput.value = '';
-                        populateLeadDropdowns('eventLeadId'); // Populate lead dropdown
-                        openModal('addEventModal');
-                    }
-                }
-            },
-            events: formattedEvents, // Use the now filtered and formatted events
-            eventDidMount: function(info) {
-                // Add tooltip on hover
-                const tooltip = document.getElementById('calendarTooltip');
-                info.el.addEventListener('mouseover', function() {
-                    let tooltipContent = `<strong>${info.event.title}</strong>`;
-                    if (info.event.extendedProps.type) {
-                        tooltipContent += `<span>Type: ${info.event.extendedProps.type}</span>`;
-                    }
-                    if (info.event.extendedProps.lead_name && info.event.extendedProps.lead_name !== 'N/A') { 
-                        tooltipContent += `<span>Lead: ${info.event.extendedProps.lead_name}</span>`;
-                    }
-                    if (info.event.extendedProps.company && info.event.extendedProps.company !== 'N/A') { 
-                        tooltipContent += `<span>Company: ${info.event.extendedProps.company}</span>`;
-                    }
-                    if (info.event.extendedProps.amount && info.event.extendedProps.amount > 0) {
-                        tooltipContent += `<span>Amount: KSh ${info.event.extendedProps.amount.toFixed(2)}</span>`;
-                    }
-                    tooltip.innerHTML = tooltipContent;
-                    tooltip.style.opacity = 1;
-                    tooltip.style.transform = 'translateY(0)';
-                });
-
-                info.el.addEventListener('mousemove', function(e) {
-                    tooltip.style.left = (e.pageX + 10) + 'px';
-                    tooltip.style.top = (e.pageY + 10) + 'px';
-                });
-
-                info.el.addEventListener('mouseout', function() {
-                    tooltip.style.opacity = 0;
-                    tooltip.style.transform = 'translateY(10px)';
-                });
-            },
-            eventClick: function(info) {
-                // Open event modal for editing
-                const eventId = info.event.id;
-                const eventData = info.event.extendedProps;
-                const eventTitle = info.event.title;
-                const eventStart = info.event.start;
-                const eventEnd = info.event.end;
-
-                // Populate edit modal fields
-                document.getElementById('eventId').value = eventId; // Hidden ID for update
-                document.getElementById('eventTitle').value = eventTitle;
-                // Flatpickr instances need to be updated
-                if (flatpickrInstances['eventStart']) {
-                    flatpickrInstances['eventStart'].setDate(eventStart);
-                } else {
-                    document.getElementById('eventStart').value = eventStart ? new Date(eventStart).toISOString().slice(0, 16) : '';
-                }
-                if (flatpickrInstances['eventEnd']) {
-                    flatpickrInstances['eventEnd'].setDate(eventEnd);
-                } else {
-                    document.getElementById('eventEnd').value = eventEnd ? new Date(eventEnd).toISOString().slice(0, 16) : '';
-                }
-                
-                document.getElementById('eventAmount').value = eventData.amount ?? '0.00'; // Changed to ??
-                document.getElementById('eventCompany').value = eventData.company ?? 'N/A'; // Changed to ?? 'N/A'
-                
-                populateLeadDropdowns('eventLeadId', eventData.lead_id); // Populate and select lead
-
-                openModal('addEventModal'); // Use the addEventModal for editing
-            }
+    function populateLeadDropdowns(leads) {
+        const eventLeadSelect = document.getElementById('eventLeadId');
+        if (!eventLeadSelect) return;
+        eventLeadSelect.innerHTML = '<option value="">-- No Lead --</option>'; // Default option
+        leads.forEach(lead => {
+            const option = document.createElement('option');
+            option.value = lead.id;
+            option.textContent = `${lead.full_name} (${lead.company || 'N/A'})`;
+            eventLeadSelect.appendChild(option);
         });
-        calendarInstance.render();
-        console.log("Dashboard.js: FullCalendar initialized and rendered.");
+    }
+    
+    /**
+     * Updates the stat cards on the overview page.
+     */
+    function updateOverviewStats() {
+        const totalLeadsCount = document.getElementById('totalLeadsCount');
+        if (totalLeadsCount) totalLeadsCount.textContent = allLeads.length;
+
+        const totalExpensesAmount = document.getElementById('totalExpensesAmount');
+        if (totalExpensesAmount) {
+            const total = currentExpenditureData.reduce((sum, item) => sum + parseFloat(item.amount), 0);
+            totalExpensesAmount.textContent = total.toLocaleString('en-KE', { style: 'currency', currency: 'KES' });
+        }
+        
+        const upcomingEventsCount = document.getElementById('upcomingEventsCount');
+        if (upcomingEventsCount) {
+            const now = new Date();
+            const upcoming = calendarEventsData.filter(event => new Date(event.start) > now);
+            upcomingEventsCount.textContent = upcoming.length;
+        }
     }
 
-    /**
-     * Updates the lead statistics cards.
-     * @param {Array} leads - Array of lead objects.
-     */
-    function updateLeadStatistics(leads) {
-        document.getElementById('totalLeadsCount').textContent = leads.length;
-        document.getElementById('prospectingLeadsCount').textContent = leads.filter(l => l.stage === 'Prospecting').length;
-        document.getElementById('negotiationLeadsCount').textContent = leads.filter(l => l.stage === 'Negotiation').length;
-        document.getElementById('closedWonLeadsCount').textContent = leads.filter(l => l.stage === 'Closed Won').length;
-        document.getElementById('closedLostLeadsCount').textContent = leads.filter(l => l.stage === 'Closed Lost').length;
-        document.getElementById('totalFollowupsCount').textContent = leads.filter(l => l.nextFollowUp && new Date(l.nextFollowUp) >= new Date()).length;
-        console.log("Dashboard.js: Lead statistics updated.");
-    }
+    // Chart.js instance for the overview chart
+    let leadsAndExpenditureChart;
 
     /**
-     * Updates the Leads by Stage Chart.
-     * @param {Array} leads - Array of lead objects.
+     * Renders the leads and expenditure chart.
      */
-    let leadsByStageChartInstance = null;
-    function updateLeadsByStageChart(leads) {
-        const ctx = document.getElementById('leadsByStageChart').getContext('2d');
-        const stageCounts = leads.reduce((acc, lead) => {
-            acc[lead.stage] = (acc[lead.stage] ?? 0) + 1; // Changed to ??
-            return acc;
-        }, {});
-
-        const labels = Object.keys(stageCounts);
-        const data = Object.values(stageCounts);
-
-        if (leadsByStageChartInstance) {
-            leadsByStageChartInstance.destroy(); // Destroy existing chart instance
+    function renderLeadsAndExpenditureChart() {
+        const ctx = document.getElementById('leadsAndExpenditureChart')?.getContext('2d');
+        if (!ctx) return;
+        
+        // Destroy old chart instance if it exists
+        if (leadsAndExpenditureChart) {
+            leadsAndExpenditureChart.destroy();
         }
 
-        leadsByStageChartInstance = new Chart(ctx, {
-            type: 'doughnut',
+        const dates = [...new Set([
+            ...currentLeadsData.map(l => new Date(l.created_at).toISOString().split('T')[0]),
+            ...currentExpenditureData.map(e => new Date(e.date).toISOString().split('T')[0])
+        ])].sort();
+
+        const leadsByDay = dates.map(date => currentLeadsData.filter(l => new Date(l.created_at).toISOString().split('T')[0] === date).length);
+        const expensesByDay = dates.map(date => currentExpenditureData.filter(e => new Date(e.date).toISOString().split('T')[0] === date).reduce((sum, e) => sum + parseFloat(e.amount), 0));
+        
+        leadsAndExpenditureChart = new Chart(ctx, {
+            type: 'line',
             data: {
-                labels: labels,
+                labels: dates,
                 datasets: [{
-                    data: data,
-                    backgroundColor: [
-                        '#4CAF50', '#2196F3', '#FFCA28', '#EF5350', '#9E9E9E', '#795548' // Custom colors
-                    ],
-                    hoverOffset: 4
+                    label: 'New Leads',
+                    data: leadsByDay,
+                    borderColor: 'rgb(75, 192, 192)',
+                    tension: 0.1,
+                    yAxisID: 'y'
+                }, {
+                    label: 'Daily Expenditure (KSh)',
+                    data: expensesByDay,
+                    borderColor: 'rgb(255, 99, 132)',
+                    tension: 0.1,
+                    yAxisID: 'y1'
                 }]
             },
             options: {
                 responsive: true,
-                maintainAspectRatio: false,
+                interaction: {
+                    mode: 'index',
+                    intersect: false,
+                },
+                stacked: false,
                 plugins: {
-                    legend: {
-                        position: 'right',
-                        labels: {
-                            font: {
-                                size: 12,
-                                family: 'Segoe UI'
-                            }
+                    title: {
+                        display: true,
+                        text: 'Leads & Expenditure Over Time'
+                    }
+                },
+                scales: {
+                    y: {
+                        type: 'linear',
+                        display: true,
+                        position: 'left',
+                        title: {
+                            display: true,
+                            text: 'Number of Leads'
                         }
                     },
-                    title: {
-                        display: false,
-                        text: 'Leads by Stage'
-                    }
+                    y1: {
+                        type: 'linear',
+                        display: true,
+                        position: 'right',
+                        grid: {
+                            drawOnChartArea: false, // only want the grid lines for the first y-axis
+                        },
+                        title: {
+                            display: true,
+                            text: 'Amount (KSh)'
+                        }
+                    },
                 }
             }
         });
-        console.log("Dashboard.js: Leads by Stage Chart updated.");
     }
 
     /**
-     * Updates the upcoming follow-ups list.
-     * @param {Array} leads - Array of lead objects.
+     * Initializes the FullCalendar instance.
      */
-    function updateUpcomingFollowUps(leads) {
-        const listContainer = document.getElementById('upcomingFollowUpsList');
-        if (!listContainer) {
-            console.error("Dashboard.js: Upcoming follow-ups list container not found.");
-            return;
-        }
-        listContainer.innerHTML = ''; // Clear existing items
-
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // Normalize to start of day
-
-        const upcoming = leads.filter(lead => {
-            if (!lead.nextFollowUp) return false;
-            const followUpDate = new Date(lead.nextFollowUp);
-            followUpDate.setHours(0, 0, 0, 0);
-            return followUpDate >= today;
-        }).sort((a, b) => new Date(a.nextFollowUp) - new Date(b.nextFollowUp)); // Sort by date
-
-        if (upcoming.length === 0) {
-            listContainer.innerHTML = '<p class="text-muted" style="text-align: center;">No upcoming follow-ups.</p>';
-            console.log("Dashboard.js: No upcoming follow-ups.");
-            return;
-        }
-
-        const ul = document.createElement('ul');
-        ul.className = 'upcoming-followups-list';
-        upcoming.forEach(lead => {
-            const li = document.createElement('li');
-            li.innerHTML = `
-                <span class="lead-name">${lead.fullName}</span>
-                <span class="followup-details">Follow-up: ${lead.nextFollowUp}</span>
-                <span class="followup-details">Stage: ${lead.stage}</span>
-            `;
-            ul.appendChild(li);
-        });
-        listContainer.appendChild(ul);
-        console.log("Dashboard.js: Upcoming follow-ups list updated.");
-    }
-
-    /**
-     * Calculates and displays total expenditure.
-     * @param {Array} reportData - Array of expenditure report items.
-     */
-    function calculateTotalExpenditure(reportData) {
-        const totalElement = document.getElementById('totalExpenditureSummary');
-        if (!totalElement) {
-            console.error("Dashboard.js: Total expenditure summary element not found.");
-            return;
-        }
-        const total = reportData.reduce((sum, item) => sum + item.amount, 0);
-        totalElement.textContent = `Total Expenditure: KSh ${total.toFixed(2)}`;
-    }
-
-    /**
-     * Populates lead dropdowns in modals.
-     * @param {string} dropdownId - The ID of the select element.
-     * @param {number} [selectedLeadId=null] - Optional ID of the lead to pre-select.
-     */
-    function populateLeadDropdowns(dropdownId, selectedLeadId = null) {
-        const dropdown = document.getElementById(dropdownId);
-        if (!dropdown) {
-            console.warn(`Dashboard.js: Lead dropdown with ID ${dropdownId} not found.`);
-            return;
-        }
+    function initCalendar() {
+        const calendarEl = document.getElementById('calendar');
+        if (!calendarEl) return;
         
-        // Clear existing options, but keep the default "Select Lead" option
-        dropdown.innerHTML = '<option value="">-- Select Lead (Optional) --</option>'; 
-
-        if (allLeads.length === 0) {
-            console.warn(`Dashboard.js: allLeads array is empty, cannot populate dropdown ${dropdownId}.`);
-            return;
+        // Check if a calendar instance already exists and destroy it to prevent duplicates
+        if (calendarInstance) {
+            calendarInstance.destroy();
         }
 
-        allLeads.forEach(lead => {
-            const option = document.createElement('option');
-            option.value = lead.id;
-            option.textContent = `${lead.fullName}`; 
-            if (selectedLeadId && lead.id === selectedLeadId) {
-                option.selected = true;
+        calendarInstance = new FullCalendar.Calendar(calendarEl, {
+            initialView: 'dayGridMonth',
+            events: calendarEventsData,
+            headerToolbar: {
+                left: 'prev,next today',
+                center: 'title',
+                right: 'dayGridMonth,dayGridWeek,dayGridDay'
+            },
+            dateClick: (info) => {
+                // You can add logic here to open a modal for adding events
+                console.log('Date clicked:', info.dateStr);
+                // For now, let's just pre-fill the form with the date
+                document.getElementById('eventStartDate').value = info.dateStr + ' 09:00';
+            },
+            eventClick: (info) => {
+                // Logic to show event details or edit it
+                console.log('Event clicked:', info.event.title);
+            },
+            eventDidMount: (info) => {
+                // Add tooltip on hover
+                const eventTooltip = document.createElement('div');
+                eventTooltip.classList.add('calendar-tooltip');
+                eventTooltip.innerHTML = `
+                    <strong>${info.event.title}</strong>
+                    <p>Start: ${new Date(info.event.start).toLocaleString()}</p>
+                    ${info.event.end ? `<p>End: ${new Date(info.event.end).toLocaleString()}</p>` : ''}
+                `;
+                document.body.appendChild(eventTooltip);
+
+                info.el.addEventListener('mouseenter', () => {
+                    const rect = info.el.getBoundingClientRect();
+                    eventTooltip.style.display = 'block';
+                    eventTooltip.style.left = `${rect.left + window.scrollX}px`;
+                    eventTooltip.style.top = `${rect.bottom + window.scrollY + 5}px`;
+                });
+                info.el.addEventListener('mouseleave', () => {
+                    eventTooltip.style.display = 'none';
+                });
             }
-            dropdown.appendChild(option);
         });
-        console.log(`Dashboard.js: Lead dropdown ${dropdownId} populated.`);
+        calendarInstance.render();
     }
 
-    // --- Form Submission Handlers ---
+    /**
+     * Updates the FullCalendar instance with new events data.
+     * @param {Array<object>} events - The new events data.
+     */
+    function updateCalendarEvents(events) {
+        if (calendarInstance) {
+            calendarInstance.removeAllEvents();
+            calendarInstance.addEventSource(events.map(event => ({
+                ...event,
+                id: event.id,
+                title: event.title,
+                start: event.start,
+                end: event.end,
+                backgroundColor: 'var(--secondary-color)', // Example styling
+                borderColor: 'var(--secondary-color)',
+            })));
+        }
+    }
 
-    // Add Lead Form
-    document.getElementById('addLeadForm')?.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        showLoading();
 
+    // --- Event Listeners and Form Submission Handlers ---
+
+    // Navigation and View switching
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', function(e) {
+            e.preventDefault();
+            document.querySelector('.nav-link.active')?.classList.remove('active');
+            this.classList.add('active');
+            
+            const viewId = this.getAttribute('data-view');
+            document.querySelectorAll('.view-content').forEach(view => {
+                view.classList.remove('active');
+            });
+            document.getElementById(viewId)?.classList.add('active');
+
+            // Trigger specific functions when a view is activated
+            if (viewId === 'calendar-view') {
+                initCalendar();
+            }
+        });
+    });
+
+    // Mobile Navigation
+    document.getElementById('hamburger')?.addEventListener('click', () => {
+        document.getElementById('sidebar')?.classList.toggle('active');
+        document.getElementById('mainContent')?.classList.toggle('expanded');
+    });
+
+    // Lead Form Submission
+    document.getElementById('addLeadForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
         const formData = new FormData(this);
         const leadData = {
             full_name: formData.get('full_name'),
             email: formData.get('email'),
             phone: formData.get('phone'),
-            stage: formData.get('stage'),
-            source: formData.get('source'),
-            notes: formData.get('notes'),
-            last_follow_up: formData.get('last_follow_up') ?? null, // Changed to ??
-            next_follow_up: formData.get('next_follow_up') ?? null // Changed to ??
+            company: formData.get('company'),
+            status: formData.get('status'),
+            created_at: new Date()
         };
-
-        try {
-            const response = await fetch('/api/leads', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(leadData)
-            });
-            const result = await response.json();
-            if (response.ok) {
-                showMessage(result.message, 'success');
-                closeModal('addLeadModal');
-                fetchLeads(); // Refresh leads data
-            } else {
-                showMessage(`Error: ${result.message}`, 'error');
-            }
-        } catch (error) {
-            console.error("Dashboard.js: Error adding lead:", error);
-            showMessage(`Network error: ${error.message}`, 'error');
-        } finally {
-            hideLoading();
-        }
+        addLead(leadData);
+        this.reset();
     });
-
-    // Edit Lead Form
-    document.getElementById('editLeadForm')?.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        showLoading();
-
-        const leadId = document.getElementById('editLeadId').value;
-        const formData = new FormData(this);
-        const leadData = {
-            id: leadId,
-            full_name: formData.get('full_name'),
-            email: formData.get('email'),
-            phone: formData.get('phone'),
-            stage: formData.get('stage'),
-            source: formData.get('source'),
-            notes: formData.get('notes'),
-            last_follow_up: formData.get('last_follow_up') ?? null, // Changed to ??
-            next_follow_up: formData.get('next_follow_up') ?? null // Changed to ??
-        };
-
-        try {
-            const response = await fetch('/api/leads', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(leadData)
-            });
-            const result = await response.json();
-            if (response.ok) {
-                showMessage(result.message, 'success');
-                closeModal('editLeadModal');
-                fetchLeads(); // Refresh leads data
-            } else {
-                showMessage(`Error: ${result.message}`, 'error');
-            }
-        } catch (error) {
-            console.error("Dashboard.js: Error updating lead:", error);
-            showMessage(`Network error: ${error.message}`, 'error');
-        } finally {
-            hideLoading();
-        }
-    });
-
-    // Add Expenditure Form
-    document.getElementById('addExpenditureForm')?.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        showLoading();
-
+    
+    // Expenditure Form Submission
+    document.getElementById('addExpenditureForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
         const formData = new FormData(this);
         const expenditureData = {
-            date: formData.get('date'),
+            date: new Date(formData.get('date')),
             type_category: formData.get('type_category'),
             description: formData.get('description'),
-            amount: parseFloat(formData.get('amount')),
-            lead_id: formData.get('lead_id') ?? null, // Changed to ??
-            company: formData.get('company') ?? null // Changed to ??
+            amount: parseFloat(formData.get('amount'))
         };
-
-        try {
-            const response = await fetch('/api/expenditure', { // Using a new endpoint for combined expenditure
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(expenditureData)
-            });
-            const result = await response.json();
-            if (response.ok) {
-                showMessage(result.message, 'success');
-                closeModal('addExpenditureModal');
-                fetchExpenditureReport(); // Refresh report
-                fetchCalendarEvents(); // Refresh calendar if it was a calendar-based expense
-            } else {
-                showMessage(`Error: ${result.message}`, 'error');
-            }
-        } catch (error) {
-            console.error("Dashboard.js: Error adding expenditure:", error);
-            showMessage(`Network error: ${error.message}`, 'error');
-        } finally {
-            hideLoading();
-        }
+        addExpenditure(expenditureData);
+        this.reset();
     });
-
-    // Edit Expenditure Form
-    document.getElementById('editExpenditureForm')?.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        showLoading();
-
-        const expenditureId = document.getElementById('editExpenditureId').value;
-        const formData = new FormData(this);
-        const expenditureData = {
-            id: expenditureId,
-            date: formData.get('date'),
-            type_category: formData.get('type_category'),
-            description: formData.get('description'),
-            amount: parseFloat(formData.get('amount')),
-            lead_id: formData.get('lead_id') ?? null, // Changed to ??
-            company: formData.get('company') ?? null // Changed to ??
-        };
-
-        try {
-            const response = await fetch('/api/expenditure', { // Using a new endpoint for combined expenditure
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(expenditureData)
-            });
-            const result = await response.json();
-            if (response.ok) {
-                showMessage(result.message, 'success');
-                closeModal('editExpenditureModal');
-                fetchExpenditureReport(); // Refresh report
-                fetchCalendarEvents(); // Refresh calendar if it was a calendar-based expense
-            } else {
-                showMessage(`Error: ${result.message}`, 'error');
-            }
-        } catch (error) {
-            console.error("Dashboard.js: Error updating expenditure:", error);
-            showMessage(`Network error: ${error.message}`, 'error');
-        } finally {
-            hideLoading();
-        }
-    });
-
-    // Add Event Form (for Calendar)
-    document.getElementById('addEventForm')?.addEventListener('submit', async function(event) {
-        event.preventDefault();
-        showLoading();
-
+    
+    // Event Form Submission
+    document.getElementById('addEventForm')?.addEventListener('submit', function(e) {
+        e.preventDefault();
         const formData = new FormData(this);
         const eventData = {
-            id: formData.get('id') ?? null, // Changed to ??
             title: formData.get('title'),
-            start: formData.get('start_time'),
-            end: formData.get('end_time') ?? null, // Changed to ??
-            lead_id: formData.get('lead_id') ?? null, // Changed to ??
-            amount: parseFloat(formData.get('amount')) ?? 0.00, // Changed to ??
-            company: formData.get('company') ?? null // Changed to ??
+            start: new Date(formData.get('start_date')),
+            end: formData.get('end_date') ? new Date(formData.get('end_date')) : null,
+            lead_id: formData.get('lead_id') || null,
+            amount: parseFloat(formData.get('amount')) || 0
         };
+        addCalendarEvent(eventData);
+        this.reset();
+    });
 
-        const method = eventData.id ? 'PUT' : 'POST';
-        const url = '/api/calendar_events'; // ID passed in body for PUT
+    // Dynamic Deletion for tables
+    document.addEventListener('click', function(event) {
+        const target = event.target.closest('.delete-btn');
+        if (target) {
+            const itemId = target.dataset.id;
+            const itemType = target.dataset.type;
+            let collectionPath;
 
-        try {
-            const response = await fetch(url, {
-                method: method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(eventData)
-            });
-            const result = await response.json();
-            if (response.ok) {
-                showMessage(result.message, 'success');
-                closeModal('addEventModal'); // Use the correct modal ID
-                fetchCalendarEvents(); // Refresh calendar events
-                fetchExpenditureReport(); // Refresh expenditure if event had amount
+            if (itemType === 'lead') {
+                collectionPath = `artifacts/${__app_id}/users/${userId}/leads`;
+            } else if (itemType === 'expenditure') {
+                collectionPath = `artifacts/${__app_id}/users/${userId}/expenditure`;
             } else {
-                showMessage(`Error: ${result.message}`, 'error');
+                return;
             }
-        } catch (error) {
-            console.error("Dashboard.js: Error adding/updating event:", error);
-            showMessage(`Network error: ${error.message}`, 'error');
-        } finally {
-            hideLoading();
+            // Use a custom modal for confirmation instead of alert()
+            const isConfirmed = confirm(`Are you sure you want to delete this ${itemType}?`);
+            if (isConfirmed) {
+                deleteDocument(collectionPath, itemId);
+            }
         }
     });
 
+    // Flatpickr for date inputs
+    flatpickr(".datetime-picker", {
+        enableTime: true,
+        dateFormat: "Y-m-d H:i",
+    });
 
-    // --- Action Listeners for Tables ---
+    flatpickr("#expenditureDate", {
+        dateFormat: "Y-m-d",
+    });
 
-    /**
-     * Attaches event listeners for edit and delete buttons on the leads table.
-     */
-    function attachLeadActionListeners() {
-        document.querySelectorAll('.edit-lead-btn').forEach(button => {
-            button.onclick = async function() {
-                const leadId = this.dataset.id;
-                showLoading();
-                try {
-                    const response = await fetch(`/api/leads?id=${leadId}`);
-                    if (!response.ok) throw new Error('Failed to fetch lead for editing');
-                    const lead = (await response.json())[0]; // API returns array, get first item
-                    
-                    // Populate edit modal fields
-                    document.getElementById('editLeadId').value = lead.id;
-                    document.getElementById('editLeadFullName').value = lead.full_name ?? 'N/A'; // Changed to ?? 'N/A'
-                    document.getElementById('editLeadEmail').value = lead.email ?? 'N/A'; // Changed to ?? 'N/A'
-                    document.getElementById('editLeadPhone').value = lead.phone ?? 'N/A'; // Changed to ?? 'N/A'
-                    document.getElementById('editLeadStage').value = lead.stage ?? 'N/A'; // Changed to ?? 'N/A'
-                    document.getElementById('editLeadSource').value = lead.source ?? 'N/A'; // Changed to ?? 'N/A'
-                    document.getElementById('editLeadNotes').value = lead.notes ?? 'N/A'; // Changed to ?? 'N/A'
-                    
-                    // Flatpickr instances need to be updated
-                    if (flatpickrInstances['editLeadLastFollowUp']) {
-                        flatpickrInstances['editLeadLastFollowUp'].setDate(lead.last_follow_up);
-                    } else {
-                        document.getElementById('editLeadLastFollowUp').value = lead.last_follow_up ?? 'N/A'; // Changed to ?? 'N/A'
-                    }
-                    if (flatpickrInstances['editLeadNextFollowUp']) {
-                        flatpickrInstances['editLeadNextFollowUp'].setDate(lead.next_follow_up);
-                    } else {
-                        document.getElementById('editLeadNextFollowUp').value = lead.next_follow_up ?? 'N/A'; // Changed to ?? 'N/A'
-                    }
-
-                    openModal('editLeadModal');
-                } catch (error) {
-                    console.error("Dashboard.js: Error fetching lead for edit:", error);
-                    showMessage(`Error fetching lead: ${error.message}`, 'error');
-                } finally {
-                    hideLoading();
-                }
-            };
-        });
-
-        document.querySelectorAll('.delete-lead-btn').forEach(button => {
-            button.onclick = async function() {
-                const leadId = this.dataset.id;
-                if (confirm('Are you sure you want to delete this lead?')) { // Using confirm for simplicity
-                    showLoading();
-                    try {
-                        const response = await fetch(`/api/leads?id=${leadId}`, { method: 'DELETE' });
-                        const result = await response.json();
-                        if (response.ok) {
-                            showMessage(result.message, 'success');
-                            fetchLeads(); // Refresh leads
-                            fetchCalendarEvents(); // Refresh calendar as events might be linked
-                            fetchExpenditureReport(); // Refresh expenditure as expenses might be linked
-                        } else {
-                            showMessage(`Error: ${result.message}`, 'error');
-                        }
-                    } catch (error) {
-                        console.error("Dashboard.js: Error deleting lead:", error);
-                        showMessage(`Network error: ${error.message}`, 'error');
-                    } finally {
-                        hideLoading();
-                    }
-                }
-            };
-        });
-    }
-
-    /**
-     * Attaches event listeners for edit and delete buttons on the expenditure table.
-     */
-    function attachExpenditureActionListeners() {
-        document.querySelectorAll('.edit-expense-btn').forEach(button => {
-            button.onclick = async function() {
-                const itemId = this.dataset.id;
-                const sourceTable = this.dataset.source; // 'general_expenses' or 'calendar_events'
-                showLoading();
-                try {
-                    let item;
-                    if (sourceTable === 'general_expenses') {
-                        // For general expenses, fetch from the specific endpoint
-                        const response = await fetch(`/api/general_expenses?id=${itemId}`); 
-                        if (!response.ok) throw new Error('Failed to fetch general expense for editing');
-                        item = (await response.json())[0];
-                        // Populate edit expenditure modal with general expense data
-                        document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.date ?? 'N/A'; // Changed to ?? 'N/A'
-                        document.getElementById('editExpenditureType').value = item.type_category ?? 'General Expense'; // Changed to ??
-                        document.getElementById('editExpenditureDescription').value = item.description ?? 'N/A'; // Changed to ?? 'N/A'
-                        document.getElementById('editExpenditureAmount').value = item.amount ?? '0.00'; // Changed to ??
-                        populateLeadDropdowns('editExpenditureLeadId', item.lead_id); // Populate and select lead
-                        document.getElementById('editExpenditureCompany').value = item.company ?? 'N/A'; // Changed to ?? 'N/A'
-                        openModal('editExpenditureModal');
-                    } else if (sourceTable === 'calendar_events') {
-                        // For calendar events (which can also be expenditures), fetch from calendar events endpoint
-                        const response = await fetch(`/api/calendar_events?id=${itemId}`); 
-                        if (!response.ok) throw new Error('Failed to fetch calendar event for editing');
-                        item = (await response.json())[0];
-                        // Populate edit expenditure modal with calendar event data
-                        document.getElementById('editExpenditureId').value = item.id;
-                        document.getElementById('editExpenditureDate').value = item.start ? item.start.split('T')[0] : 'N/A'; // Retained || 'N/A' for split check
-                        document.getElementById('editExpenditureType').value = item.extendedProps.type ?? 'N/A'; // Changed to ?? 'N/A'
-                        document.getElementById('editExpenditureDescription').value = item.title ?? 'N/A'; // Changed to ?? 'N/A'
-                        document.getElementById('editExpenditureAmount').value = item.extendedProps.amount ?? '0.00'; // Changed to ??
-                        populateLeadDropdowns('editExpenditureLeadId', item.extendedProps.lead_id);
-                        document.getElementById('editExpenditureCompany').value = item.extendedProps.company ?? 'N/A'; // Changed to ?? 'N/A'
-                        openModal('editExpenditureModal');
-                    }
-                } catch (error) {
-                    console.error("Dashboard.js: Error fetching item for edit:", error);
-                    showMessage(`Error fetching item: ${error.message}`, 'error');
-                } finally {
-                    hideLoading();
-                }
-            };
-        });
-
-        document.querySelectorAll('.delete-expense-btn').forEach(button => {
-            button.onclick = async function() {
-                const itemId = this.dataset.id;
-                const sourceTable = this.dataset.source;
-                if (confirm('Are you sure you want to delete this expenditure record?')) {
-                    showLoading();
-                    try {
-                        let response;
-                        // Use the new /api/expenditure endpoint for deletion
-                        response = await fetch(`/api/expenditure?id=${itemId}&source_table=${sourceTable}`, { method: 'DELETE' });
-
-                        const result = await response.json();
-                        if (response.ok) {
-                            showMessage(result.message, 'success');
-                            fetchExpenditureReport(); // Refresh report
-                            if (sourceTable === 'calendar_events') {
-                                fetchCalendarEvents(); // Also refresh calendar if an event was deleted
-                            }
-                        } else {
-                            showMessage(`Error: ${result.message}`, 'error');
-                        }
-                    } catch (error) {
-                        console.error("Dashboard.js: Error deleting expenditure:", error);
-                        showMessage(`Network error: ${error.message}`, 'error');
-                    } finally {
-                        hideLoading();
-                    }
-                }
-            };
-        });
-    }
-
-
-    // --- Sorting Functionality for Tables ---
-    let sortDirections = {}; // Stores current sort direction for each table
-
-    function enableTableSorting(tableId, dataArray, renderFunction) {
-        const table = document.getElementById(tableId);
-        if (!table) {
-            console.warn(`Table with ID ${tableId} not found for sorting setup.`);
-            return;
-        }
-        const headers = table.querySelectorAll('th[data-sort-by]');
-
-        headers.forEach(header => {
-            header.addEventListener('click', function() {
-                const sortBy = this.dataset.sortBy;
-                let direction = sortDirections[tableId] && sortDirections[tableId].column === sortBy ?
-                                (sortDirections[tableId].direction === 'asc' ? 'desc' : 'asc') : 'asc';
-
-                // Remove existing sort classes and icons
-                headers.forEach(h => {
-                    h.classList.remove('asc', 'desc');
-                    const icon = h.querySelector('i.fas.fa-sort, i.fas.fa-sort-up, i.fas.fa-sort-down');
-                    if (icon) {
-                        icon.classList.remove('fa-sort-up', 'fa-sort-down');
-                        icon.classList.add('fa-sort');
-                    }
-                });
-
-                // Add current sort class and icon
-                this.classList.add(direction);
-                const currentIcon = this.querySelector('i.fas.fa-sort');
-                if (currentIcon) {
-                    currentIcon.classList.remove('fa-sort');
-                    currentIcon.classList.add(direction === 'asc' ? 'fa-sort-up' : 'fa-sort-down');
-                }
-
-
-                // Sort the data array
-                const sortedData = [...dataArray].sort((a, b) => {
-                    const valA = a[sortBy];
-                    const valB = b[sortBy];
-
-                    // Custom handling for 'N/A' to push it to the end
-                    const isNA_A = (valA === null || valA === undefined || String(valA).trim().toUpperCase() === 'N/A');
-                    const isNA_B = (valB === null || valB === undefined || String(valB).trim().toUpperCase() === 'N/A');
-
-                    if (isNA_A && !isNA_B) return direction === 'asc' ? 1 : -1;
-                    if (!isNA_A && isNA_B) return direction === 'asc' ? -1 : 1;
-                    if (isNA_A && isNA_B) return 0; // Both are N/A, maintain relative order
-
-                    // Numeric comparison
-                    if (typeof valA === 'number' && typeof valB === 'number') {
-                        return direction === 'asc' ? valA - valB : valB - valA;
-                    }
-                    // Date comparison
-                    if (sortBy.toLowerCase().includes('date') || sortBy.toLowerCase().includes('followup')) {
-                        const dateA = new Date(valA);
-                        const dateB = new Date(valB);
-                        return direction === 'asc' ? dateA - dateB : dateB - dateA;
-                    }
-                    // String comparison (case-insensitive)
-                    return direction === 'asc' ? String(valA).localeCompare(String(valB)) : String(valB).localeCompare(String(valA));
-                });
-
-                sortDirections[tableId] = { column: sortBy, direction: direction };
-                renderFunction(sortedData);
-            });
-        });
-    }
-
-    // --- Flatpickr Initialization ---
-    const flatpickrInstances = {};
-
-    function initializeFlatpickr(selector, options = {}) {
-        const elements = document.querySelectorAll(selector);
-        elements.forEach(el => {
-            const instance = flatpickr(el, {
-                dateFormat: "Y-m-d",
-                allowInput: true,
-                ...options
-            });
-            flatpickrInstances[el.id] = instance; // Store instance by ID
-        });
-    }
-
-    // Initialize Flatpickr for date inputs in modals
-    initializeFlatpickr('#addLeadForm .flatpickr-input');
-    initializeFlatpickr('#editLeadForm .flatpickr-input');
-    initializeFlatpickr('#addExpenditureForm .flatpickr-input');
-    initializeFlatpickr('#editExpenditureForm .flatpickr-input');
-    // For calendar events, enable time selection
-    initializeFlatpickr('#addEventForm #eventStart', { enableTime: true, dateFormat: "Y-m-d H:i" });
-    initializeFlatpickr('#addEventForm #eventEnd', { enableTime: true, dateFormat: "Y-m-d H:i" });
-
-
-    // Initialize Flatpickr for expenditure date range filter
-    initializeFlatpickr('#expenditureDateRange', {
+    // Date range filter for expenditure
+    const expenditureFilter = flatpickr("#expenditureFilterDateRange", {
         mode: "range",
+        dateFormat: "Y-m-d",
         onChange: function(selectedDates, dateStr, instance) {
             if (selectedDates.length === 2) {
-                const startDate = selectedDates[0].toISOString().split('T')[0];
-                const endDate = selectedDates[1].toISOString().split('T')[0];
-                fetchExpenditureReport(startDate, endDate);
+                const startDate = selectedDates[0];
+                const endDate = selectedDates[1];
+                const filteredData = currentExpenditureData.filter(item => {
+                    const itemDate = new Date(item.date);
+                    return itemDate >= startDate && itemDate <= endDate;
+                });
+                renderExpenditureReportTable(filteredData);
             } else if (selectedDates.length === 0) {
-                // If the range is cleared, fetch all
-                fetchExpenditureReport();
+                // If the range is cleared, show all data
+                renderExpenditureReportTable(currentExpenditureData);
             }
         }
     });
-
-    // --- Initial Data Load & Event Listener Setup ---
-
-    // Initial data load for the default view (Overview)
-    // Other views will fetch data when they become active.
-    fetchLeads(); // Leads data is needed for overview stats and dropdowns
-
-    // Set up sorting listeners on table headers
-    // Using event delegation on the table itself, then checking if the click was on a sortable header.
-    document.getElementById('recentLeadsTable')?.addEventListener('click', function(event) {
-        const targetTh = event.target.closest('th[data-sort-by]');
-        if (targetTh) {
-            enableTableSorting('recentLeadsTable', currentLeadsData, renderLeadsTable);
-            // Manually trigger click on the header to apply sorting if it wasn't already handled by enableTableSorting
-            targetTh.click();
+    
+    // Download CSV
+    document.getElementById('downloadExpenditureReport')?.addEventListener('click', function() {
+        if (!currentExpenditureData.length) {
+            showMessage('No data to export.', 'warning');
+            return;
         }
-    });
 
-    document.getElementById('expenditureReportTable')?.addEventListener('click', function(event) {
-        const targetTh = event.target.closest('th[data-sort-by]');
-        if (targetTh) {
-            enableTableSorting('expenditureReportTable', currentExpenditureData, renderExpenditureReportTable);
-            // Manually trigger click on the header to apply sorting
-            targetTh.click();
-        }
-    });
+        const headers = ["Date", "Type/Category", "Description", "Amount (KSh)"];
+        const dataRows = currentExpenditureData.map(item => [
+            new Date(item.date).toLocaleDateString(),
+            item.type_category,
+            item.description,
+            item.amount
+        ]);
 
-    // Initial view display
-    showView('overview-view');
+        let csvContent = "data:text/csv;charset=utf-8,";
+        csvContent += headers.join(",") + "\n";
+        dataRows.forEach(row => {
+            csvContent += row.join(",") + "\n";
+        });
+
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", "expenditure_report.csv");
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    });
 });
+
