@@ -2,6 +2,7 @@ import os
 from flask import Flask, request, jsonify, render_template, Blueprint, send_from_directory
 import logging
 from dotenv import load_dotenv
+import json  # Import the json library
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -48,8 +49,15 @@ def firebase_config():
         logging.error("Firebase environment variables are not set.")
         return jsonify({"error": "Firebase configuration not available"}), 500
 
+    try:
+        # Parse the JSON string from the environment variable into a Python dictionary
+        firebase_config_dict = json.loads(FIREBASE_CONFIG)
+    except json.JSONDecodeError as e:
+        logging.error(f"Failed to parse FIREBASE_CONFIG JSON: {e}")
+        return jsonify({"error": "Invalid Firebase configuration format"}), 500
+
     config_data = {
-        "firebaseConfig": FIREBASE_CONFIG,
+        "firebaseConfig": firebase_config_dict,
         "initialAuthToken": INITIAL_AUTH_TOKEN
     }
     return jsonify(config_data)
